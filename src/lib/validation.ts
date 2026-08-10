@@ -41,3 +41,17 @@ export function validateBilling(input: Partial<CreateBillingInput>): ValidationE
   if (input.rentAmount !== undefined && input.rentAmount < 0) errors.rentAmount = "validation.billing.rentNegative";
   return errors;
 }
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function validateLogin(input: { email: string; password: string }): ValidationErrors {
+  const errors: ValidationErrors = {};
+  const email = input.email.trim();
+  if (!email) {
+    errors.email = "auth.error.emailRequired";
+  } else if (!EMAIL_PATTERN.test(email)) {
+    errors.email = "auth.error.emailInvalid";
+  }
+  if (!input.password) errors.password = "auth.error.passwordRequired";
+  return errors;
+}

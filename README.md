@@ -39,6 +39,7 @@ pnpm lint
 
 ## Main Features
 
+- **Authentication** — demo login/logout gating the whole app, with a persistent session (see below).
 - **Dashboard** — occupancy summary cards, room status breakdown, recent billing, quick actions.
 - **Rooms** — CRUD, status (available/occupied/maintenance/inactive), room detail with utility rates and billing history.
 - **Tenants** — CRUD, contact/emergency/lease info, current room lookup.
@@ -75,6 +76,23 @@ src/
 
 See [context.md](context.md) for the full architecture, domain model, business rules, and continuation notes for future development.
 
+## Authentication
+
+The app is gated behind a login screen. **This is frontend/demo authentication, not real security** — there is no backend, no password hashing, and no server verifying anything. Login runs entirely in the browser: a demo credential is compared in `src/auth/auth.service.ts`, and on success a user object (no password) is written to `localStorage` under `rental.auth.session`.
+
+This is deliberately architected so it *can* become real: the UI only ever talks to an `AuthProvider` interface (`src/auth/auth.types.ts`) through `useAuth()` — swapping the demo `LocalAuthService` for a `FirebaseAuthService` later means changing one line in `auth.service.ts`, not the login page, the form, the route protection, or the header's account menu. See the "Authentication" section in [context.md](context.md) for the full architecture.
+
+**Do not treat this as production-ready.** Before real deployment: replace it with Firebase Authentication (or a real backend), since anyone can read the demo credential from the frontend source or edit the `localStorage` session by hand.
+
+### Demo Account
+
+```
+Email:    admin@example.com
+Password: admin123
+```
+
+This credential is for local demo purposes only — it's a plaintext constant in the frontend source, not a real account.
+
 ## Localization
 
 **Supported Languages**
@@ -91,7 +109,7 @@ The system was built to make this a translation-file-only change:
 1. Add the new language code to the `Language` union in `src/i18n/types.ts`.
 2. Add `src/i18n/translations/<code>.ts` exporting a dictionary typed `: Translations` — TypeScript will flag any missing key at compile time, so an incomplete translation can't ship.
 3. Register the new dictionary in `src/i18n/index.ts`'s `DICTIONARIES` map.
-4. Add a corresponding button/option to the language switch in `src/components/layout/AppHeader.tsx`.
+4. Add a corresponding button/option to `src/components/common/LanguageSwitch.tsx` (shared by the header and the login page).
 
 No other component needs to change. See [context.md](context.md) for the full localization architecture.
 
@@ -101,7 +119,7 @@ On first load (when `localStorage` has no rooms yet), the app seeds a small set 
 
 ## Current Limitations
 
-- Frontend only — no backend, no authentication, no real database.
+- Frontend only — no backend, no real database. Authentication exists but is demo-only (see Authentication above) — not secure for production.
 - Single property only (no multi-property support).
 - No real PDF generation service — invoice export relies on the browser's native print / "Save as PDF".
 - No automated recurring billing generation or notifications.

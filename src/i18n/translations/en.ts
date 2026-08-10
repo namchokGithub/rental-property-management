@@ -1,6 +1,30 @@
 import type { Translations } from "@/i18n/types";
 
 const en: Translations = {
+  auth: {
+    brandTitle: "Rental Property Management",
+    brandDescription: "Room, tenant, billing and invoice management",
+    loadingSession: "Loading...",
+    login: {
+      title: "Login",
+      description: "Sign in to continue",
+      submit: "Login",
+      loading: "Logging in...",
+    },
+    email: "Email",
+    password: "Password",
+    showPassword: "Show password",
+    hidePassword: "Hide password",
+    error: {
+      emailRequired: "Email is required",
+      emailInvalid: "Invalid email format",
+      passwordRequired: "Password is required",
+      invalidCredentials: "Invalid email or password",
+    },
+    logout: "Logout",
+    logoutSuccess: "Logged out successfully",
+    demoAccountLabel: "Demo account",
+  },
   common: {
     save: "Save",
     saveChanges: "Save Changes",

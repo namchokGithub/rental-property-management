@@ -14,6 +14,10 @@ export function writeCollection<T>(key: string, items: T[]): void {
   localStorage.setItem(PREFIX + key, JSON.stringify(items));
 }
 
+export function readRaw(key: string): string | null {
+  return localStorage.getItem(PREFIX + key);
+}
+
 export function readValue<T>(key: string, fallback: T): T {
   const raw = localStorage.getItem(PREFIX + key);
   if (!raw) return fallback;
@@ -26,6 +30,10 @@ export function readValue<T>(key: string, fallback: T): T {
 
 export function writeValue<T>(key: string, value: T): void {
   localStorage.setItem(PREFIX + key, JSON.stringify(value));
+}
+
+export function removeValue(key: string): void {
+  localStorage.removeItem(PREFIX + key);
 }
 
 export const STORAGE_KEYS = {

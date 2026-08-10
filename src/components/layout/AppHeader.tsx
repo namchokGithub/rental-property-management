@@ -1,10 +1,21 @@
 import { useState } from "react";
 import { useLocation } from "react-router";
-import { Menu, Building2 } from "lucide-react";
+import { toast } from "sonner";
+import { Menu, Building2, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { NavItems } from "@/components/layout/AppSidebar";
+import { LanguageSwitch } from "@/components/common/LanguageSwitch";
 import { useLanguage } from "@/i18n";
+import { useAuth } from "@/auth";
 import { cn } from "@/lib/utils";
 
 const PAGE_TITLE_KEYS: Record<string, string> = {
@@ -16,29 +27,37 @@ const PAGE_TITLE_KEYS: Record<string, string> = {
   "/settings": "settings.title",
 };
 
-function LanguageSwitch() {
-  const { language, setLanguage } = useLanguage();
+function AccountMenu() {
+  const { t } = useLanguage();
+  const { user, logout } = useAuth();
+
+  function handleLogout() {
+    logout();
+    toast.success(t("auth.logoutSuccess"));
+  }
+
+  if (!user) return null;
+
   return (
-    <div className="flex items-center gap-0.5 rounded-md border p-0.5">
-      <Button
-        type="button"
-        size="sm"
-        variant={language === "th" ? "default" : "ghost"}
-        className="h-7 px-2 text-xs"
-        onClick={() => setLanguage("th")}
-      >
-        ไทย
-      </Button>
-      <Button
-        type="button"
-        size="sm"
-        variant={language === "en" ? "default" : "ghost"}
-        className="h-7 px-2 text-xs"
-        onClick={() => setLanguage("en")}
-      >
-        EN
-      </Button>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+          <User className="h-4 w-4" />
+          <span className="sr-only">{user.name}</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel className="flex flex-col">
+          <span className="font-medium">{user.name}</span>
+          <span className="text-xs font-normal text-muted-foreground">{user.email}</span>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleLogout}>
+          <LogOut className="h-4 w-4" />
+          {t("auth.logout")}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -70,6 +89,7 @@ export function AppHeader() {
       </Sheet>
       <h1 className="flex-1 text-lg font-semibold">{title}</h1>
       <LanguageSwitch />
+      <AccountMenu />
     </header>
   );
 }

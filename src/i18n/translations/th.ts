@@ -1,6 +1,30 @@
 import type { Translations } from "@/i18n/types";
 
 const th: Translations = {
+  auth: {
+    brandTitle: "ระบบจัดการห้องเช่า",
+    brandDescription: "ระบบจัดการห้องพัก ผู้เช่า และใบแจ้งชำระ",
+    loadingSession: "กำลังโหลด...",
+    login: {
+      title: "เข้าสู่ระบบ",
+      description: "กรุณาเข้าสู่ระบบเพื่อดำเนินการต่อ",
+      submit: "เข้าสู่ระบบ",
+      loading: "กำลังเข้าสู่ระบบ...",
+    },
+    email: "อีเมล",
+    password: "รหัสผ่าน",
+    showPassword: "แสดงรหัสผ่าน",
+    hidePassword: "ซ่อนรหัสผ่าน",
+    error: {
+      emailRequired: "กรุณากรอกอีเมล",
+      emailInvalid: "รูปแบบอีเมลไม่ถูกต้อง",
+      passwordRequired: "กรุณากรอกรหัสผ่าน",
+      invalidCredentials: "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
+    },
+    logout: "ออกจากระบบ",
+    logoutSuccess: "ออกจากระบบแล้ว",
+    demoAccountLabel: "บัญชีสำหรับทดลอง",
+  },
   common: {
     save: "บันทึก",
     saveChanges: "บันทึกการเปลี่ยนแปลง",

@@ -1,6 +1,30 @@
 export type Language = "th" | "en";
 
 export interface Translations {
+  auth: {
+    brandTitle: string;
+    brandDescription: string;
+    loadingSession: string;
+    login: {
+      title: string;
+      description: string;
+      submit: string;
+      loading: string;
+    };
+    email: string;
+    password: string;
+    showPassword: string;
+    hidePassword: string;
+    error: {
+      emailRequired: string;
+      emailInvalid: string;
+      passwordRequired: string;
+      invalidCredentials: string;
+    };
+    logout: string;
+    logoutSuccess: string;
+    demoAccountLabel: string;
+  };
   common: {
     save: string;
     saveChanges: string;

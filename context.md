@@ -88,6 +88,16 @@ src/i18n/
 
 **Storage key:** `app.language`, holding the raw string `"th"` or `"en"`. Read once on `LanguageProvider` mount (`localStorage.getItem`), written on every `setLanguage()` call. Missing or invalid values fall back to the default (`"th"`).
 
+**Language switch UI:** a shared `LanguageSwitch` component (`src/components/common/LanguageSwitch.tsx`) — two `Button`s ("ไทย" / "EN"), the active one rendered with `variant="default"` and the inactive with `variant="ghost"`. Switching calls `setLanguage()` — no page reload, every mounted component re-renders instantly because they all read `language`/`t` from the same context. Rendered in both `AppHeader` (authenticated app) and `LoginPage` (pre-auth) — the same component, so there is no duplicated language state.
+
+**How to add a new language (e.g. `ja`):**
+1. Add `"ja"` to the `Language` union in `src/i18n/types.ts`.
+2. Create `src/i18n/translations/ja.ts` exporting a default object typed `: Translations` — TypeScript will list every missing key as a compile error, so it's impossible to ship an incomplete dictionary.
+3. Register it in the `DICTIONARIES` map in `src/i18n/index.ts` (`{ en, th, ja }`).
+4. Add a third button (or switch to a `Select`/`DropdownMenu`) to `LanguageSwitch`.
+
+No component outside those four spots needs to change — every feature file only ever calls `t("some.key")`, never references a language literal directly (aside from the switch buttons themselves).
+
 # Search
 
 Every list page (Rooms, Tenants, Billing, Invoices) has a client-side search box between the `PageHeader` and the data table, filtering the already-loaded array in `useMemo` — there is no search API and no state-management library involved.
@@ -100,15 +110,48 @@ Every list page (Rooms, Tenants, Billing, Invoices) has a client-side search box
 
 **Deliberately not searchable:** the Dashboard's "recent billing" table (a top-5 preview, not a full list — search belongs on the Billing page it links to) and the per-room/per-tenant billing history shown inside `RoomDetailSheet`/`TenantDetailSheet` (scoped to a single entity, typically a handful of rows). The Settings page has no list data.
 
-**Language switch UI:** two `Button`s in `AppHeader` ("ไทย" / "EN"), the active one rendered with `variant="default"` and the inactive with `variant="ghost"`. Switching calls `setLanguage()` — no page reload, every mounted component re-renders instantly because they all read `language`/`t` from the same context.
+# Authentication
 
-**How to add a new language (e.g. `ja`):**
-1. Add `"ja"` to the `Language` union in `src/i18n/types.ts`.
-2. Create `src/i18n/translations/ja.ts` exporting a default object typed `: Translations` — TypeScript will list every missing key as a compile error, so it's impossible to ship an incomplete dictionary.
-3. Register it in the `DICTIONARIES` map in `src/i18n/index.ts` (`{ en, th, ja }`).
-4. Add a third button (or switch to a `Select`/`DropdownMenu`) in `AppHeader`'s language switch.
+Demo, frontend-only authentication gating the entire application, architected so the UI never touches `localStorage` directly and doesn't care which backend answers `login()` — a real backend can replace the demo service later without changing any component.
 
-No component outside those four spots needs to change — every feature file only ever calls `t("some.key")`, never references a language literal directly (aside from the switch buttons themselves).
+```
+src/auth/
+  auth.types.ts      # AuthUser, AuthProvider interface, InvalidCredentialsError
+  auth.storage.ts     # session read/write/remove, localStorage-backed, corrupted-data-safe
+  auth.service.ts     # LocalAuthService (implements AuthProvider) — the demo credential check
+  AuthContext.tsx     # AuthProvider (React context/component) + useAuth()
+  index.ts            # barrel: `import { useAuth, AuthProvider } from "@/auth"`
+
+src/components/auth/
+  ProtectedApp.tsx        # isLoading -> AuthLoadingScreen; !isAuthenticated -> LoginPage; else children
+  AuthLoadingScreen.tsx   # centered LoaderCircle, shown while the session is being restored
+
+src/features/auth/
+  LoginPage.tsx   # centered card, branding, LanguageSwitch, LoginForm
+  LoginForm.tsx   # fields, validation, submit, password visibility toggle, demo-credential hint
+```
+
+**Note on naming:** there are deliberately two different things called `AuthProvider` — the React context component in `AuthContext.tsx` (mirrors the existing `LanguageProvider` naming convention) and the `AuthProvider` *interface* in `auth.types.ts` (the swappable-backend contract, named per the migration design). They never need to be imported into the same file, so the name collision is harmless.
+
+**Auth state (`useAuth()`):** `{ user, isAuthenticated, isLoading, login(email, password), logout() }`. `AuthProvider` (the component) restores the session once on mount (the one `useEffect` in the whole auth module — necessary for the loading-state flow, not incidental), then exposes `login`/`logout` that wrap `authService` and update local `useState`. `logout()` is synchronous UX-wise: it clears the user state immediately and fires `authService.logout()` without awaiting, since the local demo logout has nothing to await for.
+
+**Login flow:** `App.tsx` renders `LanguageProvider > AuthProvider > TooltipProvider > ProtectedApp > RouterProvider`. `ProtectedApp` gates at this top level (not via route redirects, since the whole `RouterProvider` — including the standalone `/invoices/:id` print route — simply doesn't mount until authenticated): loading → `AuthLoadingScreen`, unauthenticated → `LoginPage`, else the real app. `TooltipProvider` had to move from `AppLayout` up to `App.tsx` because `LoginForm`'s password-visibility toggle uses `Tooltip` and renders *before* `AppLayout` ever mounts.
+
+**Login form:** email + password, validated via `validateLogin()` in `src/lib/validation.ts` (same field-error-key convention as the other validators, returning `auth.error.*` keys instead of `validation.*` since the login feature's own translation keys were specified that way). Submit is disabled while a login is in flight; wrong credentials show one generic form-level error (`auth.error.invalidCredentials`) — the service never reveals whether the email or the password was the problem.
+
+**Demo account:** `admin@example.com` / `admin123`, hardcoded in `src/auth/auth.service.ts` (`DEMO_EMAIL`/`DEMO_PASSWORD`/`DEMO_USER`). `DEMO_CREDENTIALS_HINT` is exported for the login page's demo-credential hint box (rendered only when `import.meta.env.DEV` is true) — display-only, so the hint text has a single source of truth instead of being duplicated in `LoginForm`.
+
+**Session storage:** key `rental.auth.session` (i.e. `readValue`/`writeValue("auth.session", ...)` through the shared `storage.ts`, which prefixes with `rental.`). Stores only `{ user: { id, name, email, role } }` — never the password, a hash, or any temporary login state. `readSession()` in `auth.storage.ts` treats both invalid JSON and structurally-wrong shapes as corruption: it clears the key via `removeValue` and returns `null` rather than throwing, so a hand-edited or garbage session value degrades to "logged out," never a crash.
+
+**Logout:** clears the auth session only (`removeSession()` / `AuthContext`'s `user` state). Never touches `rental.rooms` / `rental.tenants` / `rental.assignments` / `rental.billing` / `rental.settings` — logout and application data are unrelated storage keys. The account menu (`AccountMenu` inside `AppHeader.tsx`, a `DropdownMenu` behind a `User` icon button) shows the user's name/email and the logout action, and fires the `auth.logoutSuccess` toast itself (the auth layer stays UI-library-agnostic and doesn't import `sonner`).
+
+**Security limitations (demo only, documented so nobody mistakes this for real security):**
+- Everything runs in the browser — there is no server verifying the password.
+- The demo credential is a plaintext constant in the frontend source and bundle; anyone can read it.
+- The `rental.auth.session` localStorage entry can be edited or forged by hand in devtools to "log in" as anyone.
+- This must be replaced by real backend/Firebase Authentication before any production use.
+
+**Future Firebase migration:** implement a `FirebaseAuthService` against the same `AuthProvider` interface (`login`/`logout`/`getCurrentUser`, all `Promise`-returning) and swap the single `export const authService: AuthProvider = new LocalAuthService()` line in `auth.service.ts`. `AuthContext`, `LoginPage`, `LoginForm`, `ProtectedApp`, and the header account menu all depend only on `useAuth()` and never import `auth.service.ts` or `auth.storage.ts` directly, so none of them change.
 
 # Domain Model
 
@@ -139,6 +182,8 @@ No component outside those four spots needs to change — every feature file onl
 
 | Feature | Status | Notes |
 |---|---|---|
+| Authentication (Login/Logout) | Done | Demo-only frontend auth via `AuthProvider`/`useAuth()`; gates the whole app through `ProtectedApp` — see Authentication above |
+| Session Persistence | Done | `rental.auth.session` in `localStorage`; restored on load, survives refresh, safely discarded if corrupted |
 | Dashboard | Done | Summary cards, room status overview, recent billing, quick actions |
 | Rooms | Done | CRUD, detail sheet with billing history, assign/end tenancy, client-side search |
 | Tenants | Done | CRUD, detail sheet, assign/move room, client-side search |
@@ -160,7 +205,7 @@ All defined in `src/data/storage/storage.ts` (`STORAGE_KEYS`), stored under the 
 - `rental.billing`
 - `rental.settings`
 
-Plus one non-domain key: `app.language` (see Localization Architecture), holding `"th"` or `"en"`.
+Plus two non-domain keys: `app.language` (see Localization Architecture), holding `"th"` or `"en"`, and `rental.auth.session` (see Authentication), holding `{ user }` or absent.
 
 # Important Files
 
@@ -178,6 +223,13 @@ Plus one non-domain key: `app.language` (see Localization Architecture), holding
 | `src/lib/currency.ts`, `src/lib/date.ts` | Language-aware THB currency formatting, Thai/English date formatting |
 | `src/lib/search.ts` | `matchesSearch()` — shared case-insensitive substring matcher used by every list page's search filter |
 | `src/components/common/SearchInput.tsx` | Shared search box (shadcn `Input` + `Search` icon) used identically on Rooms/Tenants/Billing/Invoices |
+| `src/components/common/LanguageSwitch.tsx` | Shared ไทย/EN toggle, used in both `AppHeader` and `LoginPage` |
+| `src/auth/auth.types.ts` | `AuthUser`, the swappable `AuthProvider` interface, `InvalidCredentialsError` |
+| `src/auth/auth.storage.ts` | `rental.auth.session` read/write/remove; treats invalid JSON or wrong shape as "logged out", never throws |
+| `src/auth/auth.service.ts` | `LocalAuthService` (demo credential check) — the only file that knows the demo email/password |
+| `src/auth/AuthContext.tsx` | `AuthProvider` (React context) + `useAuth()` — session restore on mount, `login`/`logout` |
+| `src/components/auth/ProtectedApp.tsx` | Top-level auth gate: loading screen / `LoginPage` / the real app |
+| `src/features/auth/LoginPage.tsx`, `LoginForm.tsx` | Login UI — branding, form validation, password visibility toggle, demo-credential hint |
 | `src/i18n/types.ts` | `Language` union, the `Translations` interface (single source of truth for every key) |
 | `src/i18n/index.ts` | `LanguageProvider`, `useLanguage()`, `t()` lookup + `{{param}}` interpolation, dictionary registry |
 | `src/i18n/translations/{en,th}.ts` | The two language dictionaries, each typed `: Translations` |
