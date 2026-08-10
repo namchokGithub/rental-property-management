@@ -1,0 +1,470 @@
+import { useState } from "react";
+import { toast } from "sonner";
+import { Plus, X } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useLanguage } from "@/i18n";
+import { calculateMeterReading, calculateBillingTotals } from "@/lib/calculations";
+import { formatCurrency } from "@/lib/currency";
+import { validateBilling, type ValidationErrors } from "@/lib/validation";
+import type { Room } from "@/types/room";
+import type { Tenant } from "@/types/tenant";
+import type { RoomTenantAssignment } from "@/types/assignment";
+import type { BillingRecord, BillingCharge, CreateBillingInput } from "@/types/billing";
+import type { PropertySettings } from "@/types/settings";
+
+interface BillingFormDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  rooms: Room[];
+  tenants: Tenant[];
+  activeAssignments: RoomTenantAssignment[];
+  settings: PropertySettings;
+  record?: BillingRecord;
+  getLatestByRoomId: (roomId: string) => BillingRecord | undefined;
+  onSubmit: (input: CreateBillingInput) => void;
+}
+
+interface ChargeRow {
+  key: string;
+  name: string;
+  amount: string;
+}
+
+interface FormState {
+  roomId: string;
+  tenantId: string;
+  billingMonth: string;
+  electricityPreviousMeter: string;
+  electricityCurrentMeter: string;
+  electricityRate: string;
+  waterPreviousMeter: string;
+  waterCurrentMeter: string;
+  waterRate: string;
+  rentAmount: string;
+  garbageFee: string;
+  electricityMeterMaintenanceFee: string;
+  waterMeterMaintenanceFee: string;
+  dueDate: string;
+  status: "draft" | "issued";
+  otherCharges: ChargeRow[];
+}
+
+function chargesToRows(charges: BillingCharge[]): ChargeRow[] {
+  return charges.map((c) => ({ key: c.id, name: c.name, amount: String(c.amount) }));
+}
+
+function currentMonth(): string {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function buildFormState(params: {
+  record?: BillingRecord;
+  room?: Room;
+  tenantId?: string;
+  settings: PropertySettings;
+  latest?: BillingRecord;
+}): FormState {
+  const { record, room, tenantId, settings, latest } = params;
+  if (record) {
+    return {
+      roomId: record.roomId,
+      tenantId: record.tenantId ?? "",
+      billingMonth: record.billingMonth,
+      electricityPreviousMeter: String(record.electricity.previousMeter),
+      electricityCurrentMeter: String(record.electricity.currentMeter),
+      electricityRate: String(record.electricity.rate),
+      waterPreviousMeter: String(record.water.previousMeter),
+      waterCurrentMeter: String(record.water.currentMeter),
+      waterRate: String(record.water.rate),
+      rentAmount: String(record.rentAmount),
+      garbageFee: String(record.garbageFee),
+      electricityMeterMaintenanceFee: String(record.electricityMeterMaintenanceFee),
+      waterMeterMaintenanceFee: String(record.waterMeterMaintenanceFee),
+      dueDate: record.dueDate ?? "",
+      status: record.status === "issued" ? "issued" : "draft",
+      otherCharges: chargesToRows(record.otherCharges),
+    };
+  }
+  return {
+    roomId: room?.id ?? "",
+    tenantId: tenantId ?? "",
+    billingMonth: currentMonth(),
+    electricityPreviousMeter: latest ? String(latest.electricity.currentMeter) : "0",
+    electricityCurrentMeter: "0",
+    electricityRate: room ? String(room.electricityRate) : String(settings.defaultElectricityRate),
+    waterPreviousMeter: latest ? String(latest.water.currentMeter) : "0",
+    waterCurrentMeter: "0",
+    waterRate: room ? String(room.waterRate) : String(settings.defaultWaterRate),
+    rentAmount: room ? String(room.monthlyRent) : "0",
+    garbageFee: String(settings.defaultGarbageFee),
+    electricityMeterMaintenanceFee: String(settings.defaultElectricityMeterMaintenanceFee),
+    waterMeterMaintenanceFee: String(settings.defaultWaterMeterMaintenanceFee),
+    dueDate: "",
+    status: "draft",
+    otherCharges: [],
+  };
+}
+
+export function BillingFormDialog({
+  open,
+  onOpenChange,
+  rooms,
+  tenants,
+  activeAssignments,
+  settings,
+  record,
+  getLatestByRoomId,
+  onSubmit,
+}: BillingFormDialogProps) {
+  const { t, language } = useLanguage();
+  const [form, setForm] = useState<FormState>(() => buildFormState({ record, settings }));
+  const [errors, setErrors] = useState<ValidationErrors>({});
+
+  function handleOpenChange(next: boolean) {
+    if (next) {
+      setForm(buildFormState({ record, settings }));
+      setErrors({});
+    }
+    onOpenChange(next);
+  }
+
+  function handleRoomChange(roomId: string) {
+    if (record) {
+      setForm({ ...form, roomId });
+      return;
+    }
+    const room = rooms.find((r) => r.id === roomId);
+    const assignment = activeAssignments.find((a) => a.roomId === roomId);
+    const latest = getLatestByRoomId(roomId);
+    setForm(buildFormState({ room, tenantId: assignment?.tenantId, settings, latest }));
+  }
+
+  function updateCharge(key: string, field: "name" | "amount", value: string) {
+    setForm({
+      ...form,
+      otherCharges: form.otherCharges.map((c) => (c.key === key ? { ...c, [field]: value } : c)),
+    });
+  }
+
+  function addCharge() {
+    setForm({
+      ...form,
+      otherCharges: [...form.otherCharges, { key: crypto.randomUUID(), name: "", amount: "0" }],
+    });
+  }
+
+  function removeCharge(key: string) {
+    setForm({ ...form, otherCharges: form.otherCharges.filter((c) => c.key !== key) });
+  }
+
+  const electricityPreview = calculateMeterReading(
+    Number(form.electricityPreviousMeter) || 0,
+    Number(form.electricityCurrentMeter) || 0,
+    Number(form.electricityRate) || 0
+  );
+  const waterPreview = calculateMeterReading(
+    Number(form.waterPreviousMeter) || 0,
+    Number(form.waterCurrentMeter) || 0,
+    Number(form.waterRate) || 0
+  );
+  const chargesPreview = form.otherCharges.map((c) => ({ amount: Number(c.amount) || 0 }));
+  const totals = calculateBillingTotals({
+    electricityAmount: electricityPreview.amount,
+    waterAmount: waterPreview.amount,
+    rentAmount: Number(form.rentAmount) || 0,
+    garbageFee: Number(form.garbageFee) || 0,
+    electricityMeterMaintenanceFee: Number(form.electricityMeterMaintenanceFee) || 0,
+    waterMeterMaintenanceFee: Number(form.waterMeterMaintenanceFee) || 0,
+    otherCharges: chargesPreview,
+  });
+
+  function handleSubmit() {
+    const input: CreateBillingInput = {
+      roomId: form.roomId,
+      tenantId: form.tenantId || undefined,
+      billingMonth: form.billingMonth,
+      electricityPreviousMeter: Number(form.electricityPreviousMeter) || 0,
+      electricityCurrentMeter: Number(form.electricityCurrentMeter) || 0,
+      electricityRate: Number(form.electricityRate) || 0,
+      waterPreviousMeter: Number(form.waterPreviousMeter) || 0,
+      waterCurrentMeter: Number(form.waterCurrentMeter) || 0,
+      waterRate: Number(form.waterRate) || 0,
+      rentAmount: Number(form.rentAmount) || 0,
+      garbageFee: Number(form.garbageFee) || 0,
+      electricityMeterMaintenanceFee: Number(form.electricityMeterMaintenanceFee) || 0,
+      waterMeterMaintenanceFee: Number(form.waterMeterMaintenanceFee) || 0,
+      otherCharges: form.otherCharges
+        .filter((c) => c.name.trim() !== "")
+        .map((c) => ({ name: c.name.trim(), amount: Number(c.amount) || 0 })),
+      dueDate: form.dueDate || undefined,
+      status: form.status,
+    };
+    const validationErrors = validateBilling(input);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+    onSubmit(input);
+    toast.success(record ? t("billing.updatedToast") : t("billing.createdToast"));
+    onOpenChange(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{record ? t("billing.editBilling") : t("billing.createBilling")}</DialogTitle>
+          <DialogDescription>{t("billing.formDescription")}</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="billing-room">{t("common.room")}</Label>
+              <Select value={form.roomId} onValueChange={handleRoomChange} disabled={Boolean(record)}>
+                <SelectTrigger id="billing-room">
+                  <SelectValue placeholder={t("assignment.selectRoom")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {rooms.map((room) => (
+                    <SelectItem key={room.id} value={room.id}>
+                      {room.roomNumber}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.roomId && <p className="text-xs text-destructive">{t(errors.roomId)}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="billing-tenant">{t("common.tenant")}</Label>
+              <Select value={form.tenantId || "none"} onValueChange={(value) => setForm({ ...form, tenantId: value === "none" ? "" : value })}>
+                <SelectTrigger id="billing-tenant">
+                  <SelectValue placeholder={t("common.noTenant")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t("common.noTenant")}</SelectItem>
+                  {tenants.map((tenant) => (
+                    <SelectItem key={tenant.id} value={tenant.id}>
+                      {tenant.firstName} {tenant.lastName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="billing-month">{t("billing.billingMonth")}</Label>
+              <Input
+                id="billing-month"
+                type="month"
+                value={form.billingMonth}
+                onChange={(e) => setForm({ ...form, billingMonth: e.target.value })}
+              />
+              {errors.billingMonth && <p className="text-xs text-destructive">{t(errors.billingMonth)}</p>}
+            </div>
+          </div>
+
+          <Separator />
+
+          <div>
+            <h4 className="mb-2 text-sm font-semibold">{t("billing.electricitySection")}</h4>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="elec-prev">{t("billing.previousMeter")}</Label>
+                <Input
+                  id="elec-prev"
+                  type="number"
+                  value={form.electricityPreviousMeter}
+                  onChange={(e) => setForm({ ...form, electricityPreviousMeter: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="elec-cur">{t("billing.currentMeter")}</Label>
+                <Input
+                  id="elec-cur"
+                  type="number"
+                  value={form.electricityCurrentMeter}
+                  onChange={(e) => setForm({ ...form, electricityCurrentMeter: e.target.value })}
+                />
+                {errors.electricityCurrentMeter && (
+                  <p className="text-xs text-destructive">{t(errors.electricityCurrentMeter)}</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="elec-rate">{t("billing.rate")}</Label>
+                <Input
+                  id="elec-rate"
+                  type="number"
+                  value={form.electricityRate}
+                  onChange={(e) => setForm({ ...form, electricityRate: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("billing.usageAmount")}</Label>
+                <p className="flex h-9 items-center text-sm text-muted-foreground">
+                  {t("billing.usageAmountPreview", {
+                    usage: electricityPreview.usage,
+                    amount: formatCurrency(electricityPreview.amount, language),
+                  })}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="mb-2 text-sm font-semibold">{t("billing.waterSection")}</h4>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="water-prev">{t("billing.previousMeter")}</Label>
+                <Input
+                  id="water-prev"
+                  type="number"
+                  value={form.waterPreviousMeter}
+                  onChange={(e) => setForm({ ...form, waterPreviousMeter: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="water-cur">{t("billing.currentMeter")}</Label>
+                <Input
+                  id="water-cur"
+                  type="number"
+                  value={form.waterCurrentMeter}
+                  onChange={(e) => setForm({ ...form, waterCurrentMeter: e.target.value })}
+                />
+                {errors.waterCurrentMeter && <p className="text-xs text-destructive">{t(errors.waterCurrentMeter)}</p>}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="water-rate">{t("billing.rate")}</Label>
+                <Input
+                  id="water-rate"
+                  type="number"
+                  value={form.waterRate}
+                  onChange={(e) => setForm({ ...form, waterRate: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("billing.usageAmount")}</Label>
+                <p className="flex h-9 items-center text-sm text-muted-foreground">
+                  {t("billing.usageAmountPreview", {
+                    usage: waterPreview.usage,
+                    amount: formatCurrency(waterPreview.amount, language),
+                  })}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="rent">{t("billing.rentAmount")}</Label>
+              <Input id="rent" type="number" value={form.rentAmount} onChange={(e) => setForm({ ...form, rentAmount: e.target.value })} />
+              {errors.rentAmount && <p className="text-xs text-destructive">{t(errors.rentAmount)}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="due-date">{t("common.dueDate")}</Label>
+              <Input id="due-date" type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="garbage-fee">{t("billing.garbageFee")}</Label>
+              <Input
+                id="garbage-fee"
+                type="number"
+                value={form.garbageFee}
+                onChange={(e) => setForm({ ...form, garbageFee: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="status">{t("common.status")}</Label>
+              <Select value={form.status} onValueChange={(value) => setForm({ ...form, status: value as "draft" | "issued" })}>
+                <SelectTrigger id="status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">{t("status.draft")}</SelectItem>
+                  <SelectItem value="issued">{t("status.issued")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="elec-maint-fee">{t("billing.electricityMaintenanceFee")}</Label>
+              <Input
+                id="elec-maint-fee"
+                type="number"
+                value={form.electricityMeterMaintenanceFee}
+                onChange={(e) => setForm({ ...form, electricityMeterMaintenanceFee: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="water-maint-fee">{t("billing.waterMaintenanceFee")}</Label>
+              <Input
+                id="water-maint-fee"
+                type="number"
+                value={form.waterMeterMaintenanceFee}
+                onChange={(e) => setForm({ ...form, waterMeterMaintenanceFee: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold">{t("billing.otherCharges")}</h4>
+              <Button type="button" variant="outline" size="sm" onClick={addCharge}>
+                <Plus className="h-4 w-4" /> {t("billing.addCharge")}
+              </Button>
+            </div>
+            {form.otherCharges.map((charge) => (
+              <div key={charge.key} className="flex items-center gap-2">
+                <Input
+                  placeholder={t("billing.chargeNamePlaceholder")}
+                  value={charge.name}
+                  onChange={(e) => updateCharge(charge.key, "name", e.target.value)}
+                />
+                <Input
+                  type="number"
+                  className="w-32"
+                  placeholder={t("billing.chargeAmountPlaceholder")}
+                  value={charge.amount}
+                  onChange={(e) => updateCharge(charge.key, "amount", e.target.value)}
+                />
+                <Button type="button" variant="ghost" size="icon" onClick={() => removeCharge(charge.key)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          <Separator />
+
+          <div className="flex items-center justify-between rounded-md bg-muted p-4">
+            <div className="text-sm">
+              <p className="text-muted-foreground">{t("billing.subtotalLine", { amount: formatCurrency(totals.subtotal, language) })}</p>
+              <p className="text-lg font-semibold">{t("billing.totalLine", { amount: formatCurrency(totals.total, language) })}</p>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {t("common.cancel")}
+          </Button>
+          <Button onClick={handleSubmit}>{record ? t("common.saveChanges") : t("billing.createBilling")}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
