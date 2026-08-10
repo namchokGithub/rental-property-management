@@ -139,7 +139,7 @@ src/features/auth/
 
 **Login form:** email + password, validated via `validateLogin()` in `src/lib/validation.ts` (same field-error-key convention as the other validators, returning `auth.error.*` keys instead of `validation.*` since the login feature's own translation keys were specified that way). Submit is disabled while a login is in flight; wrong credentials show one generic form-level error (`auth.error.invalidCredentials`) — the service never reveals whether the email or the password was the problem.
 
-**Demo account:** `admin@example.com` / `admin123`, hardcoded in `src/auth/auth.service.ts` (`DEMO_EMAIL`/`DEMO_PASSWORD`/`DEMO_USER`). `DEMO_CREDENTIALS_HINT` is exported for the login page's demo-credential hint box (rendered only when `import.meta.env.DEV` is true) — display-only, so the hint text has a single source of truth instead of being duplicated in `LoginForm`.
+**Demo account:** `admin@email.com` / `admin123`, hardcoded in `src/auth/auth.service.ts` (`DEMO_EMAIL`/`DEMO_PASSWORD`/`DEMO_USER`). `DEMO_CREDENTIALS_HINT` is exported for the login page's demo-credential hint box (rendered only when `import.meta.env.DEV` is true) — display-only, so the hint text has a single source of truth instead of being duplicated in `LoginForm`.
 
 **Session storage:** key `rental.auth.session` (i.e. `readValue`/`writeValue("auth.session", ...)` through the shared `storage.ts`, which prefixes with `rental.`). Stores only `{ user: { id, name, email, role } }` — never the password, a hash, or any temporary login state. `readSession()` in `auth.storage.ts` treats both invalid JSON and structurally-wrong shapes as corruption: it clears the key via `removeValue` and returns `null` rather than throwing, so a hand-edited or garbage session value degrades to "logged out," never a crash.
 
@@ -152,6 +152,61 @@ src/features/auth/
 - This must be replaced by real backend/Firebase Authentication before any production use.
 
 **Future Firebase migration:** implement a `FirebaseAuthService` against the same `AuthProvider` interface (`login`/`logout`/`getCurrentUser`, all `Promise`-returning) and swap the single `export const authService: AuthProvider = new LocalAuthService()` line in `auth.service.ts`. `AuthContext`, `LoginPage`, `LoginForm`, `ProtectedApp`, and the header account menu all depend only on `useAuth()` and never import `auth.service.ts` or `auth.storage.ts` directly, so none of them change.
+
+# Design System
+
+The whole app follows one "clean SaaS admin dashboard" visual language: a soft tinted page background with white/surface cards on top, rounded corners, subtle borders and shadows (never heavy black shadows or glassmorphism), and a purple-led brand palette by default. This is implemented almost entirely as CSS custom properties in `src/index.css` — components consume semantic Tailwind utilities (`bg-primary`, `bg-card`, `text-muted-foreground`, `bg-accent-2`, …) and never hardcode hex colors, so the whole app re-themes from one file. See Theme Architecture below for how those tokens are structured.
+
+**Shared component conventions:**
+- **Cards/surfaces** — `bg-card` (always lighter/whiter than the page's `bg-background`), `rounded-xl`/`rounded-2xl` (via the `--radius` scale), `border`, `shadow-sm`. Dialogs and Sheets use `shadow-xl` for more lift since they float above the page.
+- **Tables** — outer wrapper is its own `bg-card rounded-xl border shadow-sm` surface (see e.g. `RoomTable.tsx`); `TableHeader` (`src/components/ui/table.tsx`) carries a shared `bg-muted/50` shading so every table gets the same "header row is subtly shaded" look for free.
+- **Sidebar** (`AppSidebar.tsx`) — `bg-card` surface distinct from the tinted `bg-background` behind it (so the nav rail always reads as a white/near-white rail); the active nav item is a solid `bg-primary text-primary-foreground` pill, not a light tint — this is themed automatically since `--primary` changes per accent theme.
+- **Header** (`AppHeader.tsx`) — `bg-card`, bottom border only, holds (left→right after the title) `LanguageSwitch`, `ThemeMenu`, `AccountMenu`.
+- **StatusBadge** (`src/components/common/StatusBadge.tsx`) is the one place that deliberately uses literal Tailwind colors (`emerald-100`/`blue-100`/`amber-100`/`slate-100`/`red-100`, each with a `dark:` variant) instead of theme tokens — status meaning (paid=green, overdue=red, draft=neutral, issued=blue) must stay legible and consistent no matter which accent theme or appearance is active.
+- **EmptyState** — icon inside a `bg-accent` circle, `bg-card/60` dashed container; used identically for "no records yet" and "no search results" (see Search below).
+- **SearchInput** (`src/components/common/SearchInput.tsx`) — unchanged by this pass; still just consumes `Input`/`Search` icon, so it automatically re-themes with everything else.
+
+**Dashboard summary cards** are the most visually distinctive spot: 4 of the 6 cards use vivid theme fills (`bg-primary`, `bg-accent-2`, `bg-accent-3`, `bg-accent-4` — see Theme Architecture) with white/ink text depending on light/dark; the other 2 stay plain white cards. This mix (not making every card the same color, and not making every card colorful) is deliberate — see `DashboardPage.tsx`'s `SUMMARY_VARIANT_STYLES`.
+
+**Invoice document stays neutral:** `InvoicePrintView.tsx` (the actual invoice content, shared by the preview dialog and the print page) is hardcoded `bg-white text-black` and never imports theme tokens — it must look the same regardless of the active accent theme or dark mode, since it's meant to be printed on paper. Only the *chrome* around it (the preview dialog's header/buttons, the print page's on-screen toolbar) follows the app theme.
+
+# Theme Architecture
+
+Two independent, persisted dimensions, both implemented as CSS custom properties swapped by attributes on `<html>` — no duplicated Tailwind classes per theme, and no CSS-in-JS.
+
+```
+src/theme/
+  theme.types.ts     # Appearance, AccentTheme unions + defaults + accentThemeTranslationKey()
+  theme.storage.ts   # read/write app.appearance / app.accentTheme, corrupted-value-safe
+  ThemeContext.tsx   # ThemeProvider (React context/component) + useTheme()
+  index.ts           # barrel
+
+src/components/common/
+  ThemeMenu.tsx            # compact header/login dropdown: appearance + accent quick-picker
+  ThemeAccentSwatches.tsx  # renders another theme's 5 chart-color dots via a local data-theme scope
+```
+
+**Appearance** (`"light" | "dark" | "system"`) toggles the `.dark` class on `<html>` — reusing the `@custom-variant dark (&:is(.dark *))` mechanism that was already in `index.css` (previously unreachable, since nothing ever added the class). When appearance is `"system"`, `ThemeContext` resolves it against `window.matchMedia("(prefers-color-scheme: dark)")` and keeps a live listener so the app follows OS theme changes in real time without a refresh. `resolvedAppearance` (always `"light"` or `"dark"`) is what `ThemeMenu`'s trigger icon and any "what's actually rendered" logic should read — `appearance` itself may be `"system"`.
+
+**Accent theme** (`"sky-purple" | "ocean" | "emerald" | "rose"`, default `"sky-purple"`) sets `data-theme="..."` on `<html>`. `src/index.css` defines the neutral tokens (`--background`, `--foreground`, `--card`, `--border`, `--muted`, `--destructive`, `--sidebar*`) once for light (`:root`) and once for dark (`.dark`) — these do **not** vary per accent theme, only per light/dark, matching the "surfaces stay neutral, only the brand hue changes" convention most multi-theme SaaS products use. The accent-carrying tokens (`--primary`, `--secondary`, `--accent`, `--ring`, `--chart-1..5`, `--accent-2/3/4`, `--sidebar-primary`, `--sidebar-accent`) are redefined four times over — `[data-theme="X"]` for light, `.dark[data-theme="X"]` for dark — for each of the four themes. `:root`/`.dark` alone (no attribute selector) hold the Sky Purple values as the fallback, so an unset/invalid `data-theme` still looks correct.
+
+**`--chart-1..5`** hold each theme's *exact* published palette (Sky Purple's are the literal `#4B49AC #98BDFF #7DA0FA #7978E9 #F3797E` from the design brief) — reserved for future chart/legend use and for the swatch previews in `ThemeAccentSwatches`/Settings, so they must stay pixel-accurate.
+
+**`--accent-2/-3/-4`** (+ matching `-foreground`) are a separate set, purpose-built for the Dashboard's vivid stat-card fills: light-mode values are pre-darkened for ~4.5:1+ contrast with white text; dark-mode values are pre-brightened and paired with a dark-ink foreground (`#15151D`) instead of white — light-mode fill+white-text / dark-mode fill+dark-text is the contrast convention used for every accent token in this system, so no component ever has to branch on light vs. dark to pick a readable text color.
+
+**`ThemeAccentSwatches`** renders a theme's 5 chart dots correctly *no matter which theme is currently active on `<html>`* — it puts `data-theme="ocean"` (etc.) on its own wrapper `div`, and since CSS custom properties cascade down from whatever element defines them, that subtree sees Ocean's `--chart-*` values even while the rest of the page is Rose. This is what makes the Settings theme-picker cards (and the header's quick-picker swatch dots) able to preview all 4 themes simultaneously.
+
+**Anti-flash:** `index.html` has a small inline `<script>` before `<title>`'s sibling content that reads `app.appearance`/`app.accentTheme` synchronously and sets the `.dark` class / `data-theme` attribute before React ever mounts — otherwise the app would flash the default theme for one frame on every load. `ThemeContext`'s own effects duplicate this same logic (necessarily — the inline script can't call React state setters), so the two must be kept in sync if the storage format ever changes.
+
+**Persistence:** `app.appearance` and `app.accentTheme`, both unprefixed (no `rental.` prefix) — same convention as `app.language`, since these are UI preferences, not property data. `theme.storage.ts` reads/writes `localStorage` directly (like `LanguageProvider` does) rather than going through the repository `storage.ts` layer, for the same reason. Invalid/missing/corrupted values fall back to their defaults (`"system"` / `"sky-purple"`) safely — never a crash.
+
+**How to add a new accent theme (e.g. `"sunset"`):**
+1. Add `"sunset"` to the `AccentTheme` union in `theme.types.ts` and to the `ACCENT_THEMES` array.
+2. Add a `[data-theme="sunset"] { ... }` block and a `.dark[data-theme="sunset"] { ... }` block to `src/index.css`, defining all of `--primary/-foreground`, `--secondary/-foreground`, `--accent/-foreground`, `--ring`, `--chart-1..5`, `--accent-2/3/4` (+ `-foreground`), `--sidebar-primary/-foreground`, `--sidebar-accent/-foreground`, `--sidebar-ring` — light fills pair with white text, dark fills pair with `#15151D` ink text.
+3. Add `theme.sunset` to `Translations` (`src/i18n/types.ts`) and both dictionaries.
+4. Update the inline anti-flash script's `accent` allow-list in `index.html` if it's meant to be selectable before first paint (it already generically allows anything in that list — just add the new key there too).
+
+No component beyond those four spots needs to change — `ThemeMenu`, the Settings accent cards, and the Dashboard stat cards all just read `ACCENT_THEMES`/tokens generically.
 
 # Domain Model
 
@@ -184,7 +239,9 @@ src/features/auth/
 |---|---|---|
 | Authentication (Login/Logout) | Done | Demo-only frontend auth via `AuthProvider`/`useAuth()`; gates the whole app through `ProtectedApp` — see Authentication above |
 | Session Persistence | Done | `rental.auth.session` in `localStorage`; restored on load, survives refresh, safely discarded if corrupted |
-| Dashboard | Done | Summary cards, room status overview, recent billing, quick actions |
+| Theme System | Done | Appearance (light/dark/system) + 4 accent themes via `useTheme()`; persisted, applies instantly, no flash on load — see Theme Architecture above |
+| Dark Mode | Done | Deep slate/navy neutrals (not pure black); all 4 accent themes have tuned dark variants |
+| Dashboard | Done | Summary cards (theme-driven fills), room status overview, recent billing, quick actions |
 | Rooms | Done | CRUD, detail sheet with billing history, assign/end tenancy, client-side search |
 | Tenants | Done | CRUD, detail sheet, assign/move room, client-side search |
 | Assignments | Done | Exclusive active assignment per room, move-room handling |
@@ -205,7 +262,7 @@ All defined in `src/data/storage/storage.ts` (`STORAGE_KEYS`), stored under the 
 - `rental.billing`
 - `rental.settings`
 
-Plus two non-domain keys: `app.language` (see Localization Architecture), holding `"th"` or `"en"`, and `rental.auth.session` (see Authentication), holding `{ user }` or absent.
+Plus non-domain keys (none `rental.`-prefixed except the auth session, which follows its own established key name): `app.language` (see Localization Architecture) holding `"th"` or `"en"`; `rental.auth.session` (see Authentication) holding `{ user }` or absent; `app.appearance` (see Theme Architecture) holding `"light" | "dark" | "system"`; `app.accentTheme` holding `"sky-purple" | "ocean" | "emerald" | "rose"`.
 
 # Important Files
 
@@ -230,6 +287,12 @@ Plus two non-domain keys: `app.language` (see Localization Architecture), holdin
 | `src/auth/AuthContext.tsx` | `AuthProvider` (React context) + `useAuth()` — session restore on mount, `login`/`logout` |
 | `src/components/auth/ProtectedApp.tsx` | Top-level auth gate: loading screen / `LoginPage` / the real app |
 | `src/features/auth/LoginPage.tsx`, `LoginForm.tsx` | Login UI — branding, form validation, password visibility toggle, demo-credential hint |
+| `src/theme/theme.types.ts` | `Appearance`/`AccentTheme` unions, defaults, `accentThemeTranslationKey()` |
+| `src/theme/theme.storage.ts` | `app.appearance`/`app.accentTheme` read/write, corrupted-value-safe |
+| `src/theme/ThemeContext.tsx` | `ThemeProvider` (React context) + `useTheme()` — resolves `"system"`, applies `.dark`/`data-theme` to `<html>` |
+| `src/components/common/ThemeMenu.tsx` | Compact appearance + accent quick-picker, shared by `AppHeader` and `LoginPage` |
+| `src/components/common/ThemeAccentSwatches.tsx` | Renders any theme's 5 chart-color dots via a locally-scoped `data-theme` override |
+| `index.html` | Inline anti-flash script — applies persisted theme before React mounts |
 | `src/i18n/types.ts` | `Language` union, the `Translations` interface (single source of truth for every key) |
 | `src/i18n/index.ts` | `LanguageProvider`, `useLanguage()`, `t()` lookup + `{{param}}` interpolation, dictionary registry |
 | `src/i18n/translations/{en,th}.ts` | The two language dictionaries, each typed `: Translations` |

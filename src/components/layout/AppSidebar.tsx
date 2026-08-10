@@ -35,9 +35,9 @@ export function NavItems({ onNavigate }: NavItemsProps) {
           onClick={onNavigate}
           className={({ isActive }) =>
             cn(
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
               isActive
-                ? "bg-accent text-accent-foreground"
+                ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
             )
           }
@@ -53,12 +53,14 @@ export function NavItems({ onNavigate }: NavItemsProps) {
 export function AppSidebar() {
   const { t } = useLanguage();
   return (
-    <aside className="hidden md:flex md:w-60 md:flex-col md:border-r md:bg-background">
-      <div className="flex items-center gap-2 px-4 py-4">
-        <Building2 className="h-5 w-5" />
-        <span className="font-semibold">{t("sidebar.brand")}</span>
+    <aside className="hidden md:flex md:w-60 md:flex-col md:border-r md:bg-card">
+      <div className="flex items-center gap-2 px-4 py-5">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <Building2 className="h-4 w-4" />
+        </span>
+        <span className="font-semibold tracking-tight">{t("sidebar.brand")}</span>
       </div>
-      <div className="flex-1 px-2">
+      <div className="flex-1 space-y-1 px-3">
         <NavItems />
       </div>
     </aside>

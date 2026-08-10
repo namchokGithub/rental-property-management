@@ -104,7 +104,7 @@ export function RoomDetailSheet({ open, onOpenChange, room, tenant, assignment, 
             {billingHistory.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t("room.noBillingHistory")}</p>
             ) : (
-              <div className="overflow-x-auto rounded-md border">
+              <div className="overflow-x-auto rounded-lg border">
                 <Table>
                   <TableHeader>
                     <TableRow>

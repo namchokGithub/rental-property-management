@@ -90,17 +90,17 @@ export function LoginForm() {
       </div>
 
       {formError && (
-        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {formError}
         </p>
       )}
 
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
+      <Button type="submit" className="h-10 w-full" disabled={isSubmitting}>
         {isSubmitting ? t("auth.login.loading") : t("auth.login.submit")}
       </Button>
 
       {import.meta.env.DEV && (
-        <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+        <div className="rounded-lg bg-muted/60 p-3 text-xs text-muted-foreground">
           <p className="mb-1 font-medium text-foreground">{t("auth.demoAccountLabel")}</p>
           <p>{DEMO_CREDENTIALS_HINT.email}</p>
           <p>{DEMO_CREDENTIALS_HINT.password}</p>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { Check, Sun, Moon, Monitor } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,9 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/common/PageHeader";
+import { ThemeAccentSwatches } from "@/components/common/ThemeAccentSwatches";
 import { useSettings } from "@/hooks/useSettings";
 import { useLanguage } from "@/i18n";
+import { useTheme, ACCENT_THEMES, APPEARANCES, accentThemeTranslationKey, type Appearance } from "@/theme";
+import { cn } from "@/lib/utils";
 import type { PropertySettings } from "@/types/settings";
+
+const APPEARANCE_ICONS: Record<Appearance, typeof Sun> = { light: Sun, dark: Moon, system: Monitor };
 
 function toFormState(settings: PropertySettings) {
   return {
@@ -29,6 +35,7 @@ export function SettingsPage() {
   const { t } = useLanguage();
   const { settings, updateSettings } = useSettings();
   const [form, setForm] = useState(() => toFormState(settings));
+  const { appearance, accentTheme, setAppearance, setAccentTheme } = useTheme();
 
   function handleSave() {
     updateSettings({
@@ -48,6 +55,68 @@ export function SettingsPage() {
   return (
     <div className="max-w-2xl space-y-6">
       <PageHeader title={t("settings.title")} description={t("settings.description")} />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">{t("settings.theme")}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <p className="text-sm font-medium">{t("settings.appearance")}</p>
+            <div className="grid grid-cols-3 gap-2">
+              {APPEARANCES.map((option) => {
+                const Icon = APPEARANCE_ICONS[option];
+                const isActive = appearance === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setAppearance(option)}
+                    aria-pressed={isActive}
+                    className={cn(
+                      "relative flex flex-col items-center gap-1.5 rounded-lg border p-3 text-sm font-medium transition-colors",
+                      isActive ? "border-primary bg-accent text-accent-foreground" : "border-border hover:bg-accent/50"
+                    )}
+                  >
+                    {isActive && <Check className="absolute right-2 top-2 h-3.5 w-3.5 text-primary" />}
+                    <Icon className="h-5 w-5" />
+                    {t(`theme.${option}`)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium">{t("settings.accentTheme")}</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {ACCENT_THEMES.map((themeOption) => {
+                const isActive = accentTheme === themeOption;
+                return (
+                  <button
+                    key={themeOption}
+                    type="button"
+                    onClick={() => setAccentTheme(themeOption)}
+                    aria-pressed={isActive}
+                    className={cn(
+                      "flex items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors",
+                      isActive ? "border-primary bg-accent/60" : "border-border hover:bg-accent/30"
+                    )}
+                  >
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">{t(accentThemeTranslationKey(themeOption))}</p>
+                      <ThemeAccentSwatches accentTheme={themeOption} />
+                    </div>
+                    {isActive && <Check className="h-4 w-4 shrink-0 text-primary" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

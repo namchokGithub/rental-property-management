@@ -298,6 +298,18 @@ export interface Translations {
     defaultInvoiceNote: string;
     save: string;
     savedToast: string;
+    theme: string;
+    appearance: string;
+    accentTheme: string;
+  };
+  theme: {
+    light: string;
+    dark: string;
+    system: string;
+    skyPurple: string;
+    ocean: string;
+    emerald: string;
+    rose: string;
   };
   validation: {
     room: {

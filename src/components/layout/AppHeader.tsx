@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { NavItems } from "@/components/layout/AppSidebar";
 import { LanguageSwitch } from "@/components/common/LanguageSwitch";
+import { ThemeMenu } from "@/components/common/ThemeMenu";
 import { useLanguage } from "@/i18n";
 import { useAuth } from "@/auth";
 import { cn } from "@/lib/utils";
@@ -41,7 +42,7 @@ function AccountMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full bg-accent text-accent-foreground hover:bg-accent/80">
           <User className="h-4 w-4" />
           <span className="sr-only">{user.name}</span>
         </Button>
@@ -69,12 +70,14 @@ export function AppHeader() {
   const title = titleKey ? t(titleKey) : t("sidebar.brand");
 
   return (
-    <header className={cn("flex items-center gap-3 border-b bg-background px-4 py-3 md:px-6")}>
+    <header className={cn("flex items-center gap-3 border-b bg-card px-4 py-4 md:px-6")}>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="left" className="w-64 p-4">
           <SheetHeader className="p-0">
             <SheetTitle className="flex items-center gap-2 text-base">
-              <Building2 className="h-5 w-5" />
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <Building2 className="h-4 w-4" />
+              </span>
               {t("sidebar.brand")}
             </SheetTitle>
           </SheetHeader>
@@ -87,8 +90,9 @@ export function AppHeader() {
           <span className="sr-only">{t("header.openNavigation")}</span>
         </Button>
       </Sheet>
-      <h1 className="flex-1 text-lg font-semibold">{title}</h1>
+      <h1 className="flex-1 text-lg font-semibold tracking-tight">{title}</h1>
       <LanguageSwitch />
+      <ThemeMenu />
       <AccountMenu />
     </header>
   );

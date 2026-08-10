@@ -5,6 +5,23 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Rental Property Management</title>
+    <script>
+      (function () {
+        try {
+          var appearance = localStorage.getItem("app.appearance");
+          var accent = localStorage.getItem("app.accentTheme");
+          if (["light", "dark", "system"].indexOf(appearance) === -1) appearance = "system";
+          if (["sky-purple", "ocean", "emerald", "rose"].indexOf(accent) === -1) accent = "sky-purple";
+          var isDark =
+            appearance === "dark" ||
+            (appearance === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.classList.toggle("dark", isDark);
+          document.documentElement.setAttribute("data-theme", accent);
+        } catch (e) {
+          /* localStorage unavailable — fall back to default light/sky-purple styles */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

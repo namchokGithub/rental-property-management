@@ -87,7 +87,7 @@ This is deliberately architected so it *can* become real: the UI only ever talks
 ### Demo Account
 
 ```
-Email:    admin@example.com
+Email:    admin@email.com
 Password: admin123
 ```
 

@@ -41,7 +41,7 @@ export function InvoicePrintPage() {
 
   return (
     <div className="min-h-screen bg-muted/30">
-      <div className="no-print flex items-center justify-between gap-2 border-b bg-background p-3">
+      <div className="no-print flex items-center justify-between gap-2 border-b bg-card p-3">
         <Button variant="ghost" onClick={() => navigate("/invoices")}>
           <ArrowLeft className="h-4 w-4" /> {t("invoice.back")}
         </Button>

@@ -300,6 +300,18 @@ const en: Translations = {
     defaultInvoiceNote: "Default Invoice Note",
     save: "Save Settings",
     savedToast: "Settings saved",
+    theme: "Theme",
+    appearance: "Appearance",
+    accentTheme: "Accent Theme",
+  },
+  theme: {
+    light: "Light",
+    dark: "Dark",
+    system: "System",
+    skyPurple: "Sky Purple",
+    ocean: "Ocean",
+    emerald: "Emerald",
+    rose: "Rose",
   },
   validation: {
     room: {

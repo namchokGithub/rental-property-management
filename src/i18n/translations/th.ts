@@ -299,6 +299,18 @@ const th: Translations = {
     defaultInvoiceNote: "หมายเหตุเริ่มต้นในใบแจ้งหนี้",
     save: "บันทึกการตั้งค่า",
     savedToast: "บันทึกการตั้งค่าเรียบร้อยแล้ว",
+    theme: "ธีม",
+    appearance: "รูปแบบการแสดงผล",
+    accentTheme: "โทนสีธีม",
+  },
+  theme: {
+    light: "สว่าง",
+    dark: "มืด",
+    system: "ตามระบบ",
+    skyPurple: "ม่วงฟ้า",
+    ocean: "มหาสมุทร",
+    emerald: "มรกต",
+    rose: "กุหลาบ",
   },
   validation: {
     room: {

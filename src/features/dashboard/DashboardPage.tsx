@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router";
+import type { LucideIcon } from "lucide-react";
 import { DoorOpen, CheckCircle2, Users, Wallet, AlertCircle, Building2, Receipt, Plus, UserPlus, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,9 +14,29 @@ import { useLanguage } from "@/i18n";
 import { formatCurrency } from "@/lib/currency";
 import { formatBillingMonth } from "@/lib/date";
 import { resolveBillingStatus } from "@/lib/invoice";
+import { cn } from "@/lib/utils";
 import type { RoomStatus } from "@/types/room";
 
 const ROOM_STATUS_ORDER: RoomStatus[] = ["occupied", "available", "maintenance", "inactive"];
+
+type SummaryVariant = "primary" | "blue" | "purple" | "coral" | "plain";
+
+// Colors come from the active theme's tokens (see src/index.css) — never hardcoded here,
+// so summary cards automatically follow whichever accent theme / appearance is selected.
+const SUMMARY_VARIANT_STYLES: Record<SummaryVariant, string> = {
+  primary: "bg-primary text-primary-foreground",
+  blue: "bg-accent-2 text-accent-2-foreground",
+  purple: "bg-accent-3 text-accent-3-foreground",
+  coral: "bg-accent-4 text-accent-4-foreground",
+  plain: "bg-card text-foreground",
+};
+
+interface SummaryCard {
+  label: string;
+  value: string | number;
+  icon: LucideIcon;
+  variant: SummaryVariant;
+}
 
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -33,13 +54,13 @@ export function DashboardPage() {
     return status === "issued" || status === "overdue";
   }).length;
 
-  const summaryCards = [
-    { label: t("dashboard.totalRooms"), value: rooms.length, icon: Building2 },
-    { label: t("dashboard.occupied"), value: occupied, icon: DoorOpen },
-    { label: t("dashboard.available"), value: available, icon: CheckCircle2 },
-    { label: t("dashboard.totalTenants"), value: activeTenants, icon: Users },
-    { label: t("dashboard.estMonthlyIncome"), value: formatCurrency(estimatedIncome, language), icon: Wallet },
-    { label: t("dashboard.outstandingInvoices"), value: outstandingInvoices, icon: AlertCircle },
+  const summaryCards: SummaryCard[] = [
+    { label: t("dashboard.totalRooms"), value: rooms.length, icon: Building2, variant: "primary" },
+    { label: t("dashboard.occupied"), value: occupied, icon: DoorOpen, variant: "blue" },
+    { label: t("dashboard.available"), value: available, icon: CheckCircle2, variant: "purple" },
+    { label: t("dashboard.totalTenants"), value: activeTenants, icon: Users, variant: "plain" },
+    { label: t("dashboard.estMonthlyIncome"), value: formatCurrency(estimatedIncome, language), icon: Wallet, variant: "plain" },
+    { label: t("dashboard.outstandingInvoices"), value: outstandingInvoices, icon: AlertCircle, variant: "coral" },
   ];
 
   const recentRecords = [...records]
@@ -57,12 +78,19 @@ export function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {summaryCards.map((card) => (
-          <Card key={card.label}>
+          <Card key={card.label} className={cn("border-none shadow-sm", SUMMARY_VARIANT_STYLES[card.variant])}>
             <CardContent className="flex items-center gap-3 p-4">
-              <card.icon className="h-8 w-8 shrink-0 text-muted-foreground" />
+              <span
+                className={cn(
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                  card.variant === "plain" ? "bg-accent text-primary" : "bg-black/10"
+                )}
+              >
+                <card.icon className="h-5 w-5" />
+              </span>
               <div className="min-w-0">
-                <p className="truncate text-xs text-muted-foreground">{card.label}</p>
-                <p className="truncate text-lg font-semibold">{card.value}</p>
+                <p className="truncate text-xs font-medium opacity-80">{card.label}</p>
+                <p className="truncate text-xl font-semibold">{card.value}</p>
               </div>
             </CardContent>
           </Card>

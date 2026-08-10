@@ -107,7 +107,7 @@ export function InvoicesPage() {
             />
           ) : (
             <>
-          <div className="hidden overflow-x-auto rounded-md border md:block">
+          <div className="hidden overflow-x-auto rounded-xl border bg-card shadow-sm md:block">
             <Table>
               <TableHeader>
                 <TableRow>

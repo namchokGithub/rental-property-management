@@ -160,12 +160,12 @@ export function BillingTable({ records, roomById, tenantById, onEdit, onDelete, 
   const { t, language } = useLanguage();
   return (
     <>
-      <div className="hidden overflow-x-auto rounded-md border md:block">
+      <div className="hidden overflow-x-auto rounded-xl border bg-card shadow-sm md:block">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="sticky left-0 z-10 w-24 min-w-24 bg-background">{t("common.room")}</TableHead>
-              <TableHead className="sticky left-24 z-10 w-36 min-w-36 bg-background">{t("common.tenant")}</TableHead>
+              <TableHead className="sticky left-0 z-10 w-24 min-w-24 bg-muted">{t("common.room")}</TableHead>
+              <TableHead className="sticky left-24 z-10 w-36 min-w-36 bg-muted">{t("common.tenant")}</TableHead>
               <TableHead>{t("billing.invoiceNumber")}</TableHead>
               <TableHead>{t("common.month")}</TableHead>
               <TableHead>{t("billing.elecPrev")}</TableHead>
@@ -191,10 +191,10 @@ export function BillingTable({ records, roomById, tenantById, onEdit, onDelete, 
               const tenant = record.tenantId ? tenantById[record.tenantId] : undefined;
               return (
                 <TableRow key={record.id}>
-                  <TableCell className="sticky left-0 z-10 w-24 min-w-24 bg-background font-medium">
+                  <TableCell className="sticky left-0 z-10 w-24 min-w-24 bg-card font-medium">
                     {room?.roomNumber ?? "—"}
                   </TableCell>
-                  <TableCell className="sticky left-24 z-10 w-36 min-w-36 bg-background">
+                  <TableCell className="sticky left-24 z-10 w-36 min-w-36 bg-card">
                     {tenant ? `${tenant.firstName} ${tenant.lastName}` : "—"}
                   </TableCell>
                   <TableCell>{record.invoiceNumber ?? "—"}</TableCell>

@@ -30,7 +30,7 @@ export function TenantTable({
 }: TenantTableProps) {
   const { t, language } = useLanguage();
   return (
-    <div className="w-full overflow-x-auto rounded-md border">
+    <div className="w-full overflow-x-auto rounded-xl border bg-card shadow-sm">
       <Table>
         <TableHeader>
           <TableRow>
