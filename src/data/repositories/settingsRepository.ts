@@ -7,9 +7,6 @@ const DEFAULTS: PropertySettings = {
   phone: "",
   defaultElectricityRate: 8,
   defaultWaterRate: 18,
-  defaultGarbageFee: 50,
-  defaultElectricityMeterMaintenanceFee: 30,
-  defaultWaterMeterMaintenanceFee: 30,
   defaultInvoiceNote: "Please pay by the due date to avoid late fees.",
 };
 

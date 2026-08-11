@@ -213,10 +213,11 @@ No component beyond those four spots needs to change — `ThemeMenu`, the Settin
 - **Room** (`src/types/room.ts`) — `id, roomNumber, floor?, type?, monthlyRent, status, description?, electricityRate, waterRate, createdAt, updatedAt`. `status: "available" | "occupied" | "maintenance" | "inactive"`. Never stores a tenant reference.
 - **Tenant** (`src/types/tenant.ts`) — `id, firstName, lastName, phone?, email?, identificationNumber?, address?, emergencyContactName?, emergencyContactPhone?, status, notes?, createdAt, updatedAt`. `status: "active" | "inactive"`.
 - **RoomTenantAssignment** (`src/types/assignment.ts`) — `id, roomId, tenantId, startDate, endDate?, status, createdAt`. `status: "active" | "ended"`. This is the **only** source of truth for which tenant occupies which room — resolve "current tenant for room X" via `assignmentRepository.getActiveByRoomId(roomId)`, never via a field on `Room`.
-- **BillingRecord** (`src/types/billing.ts`) — `id, roomId, tenantId?, invoiceNumber?, billingMonth ("YYYY-MM"), electricity: MeterReading, water: MeterReading, rentAmount, garbageFee, electricityMeterMaintenanceFee, waterMeterMaintenanceFee, otherCharges: BillingCharge[], subtotal, total, status, issuedAt?, dueDate?, paidAt?, createdAt, updatedAt`. `status: "draft" | "issued" | "paid" | "overdue"`. `invoiceNumber` is only set once the record is issued.
-- **BillingCharge** — `id, name, amount` (ad-hoc "other charges" line items on a `BillingRecord`).
+- **BillingRecord** (`src/types/billing.ts`) — `id, roomId, tenantId?, invoiceNumber?, billingMonth ("YYYY-MM"), electricity: MeterReading, water: MeterReading, rentAmount, otherCharges: BillingCharge[], subtotal, total, status, issuedAt?, dueDate?, paidAt?, createdAt, updatedAt`. `status: "draft" | "issued" | "paid" | "overdue"`. `invoiceNumber` is only set once the record is issued. There is no dedicated garbage-fee/meter-maintenance-fee field — every optional charge, fixed or one-off, lives in `otherCharges`.
+- **BillingCharge** — `id, masterId?, name, amount`. `masterId` links back to an `OtherChargeMaster` row when the charge was added from the master list; it's absent for a one-time custom charge typed directly on a bill. `name`/`amount` are a snapshot at the time the charge was added to this specific bill — editing them here never changes the master record, and vice versa.
+- **OtherChargeMaster** (`src/types/otherCharge.ts`) — `id, nameTh, nameEn?, defaultAmount, isActive, createdAt, updatedAt`. Reusable master data for *optional* per-bill charges (garbage, meter maintenance, parking, internet, cleaning, etc.). Master rows are never automatically added to a bill — a user explicitly picks one from the Settings-managed list when creating/editing a `BillingRecord`, at which point its `defaultAmount` is copied into a new `BillingCharge` that can then be edited per bill without touching the master.
 - **MeterReading** — `previousMeter, currentMeter, usage, rate, amount` (shape shared by electricity and water).
-- **PropertySettings** (`src/types/settings.ts`) — single record: property name/address/phone plus default electricity/water rates and default fixed fees, used to prefill new rooms and billing records.
+- **PropertySettings** (`src/types/settings.ts`) — single record: property name/address/phone plus the three true monthly defaults (`defaultElectricityRate`, `defaultWaterRate`, `defaultInvoiceNote`), used to prefill new rooms and billing records. Fixed/optional fee amounts (garbage, meter maintenance, etc.) are **not** stored here — see `OtherChargeMaster` below.
 
 **Important relations:** there is no separate `Invoice` entity. The Invoices page is a filtered/formatted view over `BillingRecord` (only records with `invoiceNumber` set, i.e. not `draft`) — this was a deliberate decision to avoid two sources of truth for the same data, since the original spec's "Monthly Billing Table" and "Invoice Management" sections share almost all their columns.
 
@@ -226,7 +227,7 @@ No component beyond those four spots needs to change — `ThemeMenu`, the Settin
 - **Ending a tenancy:** `assignmentRepository.endByRoomId()` sets the assignment to `ended` and sets `Room.status = "available"` — but only if the room's current status is `occupied` (an explicit `maintenance`/`inactive` status is left alone, since ending occupancy shouldn't silently clear a maintenance flag).
 - **Moving a tenant to a different room:** the Tenants page's assign flow checks for an existing active assignment for that tenant before assigning the new one, and ends the old one first if the room differs (`TenantsPage.tsx`).
 - **Meter usage:** `usage = Math.max(0, currentMeter - previousMeter)` (`src/lib/calculations.ts`) — never negative.
-- **Billing totals:** `subtotal = electricity.amount + water.amount + rentAmount + garbageFee + electricityMeterMaintenanceFee + waterMeterMaintenanceFee`; `total = subtotal + sum(otherCharges.amount)` (`calculateBillingTotals` in `src/lib/calculations.ts`).
+- **Billing totals:** `subtotal = electricity.amount + water.amount + rentAmount`; `total = subtotal + sum(otherCharges.amount)` (`calculateBillingTotals` in `src/lib/calculations.ts`). There are no separate fixed-fee fields in the total — every optional charge, whether master-derived or custom, is just an `otherCharges` entry.
 - **Invoice numbering:** `INV-{YYYY}-{MM}-{seq3}`, where `seq` is one more than the highest existing sequence number among records sharing that year+month (`generateInvoiceNumber` in `src/lib/invoice.ts`). There is no separate counter in storage — the number is derived from existing records every time, so it stays correct even after seeding or deletions.
 - **Billing status lifecycle:** stored `status` changes only via explicit user actions — "Issue" (`draft -> issued`, assigns `invoiceNumber`) and "Mark as Paid" (`-> paid`). `overdue` is never written to storage; `resolveBillingStatus()` in `src/lib/invoice.ts` computes it at read-time (bumps `issued` to `overdue` when `dueDate` has passed) purely for display.
 - **Room status behavior:** new rooms default to `status: "available"` unless specified; occupancy is otherwise only changed by the assignment flow above.
@@ -248,7 +249,7 @@ No component beyond those four spots needs to change — `ThemeMenu`, the Settin
 | Billing | Done | Auto-calculated usage/totals, other charges, desktop table + mobile cards, client-side search |
 | Invoices | Done | List, in-app preview dialog, standalone print page, auto invoice numbering, client-side search |
 | Print Invoice | Done | `/invoices/:id` standalone route, `@media print` + `@page A4`, browser print/Save-as-PDF |
-| Settings | Done | Property info + default rates, used by new rooms and billing |
+| Settings | Done | Property info + the 3 true billing defaults (electricity rate, water rate, invoice note), plus a separate Other Charge Master (optional per-bill charges); used by new rooms and billing — see Data Migration History |
 | Responsive | Done | Verified at 375/768/1024/1440px via headless Chrome screenshots; sidebar becomes a Sheet drawer under `md`, billing table becomes cards under `md` |
 | Localization (Thai/English) | Done | Every user-facing string routed through `t()`; verified live in-browser for both languages, including the bilingual invoice document, `{{param}}` interpolation, and `localStorage` persistence |
 
@@ -261,8 +262,13 @@ All defined in `src/data/storage/storage.ts` (`STORAGE_KEYS`), stored under the 
 - `rental.assignments`
 - `rental.billing`
 - `rental.settings`
+- `rental.otherCharges`
 
 Plus non-domain keys (none `rental.`-prefixed except the auth session, which follows its own established key name): `app.language` (see Localization Architecture) holding `"th"` or `"en"`; `rental.auth.session` (see Authentication) holding `{ user }` or absent; `app.appearance` (see Theme Architecture) holding `"light" | "dark" | "system"`; `app.accentTheme` holding `"sky-purple" | "ocean" | "emerald" | "rose"`.
+
+# Data Migration History
+
+**2026-08-10 — Fixed-fee-to-master-data migration.** `PropertySettings` used to carry `defaultGarbageFee`/`defaultElectricityMeterMaintenanceFee`/`defaultWaterMeterMaintenanceFee`, and `BillingRecord` mirrored them as dedicated scalar fields (`garbageFee`/`electricityMeterMaintenanceFee`/`waterMeterMaintenanceFee`), auto-applied to every new bill. These were replaced by `OtherChargeMaster` (optional, explicitly attached per bill) and folded into `BillingRecord.otherCharges`. `src/data/migrations/legacyChargeMigration.ts`, called unconditionally from `main.tsx` (not nested inside `seedIfEmpty()`, since that only runs on a truly empty install), performs a one-time idempotent migration: seeds 7 example `OtherChargeMaster` rows (using any pre-existing legacy settings values where present), converts any pre-existing `BillingRecord`'s nonzero legacy fee fields into `otherCharges` entries linked back to the matching seeded master by name, and strips the legacy fields from both collections. Safe to re-run — once the legacy fields are gone from a record, there's nothing left to migrate.
 
 # Important Files
 
@@ -273,6 +279,11 @@ Plus non-domain keys (none `rental.`-prefixed except the auth session, which fol
 | `src/data/storage/storage.ts` | Generic localStorage read/write helpers |
 | `src/data/repositories/*` | CRUD + domain logic per entity; the only code that touches `storage.ts` |
 | `src/data/seed/seedData.ts` | One-time idempotent demo data seeding, called from `src/main.tsx` |
+| `src/types/otherCharge.ts` | `OtherChargeMaster` type + create/update input types |
+| `src/data/repositories/otherChargeRepository.ts` | CRUD for the Other Charge Master list |
+| `src/hooks/useOtherCharges.ts` | Reactive wrapper around `otherChargeRepository` |
+| `src/data/migrations/legacyChargeMigration.ts` | One-time idempotent legacy-fee-to-master-data migration, run from `main.tsx` |
+| `src/features/settings/OtherChargeSection.tsx`, `OtherChargeTable.tsx`, `OtherChargeFormDialog.tsx` | Other Charge Master management UI on the Settings page |
 | `src/hooks/use*.ts` | Thin reactive wrappers around repositories, consumed by feature pages |
 | `src/lib/calculations.ts` | Meter usage / billing total math |
 | `src/lib/invoice.ts` | Invoice number generation, display-time status resolution |

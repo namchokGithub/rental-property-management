@@ -20,6 +20,13 @@ export function validateTenant(input: Partial<CreateTenantInput & UpdateTenantIn
   return errors;
 }
 
+export function validateOtherCharge(input: { nameTh?: string; defaultAmount?: number }): ValidationErrors {
+  const errors: ValidationErrors = {};
+  if (!input.nameTh || input.nameTh.trim() === "") errors.nameTh = "validation.otherCharge.nameThRequired";
+  if (input.defaultAmount !== undefined && input.defaultAmount < 0) errors.defaultAmount = "validation.otherCharge.defaultAmountNegative";
+  return errors;
+}
+
 export function validateBilling(input: Partial<CreateBillingInput>): ValidationErrors {
   const errors: ValidationErrors = {};
   if (!input.roomId) errors.roomId = "validation.billing.roomRequired";

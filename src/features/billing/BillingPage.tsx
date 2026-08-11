@@ -13,6 +13,7 @@ import { useRooms } from "@/hooks/useRooms";
 import { useTenants } from "@/hooks/useTenants";
 import { useAssignments } from "@/hooks/useAssignments";
 import { useSettings } from "@/hooks/useSettings";
+import { useOtherCharges } from "@/hooks/useOtherCharges";
 import { useLanguage } from "@/i18n";
 import { matchesSearch } from "@/lib/search";
 import { formatBillingMonth } from "@/lib/date";
@@ -27,6 +28,7 @@ export function BillingPage() {
   const { tenants } = useTenants();
   const { assignments } = useAssignments();
   const { settings } = useSettings();
+  const { otherCharges } = useOtherCharges();
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<BillingRecord | undefined>(undefined);
@@ -150,6 +152,7 @@ export function BillingPage() {
         tenants={tenants}
         activeAssignments={activeAssignments}
         settings={settings}
+        otherCharges={otherCharges}
         record={editingRecord}
         getLatestByRoomId={getLatestByRoomId}
         onSubmit={(input) => {

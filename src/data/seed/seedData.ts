@@ -40,28 +40,28 @@ export function seedIfEmpty(): void {
     roomId: rooms[1].id, tenantId: tenants[0].id, billingMonth: "2026-06",
     electricityPreviousMeter: 1200, electricityCurrentMeter: 1340, electricityRate: 8,
     waterPreviousMeter: 300, waterCurrentMeter: 320, waterRate: 18,
-    rentAmount: 4500, garbageFee: 50, electricityMeterMaintenanceFee: 30, waterMeterMaintenanceFee: 30,
+    rentAmount: 4500,
     otherCharges: [], dueDate: "2026-07-05", status: "paid",
   });
   billingRepository.create({
     roomId: rooms[2].id, tenantId: tenants[1].id, billingMonth: "2026-06",
     electricityPreviousMeter: 2100, electricityCurrentMeter: 2260, electricityRate: 8,
     waterPreviousMeter: 410, waterCurrentMeter: 435, waterRate: 18,
-    rentAmount: 6500, garbageFee: 50, electricityMeterMaintenanceFee: 30, waterMeterMaintenanceFee: 30,
+    rentAmount: 6500,
     otherCharges: [], dueDate: "2026-07-05", status: "issued",
   });
   billingRepository.create({
     roomId: rooms[3].id, tenantId: tenants[2].id, billingMonth: "2026-06",
     electricityPreviousMeter: 980, electricityCurrentMeter: 1085, electricityRate: 8,
     waterPreviousMeter: 210, waterCurrentMeter: 228, waterRate: 18,
-    rentAmount: 6500, garbageFee: 50, electricityMeterMaintenanceFee: 30, waterMeterMaintenanceFee: 30,
+    rentAmount: 6500,
     otherCharges: [{ name: "Parking", amount: 300 }], dueDate: "2026-06-20", status: "issued",
   });
   billingRepository.create({
     roomId: rooms[1].id, tenantId: tenants[0].id, billingMonth: "2026-07",
     electricityPreviousMeter: 1340, electricityCurrentMeter: 1470, electricityRate: 8,
     waterPreviousMeter: 320, waterCurrentMeter: 342, waterRate: 18,
-    rentAmount: 4500, garbageFee: 50, electricityMeterMaintenanceFee: 30, waterMeterMaintenanceFee: 30,
+    rentAmount: 4500,
     otherCharges: [], dueDate: "2026-08-05", status: "draft",
   });
 }

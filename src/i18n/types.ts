@@ -196,13 +196,14 @@ export interface Translations {
     usageAmount: string;
     usageAmountPreview: string;
     rentAmount: string;
-    garbageFee: string;
-    electricityMaintenanceFee: string;
-    waterMaintenanceFee: string;
     otherCharges: string;
     addCharge: string;
     chargeNamePlaceholder: string;
     chargeAmountPlaceholder: string;
+    otherChargesSelectPlaceholder: string;
+    otherChargesAdd: string;
+    otherChargesNoneAvailable: string;
+    otherChargesRemove: string;
     subtotal: string;
     subtotalLine: string;
     totalLine: string;
@@ -230,7 +231,6 @@ export interface Translations {
     electricityDetailLine: string;
     waterDetailLine: string;
     rentDetailLine: string;
-    garbageDetailLine: string;
     otherChargeDetailLine: string;
     mobileCardSubtitle: string;
   };
@@ -275,9 +275,6 @@ export interface Translations {
     electricityItem: string;
     waterItem: string;
     rentItem: string;
-    garbageItem: string;
-    electricityMaintenanceItem: string;
-    waterMaintenanceItem: string;
     otherChargeItem: string;
     totalLine: string;
     remark: string;
@@ -292,10 +289,25 @@ export interface Translations {
     defaultBillingRates: string;
     defaultElectricityRate: string;
     defaultWaterRate: string;
-    defaultGarbageFee: string;
-    electricityMaintenanceFee: string;
-    waterMaintenanceFee: string;
     defaultInvoiceNote: string;
+    otherChargesTitle: string;
+    otherChargesAdd: string;
+    otherChargesEdit: string;
+    otherChargesNameTh: string;
+    otherChargesNameEn: string;
+    otherChargesDefaultAmount: string;
+    otherChargesNamePlaceholder: string;
+    otherChargesNameEnPlaceholder: string;
+    otherChargesAmountPlaceholder: string;
+    otherChargesNoChargesTitle: string;
+    otherChargesNoChargesDescription: string;
+    otherChargesSavedToast: string;
+    otherChargesUpdatedToast: string;
+    otherChargesDeletedToast: string;
+    otherChargesActivatedToast: string;
+    otherChargesDeactivatedToast: string;
+    otherChargesDeleteConfirmTitle: string;
+    otherChargesDeleteConfirmDescription: string;
     save: string;
     savedToast: string;
     theme: string;
@@ -328,6 +340,10 @@ export interface Translations {
       electricityMeterInvalid: string;
       waterMeterInvalid: string;
       rentNegative: string;
+    };
+    otherCharge: {
+      nameThRequired: string;
+      defaultAmountNegative: string;
     };
   };
 }

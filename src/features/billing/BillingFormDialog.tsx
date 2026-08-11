@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Plus, X } from "lucide-react";
 import {
@@ -23,6 +23,7 @@ import type { Tenant } from "@/types/tenant";
 import type { RoomTenantAssignment } from "@/types/assignment";
 import type { BillingRecord, BillingCharge, CreateBillingInput } from "@/types/billing";
 import type { PropertySettings } from "@/types/settings";
+import type { OtherChargeMaster } from "@/types/otherCharge";
 
 interface BillingFormDialogProps {
   open: boolean;
@@ -31,6 +32,7 @@ interface BillingFormDialogProps {
   tenants: Tenant[];
   activeAssignments: RoomTenantAssignment[];
   settings: PropertySettings;
+  otherCharges: OtherChargeMaster[];
   record?: BillingRecord;
   getLatestByRoomId: (roomId: string) => BillingRecord | undefined;
   onSubmit: (input: CreateBillingInput) => void;
@@ -38,6 +40,7 @@ interface BillingFormDialogProps {
 
 interface ChargeRow {
   key: string;
+  masterId?: string;
   name: string;
   amount: string;
 }
@@ -53,16 +56,13 @@ interface FormState {
   waterCurrentMeter: string;
   waterRate: string;
   rentAmount: string;
-  garbageFee: string;
-  electricityMeterMaintenanceFee: string;
-  waterMeterMaintenanceFee: string;
   dueDate: string;
   status: "draft" | "issued";
   otherCharges: ChargeRow[];
 }
 
 function chargesToRows(charges: BillingCharge[]): ChargeRow[] {
-  return charges.map((c) => ({ key: c.id, name: c.name, amount: String(c.amount) }));
+  return charges.map((c) => ({ key: c.id, masterId: c.masterId, name: c.name, amount: String(c.amount) }));
 }
 
 function currentMonth(): string {
@@ -89,9 +89,6 @@ function buildFormState(params: {
       waterCurrentMeter: String(record.water.currentMeter),
       waterRate: String(record.water.rate),
       rentAmount: String(record.rentAmount),
-      garbageFee: String(record.garbageFee),
-      electricityMeterMaintenanceFee: String(record.electricityMeterMaintenanceFee),
-      waterMeterMaintenanceFee: String(record.waterMeterMaintenanceFee),
       dueDate: record.dueDate ?? "",
       status: record.status === "issued" ? "issued" : "draft",
       otherCharges: chargesToRows(record.otherCharges),
@@ -108,9 +105,6 @@ function buildFormState(params: {
     waterCurrentMeter: "0",
     waterRate: room ? String(room.waterRate) : String(settings.defaultWaterRate),
     rentAmount: room ? String(room.monthlyRent) : "0",
-    garbageFee: String(settings.defaultGarbageFee),
-    electricityMeterMaintenanceFee: String(settings.defaultElectricityMeterMaintenanceFee),
-    waterMeterMaintenanceFee: String(settings.defaultWaterMeterMaintenanceFee),
     dueDate: "",
     status: "draft",
     otherCharges: [],
@@ -124,6 +118,7 @@ export function BillingFormDialog({
   tenants,
   activeAssignments,
   settings,
+  otherCharges,
   record,
   getLatestByRoomId,
   onSubmit,
@@ -132,12 +127,43 @@ export function BillingFormDialog({
   const [form, setForm] = useState<FormState>(() => buildFormState({ record, settings }));
   const [errors, setErrors] = useState<ValidationErrors>({});
 
-  function handleOpenChange(next: boolean) {
-    if (next) {
+  useEffect(() => {
+    if (open) {
       setForm(buildFormState({ record, settings }));
       setErrors({});
+      setSelectedMasterId("");
     }
-    onOpenChange(next);
+  }, [open, record, settings]);
+
+  const [selectedMasterId, setSelectedMasterId] = useState("");
+
+  const activeMasters = otherCharges.filter((c) => c.isActive);
+  const availableMasters = activeMasters.filter(
+    (m) => !form.otherCharges.some((c) => c.masterId === m.id)
+  );
+
+  function masterDisplayName(master: OtherChargeMaster): string {
+    return language === "en" && master.nameEn ? master.nameEn : master.nameTh;
+  }
+
+  function addMasterCharge() {
+    const master = availableMasters.find((m) => m.id === selectedMasterId);
+    if (!master) return;
+    setForm({
+      ...form,
+      otherCharges: [
+        ...form.otherCharges,
+        { key: crypto.randomUUID(), masterId: master.id, name: masterDisplayName(master), amount: String(master.defaultAmount) },
+      ],
+    });
+    setSelectedMasterId("");
+  }
+
+  function addCustomCharge() {
+    setForm({
+      ...form,
+      otherCharges: [...form.otherCharges, { key: crypto.randomUUID(), name: "", amount: "0" }],
+    });
   }
 
   function handleRoomChange(roomId: string) {
@@ -155,13 +181,6 @@ export function BillingFormDialog({
     setForm({
       ...form,
       otherCharges: form.otherCharges.map((c) => (c.key === key ? { ...c, [field]: value } : c)),
-    });
-  }
-
-  function addCharge() {
-    setForm({
-      ...form,
-      otherCharges: [...form.otherCharges, { key: crypto.randomUUID(), name: "", amount: "0" }],
     });
   }
 
@@ -184,9 +203,6 @@ export function BillingFormDialog({
     electricityAmount: electricityPreview.amount,
     waterAmount: waterPreview.amount,
     rentAmount: Number(form.rentAmount) || 0,
-    garbageFee: Number(form.garbageFee) || 0,
-    electricityMeterMaintenanceFee: Number(form.electricityMeterMaintenanceFee) || 0,
-    waterMeterMaintenanceFee: Number(form.waterMeterMaintenanceFee) || 0,
     otherCharges: chargesPreview,
   });
 
@@ -202,12 +218,9 @@ export function BillingFormDialog({
       waterCurrentMeter: Number(form.waterCurrentMeter) || 0,
       waterRate: Number(form.waterRate) || 0,
       rentAmount: Number(form.rentAmount) || 0,
-      garbageFee: Number(form.garbageFee) || 0,
-      electricityMeterMaintenanceFee: Number(form.electricityMeterMaintenanceFee) || 0,
-      waterMeterMaintenanceFee: Number(form.waterMeterMaintenanceFee) || 0,
       otherCharges: form.otherCharges
         .filter((c) => c.name.trim() !== "")
-        .map((c) => ({ name: c.name.trim(), amount: Number(c.amount) || 0 })),
+        .map((c) => ({ masterId: c.masterId, name: c.name.trim(), amount: Number(c.amount) || 0 })),
       dueDate: form.dueDate || undefined,
       status: form.status,
     };
@@ -222,7 +235,7 @@ export function BillingFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{record ? t("billing.editBilling") : t("billing.createBilling")}</DialogTitle>
@@ -378,15 +391,6 @@ export function BillingFormDialog({
               <Input id="due-date" type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="garbage-fee">{t("billing.garbageFee")}</Label>
-              <Input
-                id="garbage-fee"
-                type="number"
-                value={form.garbageFee}
-                onChange={(e) => setForm({ ...form, garbageFee: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
               <Label htmlFor="status">{t("common.status")}</Label>
               <Select value={form.status} onValueChange={(value) => setForm({ ...form, status: value as "draft" | "issued" })}>
                 <SelectTrigger id="status">
@@ -398,42 +402,45 @@ export function BillingFormDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="elec-maint-fee">{t("billing.electricityMaintenanceFee")}</Label>
-              <Input
-                id="elec-maint-fee"
-                type="number"
-                value={form.electricityMeterMaintenanceFee}
-                onChange={(e) => setForm({ ...form, electricityMeterMaintenanceFee: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="water-maint-fee">{t("billing.waterMaintenanceFee")}</Label>
-              <Input
-                id="water-maint-fee"
-                type="number"
-                value={form.waterMeterMaintenanceFee}
-                onChange={(e) => setForm({ ...form, waterMeterMaintenanceFee: e.target.value })}
-              />
-            </div>
           </div>
 
           <Separator />
 
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-semibold">{t("billing.otherCharges")}</h4>
-              <Button type="button" variant="outline" size="sm" onClick={addCharge}>
-                <Plus className="h-4 w-4" /> {t("billing.addCharge")}
-              </Button>
-            </div>
+            <h4 className="text-sm font-semibold">{t("billing.otherCharges")}</h4>
+            {availableMasters.length > 0 ? (
+              <div className="flex items-center gap-2">
+                <Select value={selectedMasterId} onValueChange={setSelectedMasterId}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder={t("billing.otherChargesSelectPlaceholder")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableMasters.map((master) => (
+                      <SelectItem key={master.id} value={master.id}>
+                        {masterDisplayName(master)} · {formatCurrency(master.defaultAmount, language)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button type="button" variant="outline" onClick={addMasterCharge} disabled={!selectedMasterId}>
+                  <Plus className="h-4 w-4" /> {t("billing.otherChargesAdd")}
+                </Button>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">{t("billing.otherChargesNoneAvailable")}</p>
+            )}
+
             {form.otherCharges.map((charge) => (
               <div key={charge.key} className="flex items-center gap-2">
-                <Input
-                  placeholder={t("billing.chargeNamePlaceholder")}
-                  value={charge.name}
-                  onChange={(e) => updateCharge(charge.key, "name", e.target.value)}
-                />
+                {charge.masterId ? (
+                  <p className="flex-1 text-sm">{charge.name}</p>
+                ) : (
+                  <Input
+                    placeholder={t("billing.chargeNamePlaceholder")}
+                    value={charge.name}
+                    onChange={(e) => updateCharge(charge.key, "name", e.target.value)}
+                  />
+                )}
                 <Input
                   type="number"
                   className="w-32"
@@ -443,9 +450,14 @@ export function BillingFormDialog({
                 />
                 <Button type="button" variant="ghost" size="icon" onClick={() => removeCharge(charge.key)}>
                   <X className="h-4 w-4" />
+                  <span className="sr-only">{t("billing.otherChargesRemove")}</span>
                 </Button>
               </div>
             ))}
+
+            <Button type="button" variant="outline" size="sm" onClick={addCustomCharge}>
+              <Plus className="h-4 w-4" /> {t("billing.addCharge")}
+            </Button>
           </div>
 
           <Separator />

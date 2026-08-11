@@ -4,8 +4,5 @@ export interface PropertySettings {
   phone: string;
   defaultElectricityRate: number;
   defaultWaterRate: number;
-  defaultGarbageFee: number;
-  defaultElectricityMeterMaintenanceFee: number;
-  defaultWaterMeterMaintenanceFee: number;
   defaultInvoiceNote: string;
 }

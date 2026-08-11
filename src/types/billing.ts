@@ -2,6 +2,7 @@ export type BillingStatus = "draft" | "issued" | "paid" | "overdue";
 
 export interface BillingCharge {
   id: string;
+  masterId?: string;
   name: string;
   amount: number;
 }
@@ -23,9 +24,6 @@ export interface BillingRecord {
   electricity: MeterReading;
   water: MeterReading;
   rentAmount: number;
-  garbageFee: number;
-  electricityMeterMaintenanceFee: number;
-  waterMeterMaintenanceFee: number;
   otherCharges: BillingCharge[];
   subtotal: number;
   total: number;
@@ -48,9 +46,6 @@ export interface CreateBillingInput {
   waterCurrentMeter: number;
   waterRate: number;
   rentAmount: number;
-  garbageFee: number;
-  electricityMeterMaintenanceFee: number;
-  waterMeterMaintenanceFee: number;
   otherCharges: Omit<BillingCharge, "id">[];
   dueDate?: string;
   status?: BillingStatus;

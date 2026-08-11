@@ -9,13 +9,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/common/PageHeader";
 import { ThemeAccentSwatches } from "@/components/common/ThemeAccentSwatches";
+import { OtherChargeSection } from "@/features/settings/OtherChargeSection";
 import { useSettings } from "@/hooks/useSettings";
 import { useLanguage } from "@/i18n";
-import { useTheme, ACCENT_THEMES, APPEARANCES, accentThemeTranslationKey, type Appearance } from "@/theme";
+import {
+  useTheme,
+  ACCENT_THEMES,
+  APPEARANCES,
+  accentThemeTranslationKey,
+  type Appearance,
+} from "@/theme";
 import { cn } from "@/lib/utils";
 import type { PropertySettings } from "@/types/settings";
 
-const APPEARANCE_ICONS: Record<Appearance, typeof Sun> = { light: Sun, dark: Moon, system: Monitor };
+const APPEARANCE_ICONS: Record<Appearance, typeof Sun> = {
+  light: Sun,
+  dark: Moon,
+  system: Monitor,
+};
 
 function toFormState(settings: PropertySettings) {
   return {
@@ -24,9 +35,6 @@ function toFormState(settings: PropertySettings) {
     phone: settings.phone,
     defaultElectricityRate: String(settings.defaultElectricityRate),
     defaultWaterRate: String(settings.defaultWaterRate),
-    defaultGarbageFee: String(settings.defaultGarbageFee),
-    defaultElectricityMeterMaintenanceFee: String(settings.defaultElectricityMeterMaintenanceFee),
-    defaultWaterMeterMaintenanceFee: String(settings.defaultWaterMeterMaintenanceFee),
     defaultInvoiceNote: settings.defaultInvoiceNote,
   };
 }
@@ -44,9 +52,6 @@ export function SettingsPage() {
       phone: form.phone.trim(),
       defaultElectricityRate: Number(form.defaultElectricityRate) || 0,
       defaultWaterRate: Number(form.defaultWaterRate) || 0,
-      defaultGarbageFee: Number(form.defaultGarbageFee) || 0,
-      defaultElectricityMeterMaintenanceFee: Number(form.defaultElectricityMeterMaintenanceFee) || 0,
-      defaultWaterMeterMaintenanceFee: Number(form.defaultWaterMeterMaintenanceFee) || 0,
       defaultInvoiceNote: form.defaultInvoiceNote.trim(),
     });
     toast.success(t("settings.savedToast"));
@@ -54,7 +59,105 @@ export function SettingsPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <PageHeader title={t("settings.title")} description={t("settings.description")} />
+      <PageHeader
+        title={t("settings.title")}
+        description={t("settings.description")}
+      />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
+            {t("settings.propertyInformation")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="propertyName">{t("settings.propertyName")}</Label>
+            <Input
+              id="propertyName"
+              value={form.propertyName}
+              onChange={(e) =>
+                setForm({ ...form, propertyName: e.target.value })
+              }
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="propertyAddress">
+              {t("settings.propertyAddress")}
+            </Label>
+            <Textarea
+              id="propertyAddress"
+              value={form.propertyAddress}
+              onChange={(e) =>
+                setForm({ ...form, propertyAddress: e.target.value })
+              }
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="phone">{t("settings.phone")}</Label>
+            <Input
+              id="phone"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
+            {t("settings.defaultBillingRates")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="defaultElectricityRate">
+                {t("settings.defaultElectricityRate")}
+              </Label>
+              <Input
+                id="defaultElectricityRate"
+                type="number"
+                min={0}
+                value={form.defaultElectricityRate}
+                onChange={(e) =>
+                  setForm({ ...form, defaultElectricityRate: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="defaultWaterRate">
+                {t("settings.defaultWaterRate")}
+              </Label>
+              <Input
+                id="defaultWaterRate"
+                type="number"
+                min={0}
+                value={form.defaultWaterRate}
+                onChange={(e) =>
+                  setForm({ ...form, defaultWaterRate: e.target.value })
+                }
+              />
+            </div>
+          </div>
+          <Separator />
+          <div className="space-y-1.5">
+            <Label htmlFor="defaultInvoiceNote">
+              {t("settings.defaultInvoiceNote")}
+            </Label>
+            <Textarea
+              id="defaultInvoiceNote"
+              value={form.defaultInvoiceNote}
+              onChange={(e) =>
+                setForm({ ...form, defaultInvoiceNote: e.target.value })
+              }
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <OtherChargeSection />
 
       <Card>
         <CardHeader>
@@ -75,10 +178,13 @@ export function SettingsPage() {
                     aria-pressed={isActive}
                     className={cn(
                       "relative flex flex-col items-center gap-1.5 rounded-lg border p-3 text-sm font-medium transition-colors",
-                      isActive ? "border-primary bg-accent text-accent-foreground" : "border-border hover:bg-accent/50"
+                      isActive
+                        ? "border-primary bg-accent text-accent-foreground"
+                        : "border-border hover:bg-accent/50",
+                    )}>
+                    {isActive && (
+                      <Check className="absolute right-2 top-2 h-3.5 w-3.5 text-primary" />
                     )}
-                  >
-                    {isActive && <Check className="absolute right-2 top-2 h-3.5 w-3.5 text-primary" />}
                     <Icon className="h-5 w-5" />
                     {t(`theme.${option}`)}
                   </button>
@@ -102,116 +208,23 @@ export function SettingsPage() {
                     aria-pressed={isActive}
                     className={cn(
                       "flex items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors",
-                      isActive ? "border-primary bg-accent/60" : "border-border hover:bg-accent/30"
-                    )}
-                  >
+                      isActive
+                        ? "border-primary bg-accent/60"
+                        : "border-border hover:bg-accent/30",
+                    )}>
                     <div className="space-y-2">
-                      <p className="text-sm font-medium">{t(accentThemeTranslationKey(themeOption))}</p>
+                      <p className="text-sm font-medium">
+                        {t(accentThemeTranslationKey(themeOption))}
+                      </p>
                       <ThemeAccentSwatches accentTheme={themeOption} />
                     </div>
-                    {isActive && <Check className="h-4 w-4 shrink-0 text-primary" />}
+                    {isActive && (
+                      <Check className="h-4 w-4 shrink-0 text-primary" />
+                    )}
                   </button>
                 );
               })}
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t("settings.propertyInformation")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="propertyName">{t("settings.propertyName")}</Label>
-            <Input
-              id="propertyName"
-              value={form.propertyName}
-              onChange={(e) => setForm({ ...form, propertyName: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="propertyAddress">{t("settings.propertyAddress")}</Label>
-            <Textarea
-              id="propertyAddress"
-              value={form.propertyAddress}
-              onChange={(e) => setForm({ ...form, propertyAddress: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="phone">{t("settings.phone")}</Label>
-            <Input id="phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t("settings.defaultBillingRates")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="defaultElectricityRate">{t("settings.defaultElectricityRate")}</Label>
-              <Input
-                id="defaultElectricityRate"
-                type="number"
-                min={0}
-                value={form.defaultElectricityRate}
-                onChange={(e) => setForm({ ...form, defaultElectricityRate: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="defaultWaterRate">{t("settings.defaultWaterRate")}</Label>
-              <Input
-                id="defaultWaterRate"
-                type="number"
-                min={0}
-                value={form.defaultWaterRate}
-                onChange={(e) => setForm({ ...form, defaultWaterRate: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="defaultGarbageFee">{t("settings.defaultGarbageFee")}</Label>
-              <Input
-                id="defaultGarbageFee"
-                type="number"
-                min={0}
-                value={form.defaultGarbageFee}
-                onChange={(e) => setForm({ ...form, defaultGarbageFee: e.target.value })}
-              />
-            </div>
-            <div />
-            <div className="space-y-1.5">
-              <Label htmlFor="defaultElectricityMeterMaintenanceFee">{t("settings.electricityMaintenanceFee")}</Label>
-              <Input
-                id="defaultElectricityMeterMaintenanceFee"
-                type="number"
-                min={0}
-                value={form.defaultElectricityMeterMaintenanceFee}
-                onChange={(e) => setForm({ ...form, defaultElectricityMeterMaintenanceFee: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="defaultWaterMeterMaintenanceFee">{t("settings.waterMaintenanceFee")}</Label>
-              <Input
-                id="defaultWaterMeterMaintenanceFee"
-                type="number"
-                min={0}
-                value={form.defaultWaterMeterMaintenanceFee}
-                onChange={(e) => setForm({ ...form, defaultWaterMeterMaintenanceFee: e.target.value })}
-              />
-            </div>
-          </div>
-          <Separator />
-          <div className="space-y-1.5">
-            <Label htmlFor="defaultInvoiceNote">{t("settings.defaultInvoiceNote")}</Label>
-            <Textarea
-              id="defaultInvoiceNote"
-              value={form.defaultInvoiceNote}
-              onChange={(e) => setForm({ ...form, defaultInvoiceNote: e.target.value })}
-            />
           </div>
         </CardContent>
       </Card>

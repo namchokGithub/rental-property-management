@@ -63,6 +63,14 @@ export function InvoicePrintView({ record, room, tenant, settings }: InvoicePrin
         </thead>
         <tbody>
           <tr className="border-b">
+            <td className="py-1.5">{t("invoice.rentItem")}</td>
+            <td className="py-1.5 text-right">—</td>
+            <td className="py-1.5 text-right">—</td>
+            <td className="py-1.5 text-right">—</td>
+            <td className="py-1.5 text-right">—</td>
+            <td className="py-1.5 text-right">{record.rentAmount.toFixed(2)}</td>
+          </tr>
+          <tr className="border-b">
             <td className="py-1.5">{t("invoice.electricityItem")}</td>
             <td className="py-1.5 text-right">{record.electricity.previousMeter}</td>
             <td className="py-1.5 text-right">{record.electricity.currentMeter}</td>
@@ -77,38 +85,6 @@ export function InvoicePrintView({ record, room, tenant, settings }: InvoicePrin
             <td className="py-1.5 text-right">{record.water.usage}</td>
             <td className="py-1.5 text-right">{record.water.rate.toFixed(2)}</td>
             <td className="py-1.5 text-right">{record.water.amount.toFixed(2)}</td>
-          </tr>
-          <tr className="border-b">
-            <td className="py-1.5">{t("invoice.rentItem")}</td>
-            <td className="py-1.5 text-right">—</td>
-            <td className="py-1.5 text-right">—</td>
-            <td className="py-1.5 text-right">—</td>
-            <td className="py-1.5 text-right">—</td>
-            <td className="py-1.5 text-right">{record.rentAmount.toFixed(2)}</td>
-          </tr>
-          <tr className="border-b">
-            <td className="py-1.5">{t("invoice.garbageItem")}</td>
-            <td className="py-1.5 text-right">—</td>
-            <td className="py-1.5 text-right">—</td>
-            <td className="py-1.5 text-right">—</td>
-            <td className="py-1.5 text-right">—</td>
-            <td className="py-1.5 text-right">{record.garbageFee.toFixed(2)}</td>
-          </tr>
-          <tr className="border-b">
-            <td className="py-1.5">{t("invoice.electricityMaintenanceItem")}</td>
-            <td className="py-1.5 text-right">—</td>
-            <td className="py-1.5 text-right">—</td>
-            <td className="py-1.5 text-right">—</td>
-            <td className="py-1.5 text-right">—</td>
-            <td className="py-1.5 text-right">{record.electricityMeterMaintenanceFee.toFixed(2)}</td>
-          </tr>
-          <tr className="border-b">
-            <td className="py-1.5">{t("invoice.waterMaintenanceItem")}</td>
-            <td className="py-1.5 text-right">—</td>
-            <td className="py-1.5 text-right">—</td>
-            <td className="py-1.5 text-right">—</td>
-            <td className="py-1.5 text-right">—</td>
-            <td className="py-1.5 text-right">{record.waterMeterMaintenanceFee.toFixed(2)}</td>
           </tr>
           {record.otherCharges.map((charge) => (
             <tr key={charge.id} className="border-b">

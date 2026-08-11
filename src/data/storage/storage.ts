@@ -42,4 +42,5 @@ export const STORAGE_KEYS = {
   assignments: "assignments",
   billing: "billing",
   settings: "settings",
+  otherCharges: "otherCharges",
 } as const;

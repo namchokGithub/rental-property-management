@@ -143,7 +143,6 @@ function BillingCard({
               })}
             </p>
             <p>{t("billing.rentDetailLine", { amount: formatCurrency(record.rentAmount, language) })}</p>
-            <p>{t("billing.garbageDetailLine", { amount: formatCurrency(record.garbageFee, language) })}</p>
             {record.otherCharges.map((charge) => (
               <p key={charge.id}>
                 {t("billing.otherChargeDetailLine", { name: charge.name, amount: formatCurrency(charge.amount, language) })}
@@ -178,7 +177,6 @@ export function BillingTable({ records, roomById, tenantById, onEdit, onDelete, 
               <TableHead>{t("billing.waterUsage")}</TableHead>
               <TableHead>{t("billing.waterRate")}</TableHead>
               <TableHead>{t("billing.waterAmount")}</TableHead>
-              <TableHead>{t("billing.garbageFee")}</TableHead>
               <TableHead>{t("billing.rent")}</TableHead>
               <TableHead>{t("common.total")}</TableHead>
               <TableHead>{t("common.status")}</TableHead>
@@ -209,7 +207,6 @@ export function BillingTable({ records, roomById, tenantById, onEdit, onDelete, 
                   <TableCell>{record.water.usage}</TableCell>
                   <TableCell>{formatCurrency(record.water.rate, language)}</TableCell>
                   <TableCell>{formatCurrency(record.water.amount, language)}</TableCell>
-                  <TableCell>{formatCurrency(record.garbageFee, language)}</TableCell>
                   <TableCell>{formatCurrency(record.rentAmount, language)}</TableCell>
                   <TableCell className="font-medium">{formatCurrency(record.total, language)}</TableCell>
                   <TableCell>
