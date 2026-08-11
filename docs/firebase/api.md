@@ -8,6 +8,8 @@ Authorization: Bearer <Firebase ID token>
 
 Every response uses `{ "success": true, "data": ... }`; list responses also include `meta.total`. Authentication, profile validation, role checks, and property scope are described in [authentication.md](authentication.md).
 
+**Role policy (uniform across every resource below):** an authenticated `admin` or `staff` user can read any resource in a property they belong to; only `admin` can create, update, delete, or perform a state-changing action (issue, mark-paid, assign, end). No mutation endpoint is reachable without `admin`, and no endpoint is reachable without a valid property membership.
+
 ## Properties
 
 | Method | Path | Permission | Behavior |
@@ -114,7 +116,7 @@ All routes below are property scoped; reads require property access and mutation
 
 | Resource | Endpoints | Filters / ordering |
 | --- | --- | --- |
-| Rooms | `GET/POST /api/v1/properties/:propertyId/rooms`, `GET/PATCH/DELETE /api/v1/properties/:propertyId/rooms/:id` | Exact `status`, `floor`; string `roomNumber` ascending. |
+| Rooms | `GET/POST /api/v1/properties/:propertyId/rooms`, `GET/PATCH/DELETE /api/v1/properties/:propertyId/rooms/:id` | Exact `status` (must be a valid room status) and/or `floor`, combinable; string `roomNumber` ascending. |
 | Tenants | `GET/POST /api/v1/properties/:propertyId/tenants`, `GET/PATCH/DELETE /api/v1/properties/:propertyId/tenants/:id` | Exact `status`; `fullName` ascending. |
 
 Room number is required, trimmed, and unique only within its property (`409 ROOM_NUMBER_ALREADY_EXISTS`). Rent and provided utility rates must be non-negative; supported room statuses are `available`, `occupied`, `maintenance`, and `inactive`. `occupied` is temporary model compatibility—Step 5 will make assignments authoritative.
@@ -163,7 +165,7 @@ The end date cannot precede the assignment start date (`400 INVALID_ASSIGNMENT_D
 - End runs in a Firestore transaction. It changes the assignment to `ended`, stores the end date, and changes the room from `occupied` to `available`. It deliberately leaves a room already set to `maintenance` or `inactive` unchanged. Tenant status is independent and is never made inactive by move-out.
 - A future Move API can combine end + create in one transaction. This step intentionally keeps move-out and new assignment as two explicit operations.
 
-The implemented indexes additionally cover `propertyId` with room number/status/floor ordering and `propertyId` with tenant full name/status ordering. Assignment indexes cover each supported property-scoped list-filter combination ordered by `startDate DESC`, plus the active room/tenant transaction lookups.
+The implemented indexes additionally cover `propertyId` with room number/status/floor ordering, including the combined `propertyId + status + floor + roomNumber` index required when both room filters are supplied together, and `propertyId` with tenant full name/status ordering. Assignment indexes cover each supported property-scoped list-filter combination ordered by `startDate DESC`, plus the active room/tenant transaction lookups.
 
 ### Emulator verification
 
@@ -206,9 +208,9 @@ Create body:
 
 `rentAmount` is an optional non-negative per-bill override; otherwise the room's current `monthlyRent` is used. Client-supplied usage, utility amounts/rates, snapshots, totals, status, and audit fields are ignored. The API resolves rates from the room first, then property settings; resolves the active assigned tenant when available; copies room/tenant, rate, charge, and invoice-note snapshots; and sets status to `draft`.
 
-The server calculates usage as `currentMeter - previousMeter`, rejects a decreasing meter reading, and rounds monetary calculations to two decimal places after each utility amount and aggregate. `subtotal = rent + electricity + water`; `total = subtotal + otherCharges`. The default due date is the 15th of the following month in the product calendar. A room without an active tenant is billable, with `tenantId` and `tenantSnapshot` set to `null`.
+The server calculates usage as `currentMeter - previousMeter` (kept as an exact, unrounded quantity) and rejects a decreasing meter reading. Only money is rounded, to two decimal places, at each point a monetary value is produced: `amount = round(usage * rate)`, `subtotal = round(rent + electricity.amount + water.amount)`, `total = round(subtotal + otherChargesTotal)` — see [ADR 0001](../adr/0001-billing-rounding-rule.md). The default due date is the 15th of the following month in the product calendar. A room without an active tenant is billable, with `tenantId` and `tenantSnapshot` set to `null`.
 
-One billing record per `(propertyId, roomId, billingMonth)` is enforced inside the Firestore create transaction (`409 BILLING_ALREADY_EXISTS`), including concurrent creates. Other Charge Masters are copied into the bill and may be overridden without changing the master; duplicate master IDs are rejected. Draft edits preserve all identity snapshots and existing rate snapshots, while recalculating from permitted edited inputs. Issued, paid, and overdue records are neither editable (`409 BILLING_NOT_EDITABLE`) nor deletable (`409 BILLING_NOT_DELETABLE`); Step 6 does not create invoice or payment transitions.
+One billing record per `(propertyId, roomId, billingMonth)` is enforced by a deterministic `billingRecords` document ID (`` `${roomId}_${billingMonth}` ``), not just the pre-create existence query: two concurrent creates for the same room+month contend on that one document, so exactly one commits and the other retries into `409 BILLING_ALREADY_EXISTS` — see [ADR 0004](../adr/0004-billing-record-deterministic-id.md). Other Charge Masters are copied into the bill and may be overridden without changing the master; duplicate master IDs are rejected. Draft edits preserve all identity snapshots and existing rate snapshots, while recalculating from permitted edited inputs. Issued, paid, and overdue records are neither editable (`409 BILLING_NOT_EDITABLE`) nor deletable (`409 BILLING_NOT_DELETABLE`).
 
 ## Invoices
 
@@ -225,4 +227,4 @@ Create body is only `{ "billingId": "billing-001" }`. Billing is the exclusive s
 
 Issuance uses one Firestore transaction to ensure the bill belongs to the property and is `draft`, prevent an existing Invoice for the bill, increment `counters/invoice-{propertyId}-{YYYY-MM}`, create the Invoice, and set the BillingRecord to `issued` with `invoiceId`, `invoiceNumber`, and `issuedAt`. The number is immutable and property/month scoped: `INV-YYYY-MM-NNN`, reset for every month. Duplicate or concurrent attempts yield one successful invoice and `409 INVOICE_ALREADY_EXISTS` or `409 BILLING_ALREADY_ISSUED` for the other attempt.
 
-Invoices have persisted `issued` and `paid` states. `overdue` is derived at read time when an issued invoice has a past due date; no scheduled job writes it. Mark-paid rejects an already paid invoice (`409 INVOICE_ALREADY_PAID`) and accepts optional valid ISO `paidAt`; without it, server time is used. Invoice hard deletion and generic invoice updates are intentionally unsupported.
+Invoices have persisted `issued` and `paid` states. `overdue` is derived at read time when an issued invoice has a past due date; no scheduled job writes it. Mark-paid rejects an already paid invoice (`409 INVOICE_ALREADY_PAID`) and accepts an optional valid ISO `paidAt` no earlier than the invoice's `issuedAt` (`400 INVALID_PAYMENT_DATE` otherwise), so a real (possibly backdated) payment date can be recorded; without it, server time is used — see [ADR 0002](../adr/0002-invoice-paid-at-client-suppliable.md). Invoice hard deletion and generic invoice updates are intentionally unsupported.

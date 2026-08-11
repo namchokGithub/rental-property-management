@@ -105,3 +105,5 @@ pnpm --dir functions test:auth:emulator
 ```
 
 For a missing profile test, create an Auth Emulator user without running the seed script. For a disabled-user test, set `users/{uid}.isActive` to `false` in Firestore Emulator UI. Never add a development-only authentication bypass to API code.
+
+`pnpm --dir functions test:auth` runs a faster, mocked-dependency version of this logic (no emulator, no network) for quick local iteration — see [backend.md](backend.md).

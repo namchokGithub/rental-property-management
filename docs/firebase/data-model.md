@@ -85,8 +85,8 @@ Bills must remain historically correct after room, tenant, rate, or charge-maste
 - At bill creation, copy the room number and monthly rent into `roomSnapshot`, and the resolved tenant full name into `tenantSnapshot` when a tenant exists.
 - A bill can be created for a room without an active tenant; in that case both `tenantId` and `tenantSnapshot` are `null`. When present, the active assignment resolves the tenant—clients never choose an arbitrary tenant for a bill.
 - Snapshot `invoiceNote` from `PropertySettings.defaultInvoiceNote` at creation. This is a billing creation default and must not be changed by later settings edits.
-- One normal bill is allowed per `(propertyId, roomId, billingMonth)`. The backend enforces it in the Firestore transaction that writes the draft, rather than trusting a preflight query.
-- Meter usage is `currentMeter - previousMeter`; negative usage is rejected. Monetary values are rounded to two decimal places after utility amount and aggregate calculations, providing a consistent decimal-THB strategy across utilities, charges, subtotal, and total.
+- One normal bill is allowed per `(propertyId, roomId, billingMonth)`. `billingRecords` document IDs are deterministic (`` `${roomId}_${billingMonth}` ``) precisely so this is enforced by Firestore document-level contention, not by trusting a preflight query alone — see [ADR 0004](../adr/0004-billing-record-deterministic-id.md).
+- Meter usage is `currentMeter - previousMeter`, kept as an exact unrounded quantity — only money is rounded, to two decimal places, at the point each monetary value is produced (utility amount, subtotal, total). See [ADR 0001](../adr/0001-billing-rounding-rule.md).
 - Creating an invoice atomically reads the draft bill, verifies no invoice already exists for that billing ID, increments the relevant counter, writes the immutable Invoice, and transitions BillingRecord to `issued`. Mark-paid similarly updates Invoice and BillingRecord together. `overdue` is a display status derived from an issued invoice whose due date has passed; it is not persisted or scheduled in this phase.
 - Store the exact electricity and water readings, rates, usage, and amounts in the billing record. Never recompute historical amounts from current room or property settings.
 - Copy each selected optional master charge into `otherCharges` as `{ id, masterId?, name, amount }`. `masterId` supports traceability only. Editing, deactivating, or deleting an `OtherChargeMaster` never changes historical charge data.
@@ -101,6 +101,7 @@ All queries below must include a property scope unless reading an individual doc
 | --- | --- | --- |
 | Rooms for property | `propertyId == :propertyId`, ordered by `roomNumber` | `(propertyId ASC, roomNumber ASC)` |
 | Occupied/available rooms | `propertyId == :propertyId AND status == :status`, ordered by `roomNumber` | `(propertyId ASC, status ASC, roomNumber ASC)` |
+| Rooms by status and floor combined | `propertyId == :propertyId AND status == :status AND floor == :floor`, ordered by `roomNumber` | `(propertyId ASC, status ASC, floor ASC, roomNumber ASC)` |
 | Tenants for property | `propertyId == :propertyId`, ordered by `lastName`, then `firstName` | `(propertyId ASC, lastName ASC, firstName ASC)` |
 | Active assignment for a room | `propertyId == :propertyId AND roomId == :roomId AND status == 'active'` | `(propertyId ASC, roomId ASC, status ASC)` |
 | Assignment history for a room | `propertyId == :propertyId AND roomId == :roomId`, ordered by `startDate DESC` | `(propertyId ASC, roomId ASC, startDate DESC)` |

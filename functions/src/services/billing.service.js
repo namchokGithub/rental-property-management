@@ -52,7 +52,7 @@ function createBillingService({ repo = repository, access = ensurePropertyAccess
         const existing = await transaction.get(repo.billingByRoomAndMonthQuery(propertyId, input.roomId, input.billingMonth));
         if (!existing.empty) throw new AppError(409, ERROR_CODES.BILLING_ALREADY_EXISTS, "Billing already exists for this room and month");
         const data = await draftData(transaction, propertyId, input.roomId, input);
-        const reference = repo.references.billingRecords.doc();
+        const reference = repo.references.billingRecords.doc(repo.billingDocId(input.roomId, input.billingMonth));
         transaction.create(reference, { propertyId, billingMonth: input.billingMonth, status: "draft", ...data, createdAt: repo.FieldValue.serverTimestamp(), updatedAt: repo.FieldValue.serverTimestamp() });
         return reference.id;
       });

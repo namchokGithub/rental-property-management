@@ -9,14 +9,16 @@
   "scripts": {
     "emulators": "firebase emulators:start",
     "serve": "firebase functions:shell",
-    "lint": "find src scripts -name '*.js' -exec node --check {} \\;",
+    "lint": "oxlint src scripts",
     "test:smoke": "node src/smoke-test.js",
     "test:auth": "node src/auth-foundation-test.js",
     "test:resources": "node src/resource-api-foundation-test.js",
     "seed:dev-user": "node scripts/seed-dev-user.js",
     "test:auth:emulator": "node scripts/verify-auth-emulator.js",
     "test:resources:emulator": "node scripts/verify-resource-apis-emulator.js",
-    "test:assignments:emulator": "node scripts/verify-assignments-emulator.js"
+    "test:assignments:emulator": "node scripts/verify-assignments-emulator.js",
+    "test:billing:emulator": "node scripts/verify-billing-emulator.js",
+    "test:invoices:emulator": "node scripts/verify-invoices-emulator.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -25,6 +27,7 @@
     "firebase-functions": "^7.3.2"
   },
   "devDependencies": {
-    "firebase-tools": "^15.26.0"
+    "firebase-tools": "^15.26.0",
+    "oxlint": "^1.78.0"
   }
 }

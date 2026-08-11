@@ -19,4 +19,8 @@ async function findByRoomAndMonth(propertyId, roomId, billingMonth) {
 }
 function billingByRoomAndMonthQuery(propertyId, roomId, billingMonth) { return billingRecords.where("propertyId", "==", propertyId).where("roomId", "==", roomId).where("billingMonth", "==", billingMonth).limit(1); }
 function activeAssignmentQuery(propertyId, roomId) { return assignments.where("propertyId", "==", propertyId).where("roomId", "==", roomId).where("status", "==", "active").limit(1); }
-module.exports = { db, FieldValue, toDocument, findAllByProperty, findById, findByRoomAndMonth, billingByRoomAndMonthQuery, activeAssignmentQuery, references: { billingRecords, rooms, tenants, settings, chargeMasters } };
+// Deterministic (not random) doc ID: forces two concurrent creates for the same room+month to
+// contend on one document, so Firestore's transaction retry catches the race the duplicate-check
+// query alone cannot (queries don't see documents concurrently created by another in-flight transaction).
+function billingDocId(roomId, billingMonth) { return `${roomId}_${billingMonth}`; }
+module.exports = { db, FieldValue, toDocument, findAllByProperty, findById, findByRoomAndMonth, billingByRoomAndMonthQuery, activeAssignmentQuery, billingDocId, references: { billingRecords, rooms, tenants, settings, chargeMasters } };

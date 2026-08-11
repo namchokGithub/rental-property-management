@@ -3,6 +3,7 @@
     { "collectionGroup": "rooms", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "propertyId", "order": "ASCENDING" }, { "fieldPath": "roomNumber", "order": "ASCENDING" }] },
     { "collectionGroup": "rooms", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "propertyId", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "roomNumber", "order": "ASCENDING" }] },
     { "collectionGroup": "rooms", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "propertyId", "order": "ASCENDING" }, { "fieldPath": "floor", "order": "ASCENDING" }, { "fieldPath": "roomNumber", "order": "ASCENDING" }] },
+    { "collectionGroup": "rooms", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "propertyId", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "floor", "order": "ASCENDING" }, { "fieldPath": "roomNumber", "order": "ASCENDING" }] },
     { "collectionGroup": "tenants", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "propertyId", "order": "ASCENDING" }, { "fieldPath": "fullName", "order": "ASCENDING" }] },
     { "collectionGroup": "tenants", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "propertyId", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "fullName", "order": "ASCENDING" }] },
     {

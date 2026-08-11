@@ -2,7 +2,7 @@
 
 A responsive frontend web application for managing rental rooms, apartments, or dormitory rooms: rooms, tenants, tenant-room assignments, monthly utility/rent billing, invoice generation, and a dashboard overview.
 
-The project runs entirely on the frontend using `localStorage`, with an architecture prepared for future migration to Firebase or a backend REST API without rewriting the UI.
+The React app runs entirely on the frontend using `localStorage`; nothing below is wired to a backend yet. A separate, fully-implemented Firebase Cloud Functions backend already exists in `functions/` (Firestore + Firebase Authentication + a complete REST API, verified against the Emulator Suite) and is documented in `docs/firebase/` and [context.md](context.md#firebase-migration) — the frontend just hasn't been switched over to it.
 
 ## Requirements
 
@@ -119,7 +119,7 @@ On first load (when `localStorage` has no rooms yet), the app seeds a small set 
 
 ## Current Limitations
 
-- Frontend only — no backend, no real database. Authentication exists but is demo-only (see Authentication above) — not secure for production.
+- The React app itself is still frontend-only — no page calls the backend yet, and its own auth is demo-only (see Authentication above), not secure for production. A real, verified Firebase backend exists in `functions/` (see `docs/firebase/`) but is not yet integrated (Phase 4, not started).
 - Single property only (no multi-property support).
 - No real PDF generation service — invoice export relies on the browser's native print / "Save as PDF".
 - No automated recurring billing generation or notifications.

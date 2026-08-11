@@ -272,7 +272,7 @@ Plus non-domain keys (none `rental.`-prefixed except the auth session, which fol
 
 # Firebase Migration
 
-**Status: Phase 1 — Firestore Data Model: Done; Phase 2 — Firebase Connection: Done; Phase 3 — Backend API: In Progress (Step 1 — Backend Foundation: Done; Step 2 — Authentication & Property Scope: Done; Step 3 — Property / Settings / Other Charge APIs: Done; Step 4 — Rooms / Tenants APIs: Done; Step 5 — Room Assignment APIs: Done; Step 6 — Billing APIs: Done; Step 7 — Invoice APIs: Done); Phase 4 — Frontend Integration: Not Started.** The implementation remains frontend-only and continues to use the existing localStorage repositories unchanged. The Firestore target model and migration plan are documented in `docs/firebase/data-model.md`; prospective document interfaces live in `src/types/firestore/*` and are intentionally separate from the current local-storage types.
+**Status: Phase 1 — Firestore Data Model: Done; Phase 2 — Firebase Connection: Done; Phase 3 — Backend API: Done (Step 1 — Backend Foundation: Done; Step 2 — Authentication & Property Scope: Done; Step 3 — Property / Settings / Other Charge APIs: Done; Step 4 — Rooms / Tenants APIs: Done; Step 5 — Room Assignment APIs: Done; Step 6 — Billing APIs: Done; Step 7 — Invoice APIs: Done; Step 8 — Backend Polish & Verification: Done); Phase 4 — Frontend Integration: Not Started.** The React app remains frontend-only in practice and continues to read/write the existing localStorage repositories unchanged — the Firebase backend below is fully implemented and verified but not yet called by any UI code. The Firestore target model and migration plan are documented in `docs/firebase/data-model.md`; prospective document interfaces live in `src/types/firestore/*` and are intentionally separate from the current local-storage types.
 
 Key decisions: use top-level property-scoped collections (`propertyId` on all business documents), store Firestore `Timestamp` values for persisted dates, preserve room/tenant/charge snapshots on billing records, and retain assignment history as the occupancy authority. Invoice screens remain a projection of issued `BillingRecord`s—there is no `invoices` collection unless a later requirement introduces independent invoice state or audit history. Firebase Authentication will own credentials; `users/{uid}` stores only the application profile and property memberships. Future assignment, billing issuance, and invoice-number writes must be API/transaction controlled.
 
@@ -292,6 +292,18 @@ Phase 3 Step 6 adds property-scoped Billing APIs for draft records only. The bac
 
 Phase 3 Step 7 adds immutable Invoice APIs sourced exclusively from BillingRecords. Creating an invoice transactionally verifies the draft bill and invoice uniqueness, increments a property/month counter, writes the Invoice snapshot, and changes the bill to `issued` with its invoice reference. Numbers are server-owned and immutable: `INV-YYYY-MM-NNN`, unique/sequential per property and billing month. Invoice items preserve rent, utilities/meter details, and selected charges in print order; changing source data later cannot change issued output. Mark-paid transactionally synchronizes Invoice and BillingRecord. Overdue is derived on reads from due date rather than persisted. Invoices do not have generic update/delete APIs; PDF, frontend integration, bulk issuance, and scheduled reminders remain out of scope.
 
+Phase 3 Step 8 is a full backend audit (security, auth/property isolation, validation, transactions, Firestore indexes/rules, logging, docs, dead code) covering every resource, not just the newest Invoice work — see `docs/firebase/{backend,api,data-model}.md` and `docs/adr/0001`–`0004` for the resulting decisions. Two real bugs were found and fixed: (1) Billing creation checked for a duplicate via a query inside a transaction but wrote to a random document ID, so two concurrent requests for the same room+month could both pass the empty-check and both commit — `billingRecords` document IDs are now deterministic (`` `${roomId}_${billingMonth}` ``) so concurrent creates contend on one document (ADR 0004); Invoice creation and Assignment creation were already safe because they write to a shared document (the billing record, or the room/tenant doc) that naturally serializes concurrent writers. (2) The Rooms list endpoint passed `status`/`floor` query params straight into a Firestore query with no validation and no composite index for the combined case — both are now validated (`rooms.validator.js#filters`) and indexed. Also fixed: money now rounds only at monetary values, never at the raw meter-usage quantity (ADR 0001); CORS now refuses to start in a real deployment (detected via Cloud Run's `K_SERVICE` env var) if no origin is configured, instead of silently allowing every origin — the emulator and local scripts are unaffected (ADR 0003); the `functions/` `lint` script now runs `oxlint` (matching the frontend's tooling) instead of a bare syntax check; a dead `BILLING_NOT_ISSUABLE` error code was removed. Confirmed already-correct and left unchanged: the per-endpoint role policy (any authenticated `admin`/`staff` reads, only `admin` writes — uniform across all 8 resource groups), the fetch-by-ID-then-compare-propertyId pattern used by every single-resource endpoint (functionally safe: the ownership check always runs before any response is built, so a wrong-property ID gets the same 404 as a nonexistent one — deliberately not refactored to scoped queries, which would be extra complexity for no security gain), and Invoice mark-paid's client-suppliable `paidAt` (ADR 0002). Firestore rules remain default-deny (`allow read, write: if false`) since all business CRUD goes through this API. No frontend, auth, repository, localStorage, or UI code changed.
+
+## Backend architecture summary (Phase 3 complete)
+
+- **Layering:** `Route → Middleware (auth → role → property access) → Controller → Service (business rules + transactions) → Repository (Firestore Admin SDK only) → Firestore`, identical across all 8 domain resources.
+- **Collections:** `users/{uid}`, `properties/{propertyId}`, `propertySettings/{propertyId}` (same ID as its property), `rooms/{roomId}`, `tenants/{tenantId}`, `roomAssignments/{assignmentId}`, `otherChargeMasters/{chargeId}`, `billingRecords/{roomId}_{billingMonth}` (deterministic — see above), `invoices/{invoiceId}`, `counters/{invoice-propertyId-YYYY-MM}`. Full field-level detail in `docs/firebase/data-model.md`.
+- **Authentication:** Firebase ID token (`Authorization: Bearer <token>`) verified by Admin SDK; `users/{uid}` holds the application profile (`role: "admin"|"staff"`, `propertyIds`, `isActive`). Missing/invalid/expired token → `401`; missing profile or `isActive: false` → `403`. Raw tokens/headers are never logged.
+- **Permission model:** any authenticated user with property membership can read every resource in that property; only `role: "admin"` can create/update/delete/issue/mark-paid/assign/end. Enforced by `requireRole(...)` + `ensurePropertyAccess(user, propertyId)`, both reusable across all routers.
+- **Transaction-sensitive operations:** Assignment create/end (room + tenant + assignment together), Billing create (deterministic doc ID for duplicate protection), Invoice create (billing validation + duplicate check + counter increment + invoice write + billing status update, all one transaction), Invoice mark-paid (invoice + billing status together). All use Firestore `runTransaction`, relying on its automatic retry-on-contention for correctness — not manual locking.
+- **Known limitations:** no automated tests beyond mocked-dependency unit tests (`test:smoke`/`test:auth`/`test:resources`) and manual emulator verification scripts — no CI-run integration test suite yet; no rate limiting on the API; no audit trail of *which* admin performed a mutation (`createdBy`/`updatedBy` do not exist); CORS origin list must still be populated with a real frontend URL once Phase 4 picks a deployment target.
+- **Phase 4 preparation:** the API base path is `/api/v1` (region `asia-southeast1` by default, see `FUNCTIONS_REGION`); every non-health request needs a Firebase Auth ID token; every response is `{ success, data }` / `{ success, data, meta: { total } }` / `{ success: false, error: { code, message } }`; endpoint groups are `auth`, `properties`, `properties/:id/settings`, `properties/:id/other-charges`, `properties/:id/rooms`, `properties/:id/tenants`, `properties/:id/assignments`, `properties/:id/billing`, `properties/:id/invoices`. Recommended frontend integration order: Authentication → Properties/Settings → Other Charges → Rooms → Tenants → Assignments → Billing → Invoices (repositories swap to `async` Firestore/REST calls one at a time behind their existing signatures, per the Repository architecture section above — no frontend integration work has started).
+
 # Important Files
 
 | Path | Responsibility |
@@ -307,10 +319,16 @@ Phase 3 Step 7 adds immutable Invoice APIs sourced exclusively from BillingRecor
 | `functions/src/middleware/{auth,role}.middleware.js` | Firebase ID-token verification, user-context loading, and reusable role authorization |
 | `functions/src/services/{users,property-access}.service.js` | Application user-profile validation and reusable `propertyIds` authorization guard |
 | `functions/src/routes/auth.routes.js` | Protected `GET /api/v1/auth/me` endpoint |
-| `functions/src/{routes,controllers,services,repositories,validators}/{properties,settings,other-charges}.*` | Property, settings, and Other Charge Master HTTP APIs with thin controllers and Firestore-only repositories |
-| `docs/firebase/backend.md` | Backend foundation architecture, health API, and local emulator instructions |
+| `functions/src/{routes,controllers,services,repositories,validators}/{properties,settings,other-charges,rooms,tenants,assignments,billing,invoices}.*` | Full HTTP API per resource — thin controllers, business rules/transactions in services, Firestore-only repositories |
+| `functions/src/errors/error-codes.js`, `errors/app-error.js`, `middleware/error.middleware.js` | Centralized error code registry, `AppError`, and the error-response middleware (`{ success: false, error: { code, message } }`, never a stack trace) |
+| `functions/src/utils/billing-calculator.js` | Usage/amount/subtotal/total math — usage stays raw, only money rounds (see ADR 0001) |
+| `functions/src/utils/invoice-number.js` | `INV-YYYY-MM-NNN` formatting + the per-property/month counter document ID |
+| `functions/src/config/cors.js` | Configurable CORS middleware; fails closed outside the Emulator Suite (see ADR 0003) |
+| `functions/scripts/*.js` | `seed-dev-user`, `verify-auth-emulator`, `verify-resource-apis-emulator`, `verify-assignments-emulator` — real-emulator verification scripts |
+| `docs/firebase/backend.md` | Full backend architecture, folder structure, CORS/Firestore-rules posture, and local emulator instructions |
 | `docs/firebase/authentication.md` | Backend authentication flow, profile model, error behavior, and Auth Emulator workflow |
-| `docs/firebase/api.md` | Property, settings, and Other Charge Master endpoint contracts and authorization rules |
+| `docs/firebase/api.md` | Full endpoint catalogue (all 8 resources), permissions, request/response shapes, business rules |
+| `docs/adr/0001-0004*.md` | Backend decisions: billing rounding rule, invoice `paidAt` policy, CORS fail-closed, billing deterministic doc ID |
 | `src/data/seed/seedData.ts` | One-time idempotent demo data seeding, called from `src/main.tsx` |
 | `src/types/otherCharge.ts` | `OtherChargeMaster` type + create/update input types |
 | `src/data/repositories/otherChargeRepository.ts` | CRUD for the Other Charge Master list |
@@ -346,19 +364,19 @@ Phase 3 Step 7 adds immutable Invoice APIs sourced exclusively from BillingRecor
 
 # Known Limitations
 
-- Frontend only — no backend, no authentication, no real database.
-- Single property only — no multi-property support.
+- The React app is still frontend-only in practice — it reads/writes `localStorage` exclusively. A Firebase Cloud Functions backend (Firestore, Firebase Authentication, full domain API) exists and is verified (see Firebase Migration above) but nothing in the UI calls it yet; that's Phase 4.
+- Single property only in the current UI — the backend already supports multi-property scoping (`propertyId` + `users/{uid}.propertyIds`), but the frontend has no property switcher.
 - No real PDF generation service — invoice "export" is the browser's native print / Save-as-PDF.
 - No automated recurring monthly billing generation.
 - No notifications (email/SMS/push).
 - Only two languages ship (Thai, English); adding more is low-effort by design (see Localization Architecture) but not yet done.
+- Backend has no audit trail of which admin performed a mutation (no `createdBy`/`updatedBy`), no rate limiting, and no CI-run integration test suite beyond mocked unit tests + manual emulator verification scripts.
 
 # Future Improvements
 
-- Firebase Authentication (the app currently has none)
-- Firestore as the repository backing store (swap repository internals to `async`, per the Architecture section above)
+- Wire the frontend to the Firebase backend (Phase 4 — see the Phase 4 preparation notes under Firebase Migration above); this replaces the demo `LocalAuthService` with real Firebase Authentication and the localStorage repositories with the Cloud Functions API, resource by resource
 - Firebase Storage for any uploaded documents/photos
-- Multi-property support
+- Multi-property support in the UI (a property switcher; the backend already scopes by `propertyId`)
 - Payment tracking / partial payments
 - Cloud-generated invoice PDFs (rather than browser print)
 - Automated monthly billing generation

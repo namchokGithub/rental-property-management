@@ -7,7 +7,7 @@ function calculateMeterReading(reading, rate, errorCode) {
   if (reading.currentMeter < reading.previousMeter) {
     throw new AppError(400, errorCode, "Current meter reading cannot be lower than previous meter reading");
   }
-  const usage = roundMoney(reading.currentMeter - reading.previousMeter);
+  const usage = reading.currentMeter - reading.previousMeter;
   return { previousMeter: reading.previousMeter, currentMeter: reading.currentMeter, usage, rate, amount: roundMoney(usage * rate) };
 }
 

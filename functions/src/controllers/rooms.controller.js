@@ -3,10 +3,7 @@ const validator = require("../validators/rooms.validator");
 const { sendList, sendSuccess } = require("../utils/response");
 
 async function list(request, response) {
-  return sendList(response, await roomsService.list(request.user, request.params.propertyId, {
-    status: request.query.status,
-    floor: request.query.floor,
-  }));
+  return sendList(response, await roomsService.list(request.user, request.params.propertyId, validator.filters(request.query)));
 }
 
 async function getById(request, response) { return sendSuccess(response, await roomsService.get(request.user, request.params.propertyId, request.params.id)); }
