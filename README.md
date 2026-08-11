@@ -6,7 +6,7 @@ The React app runs entirely on the frontend using `localStorage`; nothing below 
 
 ## Requirements
 
-- Node.js 20+
+- Node.js 20+ for the frontend (Node.js 22 for the Firebase Functions project)
 - pnpm
 
 ## Installation
@@ -46,9 +46,10 @@ pnpm lint
 - **Assignments** — assign a tenant to a room, end a tenancy, move a tenant to a different room. Only one active assignment per room at a time; room status updates automatically.
 - **Monthly Billing** — enter electricity/water meter readings and fees; usage and totals are calculated automatically. Wide table with sticky Room/Tenant columns on desktop, card layout on mobile.
 - **Invoices** — auto-numbered (`INV-YYYY-MM-###`) invoice list, in-app preview, and a standalone printable bilingual invoice document (browser print / Save as PDF, A4-optimized).
-- **Settings** — property info and default billing rates, applied automatically to new rooms and billing records.
+- **Settings** — property information, the default electricity/water rates and invoice note, plus an optional Other Charge Master list (e.g. parking or garbage fees) that users explicitly add to individual bills.
 - **Search** — every list page (Rooms, Tenants, Billing, Invoices) has a client-side search box that filters the loaded records instantly; no backend or state-management library involved.
 - **Localization** — switch between Thai and English instantly, anywhere in the app (see below).
+- **Appearance & themes** — light, dark, and system appearance modes with four persisted accent themes: Sky Purple, Ocean, Emerald, and Rose.
 
 ## Tech Stack
 
@@ -60,18 +61,24 @@ pnpm lint
 - sonner (toast notifications)
 - `localStorage` behind a repository abstraction (see [context.md](context.md))
 - Custom lightweight i18n (no library) — see Localization below
+- Firebase client SDK and a separate Firebase Cloud Functions/Express API (implemented but not yet integrated with the UI)
 
 ## Project Structure
 
 ```
 src/
   app/            # router, layout shell
+  auth/           # demo authentication service and React auth context
   components/     # ui primitives, layout, shared common components
-  data/           # storage, repositories, seed data
+  data/           # storage, repositories, seed data, migrations
   features/       # one folder per page/feature
   hooks/          # thin hooks wrapping repositories
+  i18n/           # typed Thai/English dictionaries and language context
   lib/            # pure calculation/formatting/validation utilities
+  theme/          # appearance/accent theme context and persistence
   types/          # domain models
+functions/        # Firebase Cloud Functions + Express REST API
+docs/firebase/    # Firebase setup, backend, data-model, and API documentation
 ```
 
 See [context.md](context.md) for the full architecture, domain model, business rules, and continuation notes for future development.
@@ -113,13 +120,29 @@ The system was built to make this a translation-file-only change:
 
 No other component needs to change. See [context.md](context.md) for the full localization architecture.
 
+## Appearance and Accent Themes
+
+Choose light, dark, or system appearance and one of four accent themes from the header menu. Both settings apply immediately and persist across visits using `app.appearance` and `app.accentTheme`. The saved theme is applied before React mounts to avoid a flash of the default theme.
+
 ## Demo Data Behavior
 
-On first load (when `localStorage` has no rooms yet), the app seeds a small set of rooms, tenants, assignments, and billing records so every page has realistic content. Seeding is idempotent — it only runs once; clearing the relevant `localStorage` keys (see [context.md](context.md#storage-keys)) re-triggers it.
+On first load (when `localStorage` has no rooms yet), the app seeds rooms, tenants, assignments, billing records, and example optional charge masters so every page has realistic content. Seeding is idempotent — it only runs once; clearing the relevant `localStorage` keys (see [context.md](context.md#storage-keys)) re-triggers it.
+
+Existing installations are also safely migrated from the former fixed-fee fields to optional per-bill charges; the migration is idempotent and runs during app startup.
+
+## Firebase Backend
+
+The Firebase backend is complete through Phase 3, but frontend integration (Phase 4) has not started. It provides a versioned Cloud Functions/Express API at `/api/v1`, Firebase Authentication token verification, property-scoped Firestore data, transaction-safe assignments/billing/invoice actions, and documented emulator workflows.
+
+```bash
+pnpm --dir functions emulators --project demo-rental-property-management
+```
+
+See [Firebase setup](docs/firebase/setup.md), [backend architecture](docs/firebase/backend.md), and the [API reference](docs/firebase/api.md). The frontend still exclusively uses its local repositories and demo authentication until Phase 4.
 
 ## Current Limitations
 
-- The React app itself is still frontend-only — no page calls the backend yet, and its own auth is demo-only (see Authentication above), not secure for production. A real, verified Firebase backend exists in `functions/` (see `docs/firebase/`) but is not yet integrated (Phase 4, not started).
+- The React app itself is still frontend-only — no page calls the backend yet, and its own auth is demo-only (see Authentication above), not secure for production. A verified Firebase backend exists in `functions/` but is not yet integrated (Phase 4, not started).
 - Single property only (no multi-property support).
 - No real PDF generation service — invoice export relies on the browser's native print / "Save as PDF".
 - No automated recurring billing generation or notifications.
