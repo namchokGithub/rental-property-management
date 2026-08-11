@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLanguage } from "@/i18n";
@@ -105,7 +105,7 @@ export function AssignTenantDialog({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="assign-start-date">{t("assignment.startDate")}</Label>
-            <Input id="assign-start-date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            <DatePicker id="assign-start-date" value={startDate} onChange={setStartDate} />
           </div>
         </div>
 

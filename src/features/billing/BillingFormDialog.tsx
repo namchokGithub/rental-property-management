@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -405,13 +406,13 @@ export function BillingFormDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="billing-month">{t("billing.billingMonth")}</Label>
-              <Input
+              <DatePicker
                 id="billing-month"
-                type="month"
                 value={form.billingMonth}
                 disabled={Boolean(record)}
-                onChange={(e) => {
-                  setForm({ ...form, billingMonth: e.target.value });
+                mode="month"
+                onChange={(billingMonth) => {
+                  setForm({ ...form, billingMonth });
                   clearError("billingMonth");
                 }}
               />
@@ -574,11 +575,10 @@ export function BillingFormDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="due-date">{t("common.dueDate")}</Label>
-              <Input
+              <DatePicker
                 id="due-date"
-                type="date"
                 value={form.dueDate}
-                onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+                onChange={(dueDate) => setForm({ ...form, dueDate })}
               />
             </div>
             <div className="space-y-1.5">
