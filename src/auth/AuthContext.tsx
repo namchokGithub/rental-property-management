@@ -31,10 +31,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
         return;
       }
-      const profile = await fetchUserProfile(firebaseUser.uid);
-      loadedUidRef.current = firebaseUser.uid;
-      setUser(profile);
-      setIsLoading(false);
+      try {
+        const profile = await fetchUserProfile(firebaseUser.uid);
+        loadedUidRef.current = firebaseUser.uid;
+        setUser(profile);
+      } catch (error) {
+        // Network error or Firestore SDK failure: log and set terminal state
+        console.error("Failed to fetch user profile:", error);
+        loadedUidRef.current = firebaseUser.uid;
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
     });
     return unsubscribe;
   }, []);
