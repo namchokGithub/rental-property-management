@@ -12,6 +12,7 @@ import { RoomTable } from "@/features/rooms/RoomTable";
 import { RoomFormDialog } from "@/features/rooms/RoomFormDialog";
 import { RoomDetailSheet } from "@/features/rooms/RoomDetailSheet";
 import { AssignTenantDialog } from "@/features/assignments/AssignTenantDialog";
+import { useAuth } from "@/auth";
 import { useRooms } from "@/hooks/useRooms";
 import { useTenants } from "@/hooks/useTenants";
 import { useAssignments } from "@/hooks/useAssignments";
@@ -29,6 +30,8 @@ function today(): string {
 
 export function RoomsPage() {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const { rooms, isLoading, createRoom, updateRoom, deleteRoom } = useRooms();
   const { tenants } = useTenants();
   const { assignments, assignTenant, endTenancyByRoomId, getActiveByTenantId } = useAssignments();
@@ -84,14 +87,16 @@ export function RoomsPage() {
         title={t("room.title")}
         description={t("room.description")}
         actions={
-          <Button
-            onClick={() => {
-              setEditingRoom(undefined);
-              setFormOpen(true);
-            }}
-          >
-            <Plus /> {t("room.addRoom")}
-          </Button>
+          isAdmin && (
+            <Button
+              onClick={() => {
+                setEditingRoom(undefined);
+                setFormOpen(true);
+              }}
+            >
+              <Plus /> {t("room.addRoom")}
+            </Button>
+          )
         }
       />
 
@@ -100,11 +105,15 @@ export function RoomsPage() {
           icon={DoorOpen}
           title={t("room.noRoomsTitle")}
           description={t("room.noRoomsDescription")}
-          actionLabel={t("room.addRoom")}
-          onAction={() => {
-            setEditingRoom(undefined);
-            setFormOpen(true);
-          }}
+          actionLabel={isAdmin ? t("room.addRoom") : undefined}
+          onAction={
+            isAdmin
+              ? () => {
+                  setEditingRoom(undefined);
+                  setFormOpen(true);
+                }
+              : undefined
+          }
         />
       ) : (
         <>

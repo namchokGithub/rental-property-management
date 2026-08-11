@@ -10,6 +10,7 @@ import { SearchInput } from "@/components/common/SearchInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BillingTable } from "@/features/billing/BillingTable";
 import { BillingFormDialog } from "@/features/billing/BillingFormDialog";
+import { useAuth } from "@/auth";
 import { useBillingRecords } from "@/hooks/useBillingRecords";
 import { useRooms } from "@/hooks/useRooms";
 import { useTenants } from "@/hooks/useTenants";
@@ -29,6 +30,8 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0
 
 export function BillingPage() {
   const { t, language } = useLanguage();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const { records, isLoading, createBilling, updateBilling, deleteBilling } = useBillingRecords();
   const { rooms } = useRooms();
   const { tenants } = useTenants();
@@ -159,21 +162,23 @@ export function BillingPage() {
         title={t("billing.title")}
         description={t("billing.description")}
         actions={
-          <div className="flex items-center gap-2">
-            {effectiveSelectedIds.size > 0 && (
-              <Button variant="secondary" onClick={handleBulkIssue}>
-                <Send /> {t("billing.bulkIssueSelected", { count: effectiveSelectedIds.size })}
+          isAdmin && (
+            <div className="flex items-center gap-2">
+              {effectiveSelectedIds.size > 0 && (
+                <Button variant="secondary" onClick={handleBulkIssue}>
+                  <Send /> {t("billing.bulkIssueSelected", { count: effectiveSelectedIds.size })}
+                </Button>
+              )}
+              <Button
+                onClick={() => {
+                  setEditingRecord(undefined);
+                  setFormOpen(true);
+                }}
+              >
+                <Plus /> {t("billing.createBilling")}
               </Button>
-            )}
-            <Button
-              onClick={() => {
-                setEditingRecord(undefined);
-                setFormOpen(true);
-              }}
-            >
-              <Plus /> {t("billing.createBilling")}
-            </Button>
-          </div>
+            </div>
+          )
         }
       />
 
@@ -182,11 +187,15 @@ export function BillingPage() {
           icon={Receipt}
           title={t("billing.noBillingTitle")}
           description={t("billing.noBillingDescription")}
-          actionLabel={t("billing.createBilling")}
-          onAction={() => {
-            setEditingRecord(undefined);
-            setFormOpen(true);
-          }}
+          actionLabel={isAdmin ? t("billing.createBilling") : undefined}
+          onAction={
+            isAdmin
+              ? () => {
+                  setEditingRecord(undefined);
+                  setFormOpen(true);
+                }
+              : undefined
+          }
         />
       ) : (
         <>

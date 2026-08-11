@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { useAuth } from "@/auth";
 import { useLanguage } from "@/i18n";
 import { formatAmount, formatCurrency } from "@/lib/currency";
 import { formatBillingMonth } from "@/lib/date";
@@ -40,6 +41,9 @@ function ActionsMenu({
   t: (key: string) => string;
 }) {
   const status = resolveBillingStatus(record);
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  if (!isAdmin) return null;
   return (
     <div className="flex items-center justify-end gap-1">
       <Tooltip>

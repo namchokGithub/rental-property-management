@@ -3,6 +3,7 @@ import { Printer, CheckCircle2 } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { InvoicePrintView } from "@/features/invoices/InvoicePrintView";
+import { useAuth } from "@/auth";
 import { useLanguage } from "@/i18n";
 import { resolveBillingStatus } from "@/lib/invoice";
 import type { BillingRecord } from "@/types/billing";
@@ -23,6 +24,8 @@ interface InvoicePreviewDialogProps {
 export function InvoicePreviewDialog({ open, onOpenChange, record, room, tenant, settings, onMarkPaid }: InvoicePreviewDialogProps) {
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   if (!record || !room) return null;
 
   const status = resolveBillingStatus(record);
@@ -35,7 +38,7 @@ export function InvoicePreviewDialog({ open, onOpenChange, record, room, tenant,
         </DialogHeader>
         <InvoicePrintView record={record} room={room} tenant={tenant} settings={settings} />
         <DialogFooter>
-          {(status === "issued" || status === "overdue") && (
+          {isAdmin && (status === "issued" || status === "overdue") && (
             <Button variant="outline" onClick={() => onMarkPaid(record)}>
               <CheckCircle2 className="h-4 w-4" /> {t("invoice.markAsPaid")}
             </Button>

@@ -1,135 +1,164 @@
 # Firebase / Firestore Data Model
 
-## Scope and current-state fit
+## Scope
 
-This is the Phase 1 target model for the current frontend-only rental application. It prepares the repository boundary for Firebase Authentication, an API/Cloud Functions layer, and Firestore, but does not install Firebase, change repositories or hooks, alter the UI, or remove `localStorage`.
-
-The existing local models remain the active application contracts in `src/types/*.ts`. The prospective persisted Firestore contracts live separately in `src/types/firestore/*` so adding the required multi-property fields and Firestore timestamps cannot change the current UI or storage behavior. `FirestoreTimestamp` is a type-only alias for Firebase's `Timestamp`; the Firebase client setup itself is documented in `setup.md`.
-
-Current localStorage domain keys to migrate later are `rental.rooms`, `rental.tenants`, `rental.assignments`, `rental.billing`, `rental.settings`, and `rental.otherCharges`. Authentication is currently a demo session at `rental.auth.session`; UI preferences (`app.language`, `app.appearance`, and `app.accentTheme`) are not property data and should remain client preferences.
+This describes the Firestore schema actually implemented and shipped by the direct-to-Firestore migration. There is no backend, no Cloud Functions, and no REST API — the React app reads and writes Firestore directly through `firebase/firestore`, and [firestore.rules](../../firestore.rules) is the sole authorization boundary. The corresponding TypeScript domain types live in `src/types/*.ts` (unchanged from the pre-migration app, except `RoomTenantAssignment.updatedAt`, added below); there is no separate `src/types/firestore/*` split — the same types describe both what a component renders and what a repository persists (Firestore `Timestamp` fields are converted to/from ISO strings at the repository boundary, so nothing above `src/data/repositories/*` ever sees a raw `Timestamp`).
 
 ## Collections
 
-Use top-level collections, with a `propertyId` field on every property-scoped business document:
-
 ```text
 users/{uid}
-properties/{propertyId}
-propertySettings/{propertyId}
-rooms/{roomId}
-tenants/{tenantId}
-roomAssignments/{assignmentId}
-otherChargeMasters/{chargeId}
-billingRecords/{billingId}
-invoices/{invoiceId}
-counters/{counterId}
+properties/{propertyId}/settings/general
+properties/{propertyId}/rooms/{roomId}
+properties/{propertyId}/tenants/{tenantId}
+properties/{propertyId}/assignments/{assignmentId}
+properties/{propertyId}/billing/{roomId_billingMonth}
 ```
 
-`users/{uid}` uses the Firebase Authentication UID as its document ID. All other document IDs are generated Firestore IDs. `propertySettings/{propertyId}` deliberately shares its document ID with its property; its `propertyId` field is retained for a consistent document contract and simple converter validation.
+`users/{uid}` uses the Firebase Authentication UID as its document ID and is top-level, since a user's access isn't scoped to any one property until you read their `propertyIds` array. Every business collection is a **subcollection** of `properties/{propertyId}` — there is no `propertyId` field duplicated inside any subcollection document, because the collection path already scopes it; that path is the single source of truth for which property a document belongs to.
 
-Top-level collections are preferred over property subcollections for this project because the interface already has cross-entity list and detail views, and the likely API needs to query records by property, month, status, room, or tenant without first resolving a nested parent path. A uniform `propertyId` constraint makes authorization scope explicit, supports future staff access to several properties, and keeps repository query construction consistent. Firestore security rules and the future API must always scope property data by both `propertyId` and the caller's membership in `users/{uid}.propertyIds`.
+There is no `invoices` collection and no `counters` collection. The Invoices page is a filtered view over `billing` records that have `invoiceNumber` set — this preserves the original pre-migration design decision (documented in [context.md](../../context.md)'s Domain Model section) that a separate Invoice entity is an unnecessary second source of truth for data `BillingRecord` already owns. Invoice numbering (`INV-YYYY-MM-NNN`) is computed inside the same transaction that issues a bill, by scanning that property/month's existing `billing` documents — see [Business rules](#business-rules) below.
+
+There is also no standalone `properties/{propertyId}` document with its own `name`/`address`/`phone` fields — nothing in the app reads or writes one. `propertyId` is purely a path segment; Firestore does not require an intermediate path segment to have its own document for a nested document (`properties/{propertyId}/settings/general`, etc.) to exist. Property identity fields (`propertyName`, `propertyAddress`, `phone`) live directly on `settings/general` instead, alongside the billing defaults — see below. (`firestore.rules` still has a `match /properties/{propertyId}` rule block for forward compatibility, in case a future feature reads/writes that path directly; it is simply never exercised by the current app.)
 
 ## Document models
 
-The corresponding TypeScript interfaces are in `src/types/firestore/`. Persisted date/time fields use Firestore `Timestamp`; no JavaScript `Date` strings are persisted in the target model.
+### `users/{uid}`
 
-| Collection | Type | Notes |
+| Field | Type | Notes |
 | --- | --- | --- |
-| `properties` | `Property` | Owns the name, address, and phone currently stored in local settings. |
-| `users` | `UserProfile` | Application profile only, including explicit `isActive` authorization state. Firebase Authentication owns the UID, credentials, and password handling. No password is stored here. |
-| `rooms` | `Room` | Has required `propertyId`; its `status` is a query-friendly operational field, not the tenant-history source of truth. |
-| `tenants` | `Tenant` | Has required `propertyId`; status describes the tenant record, not assignment history. |
-| `roomAssignments` | `RoomTenantAssignment` | Keeps tenancy history, including ended assignments. |
-| `otherChargeMasters` | `OtherChargeMaster` | Optional charge templates only; nothing creates a charge on a bill automatically. |
-| `billingRecords` | `BillingRecord` | The editable monthly calculation record. Step 6 creates/edits drafts; Step 7 stores invoice linkage and transitions it to issued/paid. |
-| `invoices` | `Invoice` | Immutable financial snapshot created from one BillingRecord at issuance. |
-| `counters` | `InvoiceCounter` | Transactional, property-and-month-scoped invoice sequence. |
-| `propertySettings` | `PropertySettings` | Per-property billing defaults and invoice note; it does not embed charge masters. |
+| `name` | `string` | |
+| `email` | `string` | Mirrors the Firebase Auth email; Firestore is still the profile source of truth for role/property access. |
+| `role` | `"admin" \| "staff"` | Only `admin` can write anywhere; `staff` can read everywhere they have property access. |
+| `propertyIds` | `string[]` | Properties this user may access. The UI has no property switcher yet, so it always uses `propertyIds[0]` (`src/lib/activeProperty.ts`). |
+| `isActive` | `boolean` | `false` disables access without deleting the Auth account — `AuthContext` treats an inactive or missing profile the same as "not authorized," leaving the user on the login screen even with a valid Firebase credential. |
 
-`BillingRecord` retains the current model's meter readings, calculated utility amounts, rent, other charges, totals, status, due date, issue date, paid date, and invoice number. It adds `propertyId`, `roomSnapshot`, and optional `tenantSnapshot`. `BillingCharge` is an embedded snapshot with its own generated ID and optional `masterId` provenance.
+Written only by hand — see the README's [First-Time Setup](../../README.md#first-time-setup). No client code ever writes to `users/{uid}`; `firestore.rules` forbids it outright (`allow list, write: if false`) so a signed-in user can never grant themselves a role or property access.
 
-### Invoice decision: immutable `invoices` collection
+### `properties/{propertyId}/settings/general`
 
-Phase 3 Step 7 introduces `invoices` because issuance now needs an immutable, self-contained snapshot and a safe per-property/month number allocation. An invoice is created only from a `draft` BillingRecord; its invoice number, room/tenant snapshots, item lines, totals, note, due date, and billing month are copied at issuance and never edited. The BillingRecord retains `invoiceId`, `invoiceNumber`, `issuedAt`, and synchronized `status`/`paidAt` for operational list compatibility, but must not replace the Invoice snapshot as the historical print source.
+Single document per property, holding both property identity and billing defaults (`src/types/settings.ts`'s `PropertySettings`, `src/data/repositories/settingsRepository.ts`):
 
-`counters/invoice-{propertyId}-{YYYY-MM}` holds `{ propertyId, type: "invoice", period, current }`. The creation transaction reads and increments this document while writing both Invoice and BillingRecord. Numbering is therefore unique and sequential within each property/month, with the format `INV-YYYY-MM-NNN`; different properties may each use the same visible sequence.
+| Field | Type | Notes |
+| --- | --- | --- |
+| `propertyName` | `string` | |
+| `propertyAddress` | `string` | |
+| `phone` | `string` | |
+| `defaultElectricityRate` | `number` | Prefills new rooms and new bills. |
+| `defaultWaterRate` | `number` | |
+| `defaultInvoiceNote` | `string` | Snapshotted onto each bill's invoice note at creation, not re-read from Settings afterward. |
+| `otherChargeMasters` | `OtherChargeMaster[]` | Embedded array — see below. Missing/absent field reads as an empty list. |
 
-## Relationships and business rules
+An absent document (no `Settings` ever saved for a property) reads back as `DEFAULTS` (`src/data/repositories/settingsRepository.ts`) — every field zero/empty — rather than throwing, so a freshly-bootstrapped property with only a `users/{uid}` profile and no settings doc yet still loads the Settings page without error.
 
-```text
-Property 1 ── * Room
-Property 1 ── * Tenant
-Property 1 ── * OtherChargeMaster
-Property 1 ── 1 PropertySettings
-Room     1 ── * RoomTenantAssignment * ── 1 Tenant
-Room/Tenant ── * BillingRecord
-BillingRecord ── * embedded BillingCharge
-BillingRecord 1 ── 0..1 Invoice
+#### `otherChargeMasters` (embedded, not a subcollection)
+
+Reusable per-bill charge templates (garbage fee, parking, etc.) — a handful to a few dozen rows, edited rarely, only from the Settings page. Stored as a plain array field on the same `settings/general` document rather than a `properties/{propertyId}/otherCharges/{chargeId}` subcollection: this needs no extra security-rule block, and one `onSnapshot` on the settings document gives live updates for the whole list. Each element:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `id` | `string` | `crypto.randomUUID()`, generated client-side. |
+| `nameTh` | `string` | |
+| `nameEn` | `string?` | |
+| `defaultAmount` | `number` | |
+| `isActive` | `boolean` | Only active masters are offered when attaching a charge to a new bill. |
+| `createdAt`, `updatedAt` | `string` (ISO) | These stay ISO strings, not Firestore `Timestamp`s, since they're inside an array element rather than a top-level document field — Firestore's `serverTimestamp()` sentinel cannot be used inside an array. |
+
+Writes go through `src/data/repositories/otherChargeRepository.ts`'s `runTransaction()`-based read-modify-write on the whole array (create/update/delete), which avoids a lost update if two admins edit the list at the same moment.
+
+### `properties/{propertyId}/rooms/{roomId}`
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `roomNumber` | `string` | |
+| `floor` | `string?` | |
+| `type` | `string?` | |
+| `monthlyRent` | `number` | |
+| `status` | `"available" \| "occupied" \| "maintenance" \| "inactive"` | Never stores a tenant reference — see Business rules. |
+| `description` | `string?` | |
+| `electricityRate` | `number` | |
+| `waterRate` | `number` | |
+| `createdAt`, `updatedAt` | `Timestamp` | Set via `serverTimestamp()`; converted to ISO strings at read time. |
+
+### `properties/{propertyId}/tenants/{tenantId}`
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `name` | `string` | Single free-text field, not split first/last (the pre-Firebase `fullName`/`.name` mismatch was fixed before this migration started). |
+| `phone`, `email`, `identificationNumber`, `address`, `emergencyContactName`, `emergencyContactPhone`, `notes` | `string?` | |
+| `status` | `"active" \| "inactive"` | Describes the tenant record, not occupancy. |
+| `createdAt`, `updatedAt` | `Timestamp` | |
+
+### `properties/{propertyId}/assignments/{assignmentId}`
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `roomId` | `string` | |
+| `tenantId` | `string` | |
+| `startDate` | `Timestamp` | |
+| `endDate` | `Timestamp \| null` | |
+| `status` | `"active" \| "ended"` | The **only** source of truth for which tenant occupies which room. |
+| `createdAt` | `Timestamp` | |
+| `updatedAt` | `Timestamp` | Not read for any business logic directly, but written on every assign/end so the document changes on each transaction — this gives Firestore's optimistic-concurrency check something to serialize two simultaneous assignment attempts for the same tenant against (see Business rules). |
+
+### `properties/{propertyId}/billing/{roomId_billingMonth}`
+
+Document ID is deterministic: `` `${roomId}_${billingMonth}` `` — this is what makes "at most one bill per room per month" a Firestore-enforced invariant (a second `create` against the same ID contends with the first inside a transaction) rather than something only the UI checks.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `roomId` | `string` | |
+| `tenantId` | `string \| null` | A room can be billed with no active tenant. |
+| `invoiceNumber` | `string \| null` | Set only at issuance; never re-assigned afterward. |
+| `billingMonth` | `string` | `"YYYY-MM"`. |
+| `electricity`, `water` | `{ previousMeter, currentMeter, usage, rate, amount }` | |
+| `rentAmount` | `number` | |
+| `otherCharges` | `{ id, masterId?, name, amount }[]` | Snapshot at the time each charge was added to this bill — editing/deactivating the source `OtherChargeMaster` later never changes a past bill. |
+| `subtotal`, `total` | `number` | |
+| `status` | `"draft" \| "issued" \| "paid" \| "overdue"` | `"overdue"` is never persisted — see Business rules. |
+| `issuedAt`, `dueDate`, `paidAt` | `Timestamp \| null` | |
+| `createdAt`, `updatedAt` | `Timestamp` | |
+
+## Business rules
+
+- **Assignment exclusivity.** `assignmentRepository.assign()` runs inside a `runTransaction()`: it checks (via query) that neither the target room nor the target tenant already has an active assignment, creates the new assignment document, flips the room to `occupied`, and writes a no-op `updatedAt` touch on the tenant document purely to force Firestore's optimistic-concurrency check to serialize two simultaneous `assign()` calls for the same tenant (without that touch, both transactions could read "no active assignment" before either commits).
+- **Ending a tenancy.** `assignmentRepository.endByRoomId()` (also transactional) marks the assignment `ended`, records `endDate`, and flips the room back to `available` — but only if the room's current status is still `occupied`; an explicit `maintenance`/`inactive` status is left alone, since ending occupancy shouldn't silently clear a maintenance flag.
+- **Moving a tenant to a different room** calls `endTenancyByRoomId()` then `assignTenant()` sequentially (two separate transactions, not one) — matching the pre-Firestore behavior exactly; a crash between the two calls could leave a tenant unassigned, which is a pre-existing, documented, non-regressed limitation.
+- **Deleting a room or tenant with an active assignment is rejected** (`RoomHasActiveAssignmentError`/`TenantHasActiveAssignmentError`, thrown by `roomRepository.delete()`/`tenantRepository.delete()` after an `assignments` query) — ended assignment history never blocks deletion and is never cascade-deleted.
+- **Invoice numbering.** `billingRepository.update()` assigns `invoiceNumber` inside a `runTransaction()` only on the transition into `status: "issued"`: it queries existing `billing` documents for the same `billingMonth`, filters to ones that already have an `invoiceNumber`, and calls the unchanged pure `generateInvoiceNumber()` (`src/lib/invoice.ts`) to compute `INV-YYYY-MM-NNN`. Bulk-issuing must `await` each record sequentially (never `Promise.all`) so each transaction's write commits before the next one reads — see `BillingPage.tsx`'s `handleBulkIssue()`.
+- **Billing status lifecycle.** Stored `status` changes only via explicit user actions (issue, mark paid); `"overdue"` is never persisted — `resolveBillingStatus()` (`src/lib/invoice.ts`, unchanged) computes it at read time from `dueDate`.
+- **Firestore rules also enforce billing immutability after issuance**: once `invoiceNumber` is set, an `update` that changes `invoiceNumber` or `issuedAt` is rejected outright (see [firestore.rules](../../firestore.rules)'s `billing` match block) — the closest a client-only rule can get to the immutability guarantee a real backend's separate `invoices` collection would have given for free.
+- **Role enforcement.** `role: "admin"` can write anywhere the user has property access; `role: "staff"` can only read. This is enforced by [firestore.rules](../../firestore.rules) — the actual authorization boundary — and mirrored client-side as a UX convenience (hidden create/edit/delete buttons for `staff`, see `src/features/*/[Page|Table].tsx`).
+
+## Known limitation: no server-enforced cross-document invariants
+
+Since there is no backend, Firestore Security Rules are the only thing stopping a malicious *admin*-role account from writing directly via the SDK and bypassing a transaction's invariant checks — e.g. writing two `"active"` assignments for one room by calling `setDoc` directly instead of going through `assignmentRepository.assign()`. The rules catch property/role boundary violations but cannot cheaply inspect sibling documents to catch every cross-document business invariant a transactional backend would have enforced. This is an accepted trade-off of a client-only architecture, not an oversight.
+
+## Indexes
+
+`firestore.indexes.json` declares two composite indexes, both used only inside the transactional `runTransaction()` calls above (every list page still loads its entire collection via an unfiltered `onSnapshot` and filters/searches client-side, so ordinary reads need no composite index):
+
+```json
+{
+  "indexes": [
+    {
+      "collectionGroup": "assignments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "roomId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "assignments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "tenantId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    }
+  ]
+}
 ```
 
-- Every room, tenant, assignment, master charge, and bill belongs to exactly one property. Referenced room and tenant documents must belong to the same property as the dependent document.
-- Assignment history is authoritative for occupancy. `Room` must not have `currentTenantId` as its only source of truth. If a future read optimization adds it, it is a denormalized cache updated atomically with the assignment, never historical authority.
-- At most one active assignment may exist for a room, and the current API also enforces at most one active assignment per tenant. The rule is isolated to the Assignment service so a future multi-room tenancy policy can change it without changing the data model. Assignment creation is a Firestore transaction that checks both active-assignment queries, creates the history row, sets the room to `occupied`, and touches the tenant audit timestamp to serialize concurrent assignments for that tenant. Ending is also transactional: it marks the row `ended`, saves `endDate`, and makes the room `available` only when its current status is `occupied`.
-- Room and Tenant deletion uses a Firestore transaction and is rejected while an active assignment exists. Ended assignment history is retained and never cascade-deleted; operationally, rooms/tenants with historical references should normally be set `inactive` rather than hard-deleted.
-- `maintenance` and `inactive` rooms must not be made `available` merely because a tenancy ends.
-- Room status and assignment changes must be coordinated atomically by the future API. Client Firestore writes should not be trusted to enforce this invariant.
-- Currency and meter values are finite, non-negative numbers. Meter usage is `currentMeter - previousMeter`; total calculation remains in the existing calculation domain service, then its result is persisted.
-- `billingMonth` is a required `YYYY-MM` string (for example `2026-08`). It is a period identifier, not a timestamp.
-- Current application behavior allows draft, issued, paid, and overdue billing records. `overdue` is currently resolved from an issued record's due date at display time; a future backend may materialize it, but must keep that rule consistent.
-- Use Firestore document IDs for database identity. Invoice numbers such as `INV-2026-08-001` remain human-readable business identifiers, generated server-side/transactionally when issuance is introduced. They must not be used as Firestore document IDs.
-
-## Snapshot strategy
-
-Bills must remain historically correct after room, tenant, rate, or charge-master changes.
-
-- At bill creation, copy the room number and monthly rent into `roomSnapshot`, and the resolved tenant full name into `tenantSnapshot` when a tenant exists.
-- A bill can be created for a room without an active tenant; in that case both `tenantId` and `tenantSnapshot` are `null`. When present, the active assignment resolves the tenant—clients never choose an arbitrary tenant for a bill.
-- Snapshot `invoiceNote` from `PropertySettings.defaultInvoiceNote` at creation. This is a billing creation default and must not be changed by later settings edits.
-- One normal bill is allowed per `(propertyId, roomId, billingMonth)`. `billingRecords` document IDs are deterministic (`` `${roomId}_${billingMonth}` ``) precisely so this is enforced by Firestore document-level contention, not by trusting a preflight query alone — see [ADR 0004](../adr/0004-billing-record-deterministic-id.md).
-- Meter usage is `currentMeter - previousMeter`, kept as an exact unrounded quantity — only money is rounded, to two decimal places, at the point each monetary value is produced (utility amount, subtotal, total). See [ADR 0001](../adr/0001-billing-rounding-rule.md).
-- Creating an invoice atomically reads the draft bill, verifies no invoice already exists for that billing ID, increments the relevant counter, writes the immutable Invoice, and transitions BillingRecord to `issued`. Mark-paid similarly updates Invoice and BillingRecord together. `overdue` is a display status derived from an issued invoice whose due date has passed; it is not persisted or scheduled in this phase.
-- Store the exact electricity and water readings, rates, usage, and amounts in the billing record. Never recompute historical amounts from current room or property settings.
-- Copy each selected optional master charge into `otherCharges` as `{ id, masterId?, name, amount }`. `masterId` supports traceability only. Editing, deactivating, or deleting an `OtherChargeMaster` never changes historical charge data.
-- The invoice print view must eventually render billing snapshots for historical identity fields, rather than look up a current room or tenant name. This is a future implementation change, not part of this phase.
-- `PropertySettings.defaultInvoiceNote` is a creation default. If invoice-note history becomes legally or operationally important, add an `invoiceNoteSnapshot` to `BillingRecord` in the same future migration; the current billing model does not store a note per bill.
-
-## Query patterns and expected indexes
-
-All queries below must include a property scope unless reading an individual document already authorized by the API.
-
-| Use case | Query shape | Composite index expected |
-| --- | --- | --- |
-| Rooms for property | `propertyId == :propertyId`, ordered by `roomNumber` | `(propertyId ASC, roomNumber ASC)` |
-| Occupied/available rooms | `propertyId == :propertyId AND status == :status`, ordered by `roomNumber` | `(propertyId ASC, status ASC, roomNumber ASC)` |
-| Rooms by status and floor combined | `propertyId == :propertyId AND status == :status AND floor == :floor`, ordered by `roomNumber` | `(propertyId ASC, status ASC, floor ASC, roomNumber ASC)` |
-| Tenants for property | `propertyId == :propertyId`, ordered by `lastName`, then `firstName` | `(propertyId ASC, lastName ASC, firstName ASC)` |
-| Active assignment for a room | `propertyId == :propertyId AND roomId == :roomId AND status == 'active'` | `(propertyId ASC, roomId ASC, status ASC)` |
-| Assignment history for a room | `propertyId == :propertyId AND roomId == :roomId`, ordered by `startDate DESC` | `(propertyId ASC, roomId ASC, startDate DESC)` |
-| Active assignment for tenant | `propertyId == :propertyId AND tenantId == :tenantId AND status == 'active'` | `(propertyId ASC, tenantId ASC, status ASC)` |
-| Billing for a month | `propertyId == :propertyId AND billingMonth == '2026-08'`, ordered by `roomSnapshot.roomNumber` | `(propertyId ASC, billingMonth ASC, roomSnapshot.roomNumber ASC)` |
-| Room billing history | `propertyId == :propertyId AND roomId == :roomId`, ordered by `billingMonth DESC` | `(propertyId ASC, roomId ASC, billingMonth DESC)` |
-| Invoice list | `propertyId == :propertyId AND status IN ('issued','paid','overdue')`, ordered by `issuedAt DESC` | `(propertyId ASC, status ASC, issuedAt DESC)` |
-| Other charge masters | `propertyId == :propertyId AND isActive == true`, ordered by `nameTh` | `(propertyId ASC, isActive ASC, nameTh ASC)` |
-
-Firestore automatically indexes individual fields. `firestore.indexes.json` now contains the Room Assignment indexes required by the implemented list filters (all property-scoped combinations of `status`, `roomId`, and `tenantId`, ordered by `startDate DESC`) and active room/tenant checks. If the UI requires all issued invoices but the final query model cannot express that set cleanly with status filters, use a materialized `isInvoiceIssued` boolean on `BillingRecord` and index `(propertyId, isInvoiceIssued, issuedAt DESC)`; do not infer invoices from an unindexed client-side full collection in production.
-
-## Timestamp, writes, and identity strategy
-
-- Persist `createdAt`, `updatedAt`, `startDate`, `endDate`, `dueDate`, `issuedAt`, and `paidAt` as Firestore `Timestamp` values. Use server timestamps for audit fields and normalize date-only form inputs at the API boundary with a documented property time zone (the current product operates in Thailand).
-- Keep `billingMonth` as a validated `YYYY-MM` string. It makes equality filters and month ordering predictable without date-time-zone ambiguity.
-- The API/Cloud Functions layer—not the React client—will validate ownership, compute/cross-check totals, allocate invoice numbers, and use transactions for multi-document invariants. No Cloud Functions are implemented in this phase.
-
-## Migration considerations
-
-1. Keep the local repositories and keys unchanged until Firebase integration is explicitly authorized.
-2. Create one initial `properties` document from current `PropertySettings.propertyName`, `propertyAddress`, and `phone`; create `propertySettings/{propertyId}` from the remaining default rates and invoice note.
-3. Migrate every room, tenant, assignment, other-charge master, and billing record with that initial `propertyId`; preserve existing UUIDs as Firestore document IDs where practical to keep references valid.
-4. Convert all current ISO date strings to Firestore `Timestamp` values. Existing assignments lack `updatedAt`; set it to their `createdAt` during migration and record that normalization in the migration log.
-5. Build each billing snapshot from the referenced room and tenant at migration time. Where a referenced entity is missing, preserve the bill, set the unavailable foreign key only when necessary, and log it for review rather than silently dropping financial history.
-6. Preserve current billing `invoiceNumber`, status, issue/due/payment dates, meter readings, charges, and totals exactly. Do not manufacture a separate invoice document.
-7. Create `users/{uid}` profiles only after Firebase Authentication users are established; map the current demo administrator deliberately rather than migrating the browser session as an identity credential.
-8. Run migration as an idempotent, auditable administrative job with counts and exception reporting. Only after reconciliation should repository implementations become asynchronous Firestore/API adapters and `localStorage` be retired.
-
-## Non-goals of Phase 1
-
-This Phase 1 design did not include Firebase SDK setup, Firestore configuration, security rules, indexes, Cloud Functions, authentication replacement, repository rewrite, or localStorage removal. The SDK client infrastructure was subsequently added in Phase 2; the remaining items are still future work.
+If a `FAILED_PRECONDITION: The query requires an index` error ever surfaces elsewhere, add the exact index Firestore's error message links to — don't pre-guess further ones.

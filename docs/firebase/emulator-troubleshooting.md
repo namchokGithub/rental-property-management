@@ -1,16 +1,16 @@
 # Firebase Emulator Troubleshooting (macOS)
 
-คู่มือนี้ใช้สำหรับรัน Firebase Functions, Firestore และ Authentication Emulator ของโปรเจกต์นี้ในเครื่อง local
+คู่มือนี้ใช้สำหรับรัน Firestore และ Authentication Emulator ของโปรเจกต์นี้ในเครื่อง local (ไม่มี Cloud Functions Emulator แล้ว เพราะแอปนี้ไม่มี backend — ดู [setup.md](setup.md))
 
 ## รัน Emulator
 
 จาก root ของโปรเจกต์:
 
 ```sh
-pnpm --dir functions emulators --project demo-rental-property-management
+firebase emulators:start --only auth,firestore
 ```
 
-คำสั่งนี้จะเริ่ม Functions Emulator ที่ port `5001`, Firestore Emulator ที่ port `8080`, Authentication Emulator ที่ port `9099` และ Emulator UI ที่ port `4001`.
+คำสั่งนี้จะเริ่ม Firestore Emulator ที่ port `8080`, Authentication Emulator ที่ port `9099` และ Emulator UI ที่ port `4001` (ตามที่กำหนดไว้ใน `firebase.json`).
 
 ## Error: Java Runtime ไม่พบ
 
@@ -66,47 +66,16 @@ emulators: You are not currently authenticated so some features may not work cor
 สำหรับการพัฒนา local เท่านั้น สามารถใช้ demo project ได้โดยไม่ต้อง login:
 
 ```sh
-pnpm --dir functions emulators --project demo-rental-property-management
+firebase emulators:start --only auth,firestore --project demo-rental-property-management
 ```
 
 หากต้องการใช้ Firebase project จริง หรือ deploy ในภายหลัง ให้ login ผ่าน Firebase CLI:
 
 ```sh
-pnpm --dir functions exec firebase login
+firebase login
 ```
 
 Browser จะเปิดเพื่อให้ login ด้วย Google account ที่มีสิทธิ์ใน Firebase project.
-
-## รันเฉพาะ Functions ชั่วคราว
-
-หากยังไม่ได้ติดตั้ง Java แต่ต้องการตรวจ Functions API สามารถไม่เริ่ม Firestore Emulator ได้:
-
-```sh
-pnpm --dir functions exec firebase emulators:start --only functions --project demo-rental-property-management
-```
-
-หลัง Functions เริ่มสำเร็จ health endpoint จะอยู่ที่:
-
-```text
-http://127.0.0.1:5001/demo-rental-property-management/asia-southeast1/api/api/v1/health
-```
-
-ทดสอบได้ด้วย:
-
-```sh
-curl http://127.0.0.1:5001/demo-rental-property-management/asia-southeast1/api/api/v1/health
-```
-
-ควรได้ผลลัพธ์:
-
-```json
-{
-  "success": true,
-  "data": {
-    "status": "ok"
-  }
-}
-```
 
 ## หากยังรันไม่ได้
 
@@ -115,8 +84,8 @@ curl http://127.0.0.1:5001/demo-rental-property-management/asia-southeast1/api/a
 ```sh
 node --version
 java -version
-pnpm --dir functions lint
-pnpm --dir functions test:smoke
+pnpm build
+pnpm lint
 ```
 
-หาก port `5001`, `8080`, `9099` หรือ `4001` ถูกใช้งานอยู่ ให้ปิด process เดิมก่อน หรือปรับ port ใน `firebase.json`.
+หาก port `8080`, `9099` หรือ `4001` ถูกใช้งานอยู่ ให้ปิด process เดิมก่อน หรือปรับ port ใน `firebase.json`.

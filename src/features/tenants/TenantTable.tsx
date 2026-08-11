@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { useAuth } from "@/auth";
 import { useLanguage } from "@/i18n";
 import { formatDate } from "@/lib/date";
 import type { Tenant } from "@/types/tenant";
@@ -29,6 +30,8 @@ export function TenantTable({
   onAssign,
 }: TenantTableProps) {
   const { t, language } = useLanguage();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   return (
     <div className="w-full overflow-x-auto rounded-xl border bg-card shadow-sm">
       <Table>
@@ -70,38 +73,44 @@ export function TenantTable({
                       </TooltipTrigger>
                       <TooltipContent>{t("common.view")}</TooltipContent>
                     </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(tenant)}>
-                          <Pencil className="h-4 w-4" />
-                          <span className="sr-only">{t("common.edit")}</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>{t("common.edit")}</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onAssign(tenant)}>
-                          <UserCog className="h-4 w-4" />
-                          <span className="sr-only">{room ? t("tenant.moveRoom") : t("tenant.assignRoom")}</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>{room ? t("tenant.moveRoom") : t("tenant.assignRoom")}</TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => onDelete(tenant)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">{t("common.delete")}</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>{t("common.delete")}</TooltipContent>
-                    </Tooltip>
+                    {isAdmin && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(tenant)}>
+                            <Pencil className="h-4 w-4" />
+                            <span className="sr-only">{t("common.edit")}</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t("common.edit")}</TooltipContent>
+                      </Tooltip>
+                    )}
+                    {isAdmin && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onAssign(tenant)}>
+                            <UserCog className="h-4 w-4" />
+                            <span className="sr-only">{room ? t("tenant.moveRoom") : t("tenant.assignRoom")}</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{room ? t("tenant.moveRoom") : t("tenant.assignRoom")}</TooltipContent>
+                      </Tooltip>
+                    )}
+                    {isAdmin && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => onDelete(tenant)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">{t("common.delete")}</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t("common.delete")}</TooltipContent>
+                      </Tooltip>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>

@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { PageSpinner } from "@/components/common/PageSpinner";
 import { ThemeAccentSwatches } from "@/components/common/ThemeAccentSwatches";
 import { OtherChargeSection } from "@/features/settings/OtherChargeSection";
+import { useAuth } from "@/auth";
 import { useSettings } from "@/hooks/useSettings";
 import { useLanguage } from "@/i18n";
 import {
@@ -55,6 +56,8 @@ interface SettingsFormProps {
 
 function SettingsForm({ settings, updateSettings }: SettingsFormProps) {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [form, setForm] = useState(() => toFormState(settings));
   const { appearance, accentTheme, setAppearance, setAccentTheme } = useTheme();
 
@@ -89,6 +92,7 @@ function SettingsForm({ settings, updateSettings }: SettingsFormProps) {
             <Input
               id="propertyName"
               value={form.propertyName}
+              disabled={!isAdmin}
               onChange={(e) =>
                 setForm({ ...form, propertyName: e.target.value })
               }
@@ -101,6 +105,7 @@ function SettingsForm({ settings, updateSettings }: SettingsFormProps) {
             <Textarea
               id="propertyAddress"
               value={form.propertyAddress}
+              disabled={!isAdmin}
               onChange={(e) =>
                 setForm({ ...form, propertyAddress: e.target.value })
               }
@@ -111,6 +116,7 @@ function SettingsForm({ settings, updateSettings }: SettingsFormProps) {
             <Input
               id="phone"
               value={form.phone}
+              disabled={!isAdmin}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
             />
           </div>
@@ -134,6 +140,7 @@ function SettingsForm({ settings, updateSettings }: SettingsFormProps) {
                 type="number"
                 min={0}
                 value={form.defaultElectricityRate}
+                disabled={!isAdmin}
                 onChange={(e) =>
                   setForm({ ...form, defaultElectricityRate: e.target.value })
                 }
@@ -148,6 +155,7 @@ function SettingsForm({ settings, updateSettings }: SettingsFormProps) {
                 type="number"
                 min={0}
                 value={form.defaultWaterRate}
+                disabled={!isAdmin}
                 onChange={(e) =>
                   setForm({ ...form, defaultWaterRate: e.target.value })
                 }
@@ -162,6 +170,7 @@ function SettingsForm({ settings, updateSettings }: SettingsFormProps) {
             <Textarea
               id="defaultInvoiceNote"
               value={form.defaultInvoiceNote}
+              disabled={!isAdmin}
               onChange={(e) =>
                 setForm({ ...form, defaultInvoiceNote: e.target.value })
               }
@@ -242,7 +251,7 @@ function SettingsForm({ settings, updateSettings }: SettingsFormProps) {
         </CardContent>
       </Card>
 
-      <Button onClick={handleSave}>{t("settings.save")}</Button>
+      {isAdmin && <Button onClick={handleSave}>{t("settings.save")}</Button>}
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { SearchInput } from "@/components/common/SearchInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InvoicePreviewDialog } from "@/features/invoices/InvoicePreviewDialog";
+import { useAuth } from "@/auth";
 import { useBillingRecords } from "@/hooks/useBillingRecords";
 import { useRooms } from "@/hooks/useRooms";
 import { useTenants } from "@/hooks/useTenants";
@@ -30,6 +31,8 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0
 
 export function InvoicesPage() {
   const { t, language } = useLanguage();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const { records, isLoading, updateBilling } = useBillingRecords();
   const { rooms } = useRooms();
   const { tenants } = useTenants();
@@ -218,7 +221,7 @@ export function InvoicesPage() {
                             </TooltipTrigger>
                             <TooltipContent>{t("invoice.printExport")}</TooltipContent>
                           </Tooltip>
-                          {(status === "issued" || status === "overdue") && (
+                          {isAdmin && (status === "issued" || status === "overdue") && (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => markPaid(record)}>
@@ -267,7 +270,7 @@ export function InvoicesPage() {
                       <Button size="sm" variant="outline" onClick={() => navigate(`/invoices/${record.id}`)}>
                         <Printer className="h-4 w-4" /> {t("invoice.print")}
                       </Button>
-                      {(status === "issued" || status === "overdue") && (
+                      {isAdmin && (status === "issued" || status === "overdue") && (
                         <Button size="sm" onClick={() => markPaid(record)}>
                           {t("invoice.markAsPaid")}
                         </Button>

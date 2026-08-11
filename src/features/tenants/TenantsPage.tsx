@@ -12,6 +12,7 @@ import { TenantTable } from "@/features/tenants/TenantTable";
 import { TenantFormDialog } from "@/features/tenants/TenantFormDialog";
 import { TenantDetailSheet } from "@/features/tenants/TenantDetailSheet";
 import { AssignTenantDialog } from "@/features/assignments/AssignTenantDialog";
+import { useAuth } from "@/auth";
 import { useTenants } from "@/hooks/useTenants";
 import { useRooms } from "@/hooks/useRooms";
 import { useAssignments } from "@/hooks/useAssignments";
@@ -25,6 +26,8 @@ const TENANT_STATUSES: TenantStatus[] = ["active", "inactive"];
 
 export function TenantsPage() {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const { tenants, isLoading, createTenant, updateTenant, deleteTenant } = useTenants();
   const { rooms } = useRooms();
   const { assignments, assignTenant, endTenancyByRoomId, getActiveByTenantId } = useAssignments();
@@ -76,14 +79,16 @@ export function TenantsPage() {
         title={t("tenant.title")}
         description={t("tenant.description")}
         actions={
-          <Button
-            onClick={() => {
-              setEditingTenant(undefined);
-              setFormOpen(true);
-            }}
-          >
-            <Plus /> {t("tenant.addTenant")}
-          </Button>
+          isAdmin && (
+            <Button
+              onClick={() => {
+                setEditingTenant(undefined);
+                setFormOpen(true);
+              }}
+            >
+              <Plus /> {t("tenant.addTenant")}
+            </Button>
+          )
         }
       />
 
@@ -92,11 +97,15 @@ export function TenantsPage() {
           icon={Users}
           title={t("tenant.noTenantsTitle")}
           description={t("tenant.noTenantsDescription")}
-          actionLabel={t("tenant.addTenant")}
-          onAction={() => {
-            setEditingTenant(undefined);
-            setFormOpen(true);
-          }}
+          actionLabel={isAdmin ? t("tenant.addTenant") : undefined}
+          onAction={
+            isAdmin
+              ? () => {
+                  setEditingTenant(undefined);
+                  setFormOpen(true);
+                }
+              : undefined
+          }
         />
       ) : (
         <>
