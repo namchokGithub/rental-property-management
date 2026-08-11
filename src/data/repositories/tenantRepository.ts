@@ -4,6 +4,20 @@ import { createFirestoreCrudRepository } from "@/data/repositories/firestoreCrud
 import type { CreateTenantInput, Tenant, UpdateTenantInput } from "@/types/tenant";
 
 /**
+ * Thrown by `tenantRepository.delete()` when the tenant still has an active
+ * room assignment. Callers (`TenantsPage.tsx`) check for this specific type
+ * via `instanceof` to show the translated delete-guard message instead of
+ * this error's raw English `.message` — same pattern as
+ * `InvalidCredentialsError` in `auth.types.ts`.
+ */
+export class TenantHasActiveAssignmentError extends Error {
+  constructor() {
+    super("Cannot delete a tenant with an active room assignment");
+    this.name = "TenantHasActiveAssignmentError";
+  }
+}
+
+/**
  * Deleting a tenant that still has an active room assignment would silently
  * orphan that assignment's billing/history. The old backend enforced this;
  * carried over here rather than deferred to the Assignments migration (Task
@@ -19,7 +33,7 @@ async function assertNoActiveAssignment(propertyId: string, tenantId: string): P
       where("status", "==", "active"),
     ),
   );
-  if (!active.empty) throw new Error("Cannot delete a tenant with an active room assignment");
+  if (!active.empty) throw new TenantHasActiveAssignmentError();
 }
 
 export const tenantRepository = {

@@ -17,6 +17,7 @@ import { useRooms } from "@/hooks/useRooms";
 import { useAssignments } from "@/hooks/useAssignments";
 import { useLanguage } from "@/i18n";
 import { matchesSearch } from "@/lib/search";
+import { TenantHasActiveAssignmentError } from "@/data/repositories/tenantRepository";
 import type { Tenant, TenantStatus } from "@/types/tenant";
 import type { RoomTenantAssignment } from "@/types/assignment";
 
@@ -153,13 +154,7 @@ export function TenantsPage() {
         open={formOpen}
         onOpenChange={setFormOpen}
         tenant={editingTenant}
-        onSubmit={(input) => {
-          if (editingTenant) {
-            updateTenant(editingTenant.id, input);
-          } else {
-            createTenant(input);
-          }
-        }}
+        onSubmit={(input) => (editingTenant ? updateTenant(editingTenant.id, input) : createTenant(input))}
       />
 
       <TenantDetailSheet
@@ -203,7 +198,11 @@ export function TenantsPage() {
             toast.success(t("tenant.deletedToast"));
             setDeletingTenant(undefined);
           } catch (error) {
-            toast.error(error instanceof Error ? error.message : String(error));
+            toast.error(
+              error instanceof TenantHasActiveAssignmentError
+                ? t("tenant.deleteBlockedActiveAssignment")
+                : t("common.actionFailed")
+            );
           }
         }}
       />

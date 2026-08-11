@@ -37,6 +37,7 @@ const th: Translations = {
     print: "พิมพ์",
     close: "ปิด",
     confirm: "ยืนยัน",
+    actionFailed: "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง",
     search: "ค้นหา",
     actions: "การดำเนินการ",
     status: "สถานะ",
@@ -126,6 +127,7 @@ const th: Translations = {
     deleteConfirmDescriptionWithTenant:
       "ห้อง {{roomNumber}} มีผู้เช่าอยู่ในขณะนี้ การลบจะเป็นการลบข้อมูลห้องอย่างถาวร",
     deleteConfirmDescription: "การดำเนินการนี้จะลบห้อง {{roomNumber}} อย่างถาวร",
+    deleteBlockedActiveAssignment: "ไม่สามารถลบห้องที่มีผู้เช่าที่ยังใช้งานอยู่ได้",
     endTenancyTitle: "ต้องการสิ้นสุดสัญญาเช่านี้หรือไม่?",
     endTenancyDescription: "ผู้เช่าจะถูกนำออกจากห้อง {{roomNumber}} และห้องจะเปลี่ยนเป็นสถานะว่าง",
     createdToast: "สร้างห้องเรียบร้อยแล้ว",
@@ -161,6 +163,7 @@ const th: Translations = {
     noTenantsDescription: "เพิ่มผู้เช่าคนแรกเพื่อเริ่มติดตามสัญญาเช่า",
     deleteConfirmTitle: "ต้องการลบผู้เช่า {{name}} หรือไม่?",
     deleteConfirmDescription: "การดำเนินการนี้จะลบข้อมูลผู้เช่านี้อย่างถาวร",
+    deleteBlockedActiveAssignment: "ไม่สามารถลบผู้เช่าที่มีการกำหนดห้องที่ยังใช้งานอยู่ได้",
     createdToast: "สร้างผู้เช่าเรียบร้อยแล้ว",
     updatedToast: "อัปเดตผู้เช่าเรียบร้อยแล้ว",
     deletedToast: "ลบผู้เช่าเรียบร้อยแล้ว",

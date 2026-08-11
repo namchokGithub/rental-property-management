@@ -37,6 +37,7 @@ export interface Translations {
     print: string;
     close: string;
     confirm: string;
+    actionFailed: string;
     search: string;
     actions: string;
     status: string;
@@ -125,6 +126,7 @@ export interface Translations {
     deleteConfirmTitle: string;
     deleteConfirmDescriptionWithTenant: string;
     deleteConfirmDescription: string;
+    deleteBlockedActiveAssignment: string;
     endTenancyTitle: string;
     endTenancyDescription: string;
     createdToast: string;
@@ -160,6 +162,7 @@ export interface Translations {
     noTenantsDescription: string;
     deleteConfirmTitle: string;
     deleteConfirmDescription: string;
+    deleteBlockedActiveAssignment: string;
     createdToast: string;
     updatedToast: string;
     deletedToast: string;

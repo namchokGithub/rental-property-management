@@ -22,7 +22,7 @@ interface RoomFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   room?: Room;
-  onSubmit: (input: CreateRoomInput) => void;
+  onSubmit: (input: CreateRoomInput) => Promise<unknown>;
 }
 
 interface FormState {
@@ -58,6 +58,7 @@ export function RoomFormDialog({ open, onOpenChange, room, onSubmit }: RoomFormD
     toFormState(room, { electricityRate: settings?.defaultElectricityRate ?? 0, waterRate: settings?.defaultWaterRate ?? 0 })
   );
   const [errors, setErrors] = useState<ValidationErrors>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   function handleOpenChange(next: boolean) {
     if (next) {
@@ -76,7 +77,9 @@ export function RoomFormDialog({ open, onOpenChange, room, onSubmit }: RoomFormD
     });
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
+    if (isSubmitting) return;
+
     const input: CreateRoomInput = {
       roomNumber: form.roomNumber.trim(),
       floor: form.floor.trim() || undefined,
@@ -92,9 +95,16 @@ export function RoomFormDialog({ open, onOpenChange, room, onSubmit }: RoomFormD
       setErrors(validationErrors);
       return;
     }
-    onSubmit(input);
-    toast.success(room ? t("room.updatedToast") : t("room.createdToast"));
-    onOpenChange(false);
+    setIsSubmitting(true);
+    try {
+      await onSubmit(input);
+      toast.success(room ? t("room.updatedToast") : t("room.createdToast"));
+      onOpenChange(false);
+    } catch {
+      toast.error(t("common.actionFailed"));
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -195,10 +205,12 @@ export function RoomFormDialog({ open, onOpenChange, room, onSubmit }: RoomFormD
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             {t("common.cancel")}
           </Button>
-          <Button onClick={handleSubmit}>{room ? t("common.saveChanges") : t("room.addRoom")}</Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting}>
+            {room ? t("common.saveChanges") : t("room.addRoom")}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

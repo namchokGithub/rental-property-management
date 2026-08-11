@@ -21,7 +21,7 @@ interface TenantFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   tenant?: Tenant;
-  onSubmit: (input: CreateTenantInput) => void;
+  onSubmit: (input: CreateTenantInput) => Promise<unknown>;
 }
 
 interface FormState {
@@ -54,6 +54,7 @@ export function TenantFormDialog({ open, onOpenChange, tenant, onSubmit }: Tenan
   const { t } = useLanguage();
   const [form, setForm] = useState<FormState>(() => toFormState(tenant));
   const [errors, setErrors] = useState<ValidationErrors>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   function handleOpenChange(next: boolean) {
     if (next) {
@@ -63,7 +64,9 @@ export function TenantFormDialog({ open, onOpenChange, tenant, onSubmit }: Tenan
     onOpenChange(next);
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
+    if (isSubmitting) return;
+
     const input: CreateTenantInput = {
       name: form.name.trim(),
       phone: form.phone.trim() || undefined,
@@ -80,9 +83,16 @@ export function TenantFormDialog({ open, onOpenChange, tenant, onSubmit }: Tenan
       setErrors(validationErrors);
       return;
     }
-    onSubmit(input);
-    toast.success(tenant ? t("tenant.updatedToast") : t("tenant.createdToast"));
-    onOpenChange(false);
+    setIsSubmitting(true);
+    try {
+      await onSubmit(input);
+      toast.success(tenant ? t("tenant.updatedToast") : t("tenant.createdToast"));
+      onOpenChange(false);
+    } catch {
+      toast.error(t("common.actionFailed"));
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -168,10 +178,12 @@ export function TenantFormDialog({ open, onOpenChange, tenant, onSubmit }: Tenan
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             {t("common.cancel")}
           </Button>
-          <Button onClick={handleSubmit}>{tenant ? t("common.saveChanges") : t("tenant.addTenant")}</Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting}>
+            {tenant ? t("common.saveChanges") : t("tenant.addTenant")}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -37,6 +37,7 @@ const en: Translations = {
     print: "Print",
     close: "Close",
     confirm: "Confirm",
+    actionFailed: "Something went wrong. Please try again.",
     search: "Search",
     actions: "Actions",
     status: "Status",
@@ -126,6 +127,7 @@ const en: Translations = {
     deleteConfirmDescriptionWithTenant:
       "Room {{roomNumber}} currently has a tenant. This will delete the room record permanently.",
     deleteConfirmDescription: "This will permanently delete room {{roomNumber}}.",
+    deleteBlockedActiveAssignment: "Cannot delete a room with an active tenant assignment.",
     endTenancyTitle: "End this tenancy?",
     endTenancyDescription:
       "The tenant will be removed from room {{roomNumber}} and the room will become available.",
@@ -162,6 +164,7 @@ const en: Translations = {
     noTenantsDescription: "Add your first tenant to start tracking leases.",
     deleteConfirmTitle: "Delete tenant {{name}}?",
     deleteConfirmDescription: "This will permanently delete this tenant's record.",
+    deleteBlockedActiveAssignment: "Cannot delete a tenant with an active room assignment.",
     createdToast: "Tenant created",
     updatedToast: "Tenant updated",
     deletedToast: "Tenant deleted",
