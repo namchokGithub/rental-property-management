@@ -4,7 +4,7 @@
 
 This is the Phase 1 target model for the current frontend-only rental application. It prepares the repository boundary for Firebase Authentication, an API/Cloud Functions layer, and Firestore, but does not install Firebase, change repositories or hooks, alter the UI, or remove `localStorage`.
 
-The existing local models remain the active application contracts in `src/types/*.ts`. The prospective persisted Firestore contracts live separately in `src/types/firestore/*` so adding the required multi-property fields and Firestore timestamps cannot change the current UI or storage behavior. `FirestoreTimestamp` is a structural placeholder only; after Firebase is added it can be replaced with a type-only `Timestamp` import from `firebase/firestore`.
+The existing local models remain the active application contracts in `src/types/*.ts`. The prospective persisted Firestore contracts live separately in `src/types/firestore/*` so adding the required multi-property fields and Firestore timestamps cannot change the current UI or storage behavior. `FirestoreTimestamp` is a type-only alias for Firebase's `Timestamp`; the Firebase client setup itself is documented in `setup.md`.
 
 Current localStorage domain keys to migrate later are `rental.rooms`, `rental.tenants`, `rental.assignments`, `rental.billing`, `rental.settings`, and `rental.otherCharges`. Authentication is currently a demo session at `rental.auth.session`; UI preferences (`app.language`, `app.appearance`, and `app.accentTheme`) are not property data and should remain client preferences.
 
@@ -120,4 +120,4 @@ Firestore automatically indexes individual fields. Create these composite indexe
 
 ## Non-goals of Phase 1
 
-No Firebase SDK setup, Firestore configuration, security rules, indexes, Cloud Functions, authentication replacement, repository rewrite, or localStorage removal is included here.
+This Phase 1 design did not include Firebase SDK setup, Firestore configuration, security rules, indexes, Cloud Functions, authentication replacement, repository rewrite, or localStorage removal. The SDK client infrastructure was subsequently added in Phase 2; the remaining items are still future work.

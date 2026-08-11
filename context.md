@@ -272,9 +272,11 @@ Plus non-domain keys (none `rental.`-prefixed except the auth session, which fol
 
 # Firebase Migration
 
-**Status: Phase 1 — Data Model Designed.** The implementation remains frontend-only and continues to use the existing localStorage repositories unchanged. The Firestore target model and migration plan are documented in `docs/firebase/data-model.md`; prospective document interfaces live in `src/types/firestore/*` and are intentionally separate from the current local-storage types.
+**Status: Phase 1 — Data Model Designed; Phase 2 — Firebase Client Infrastructure Done.** The implementation remains frontend-only and continues to use the existing localStorage repositories unchanged. The Firestore target model and migration plan are documented in `docs/firebase/data-model.md`; prospective document interfaces live in `src/types/firestore/*` and are intentionally separate from the current local-storage types.
 
 Key decisions: use top-level property-scoped collections (`propertyId` on all business documents), store Firestore `Timestamp` values for persisted dates, preserve room/tenant/charge snapshots on billing records, and retain assignment history as the occupancy authority. Invoice screens remain a projection of issued `BillingRecord`s—there is no `invoices` collection unless a later requirement introduces independent invoice state or audit history. Firebase Authentication will own credentials; `users/{uid}` stores only the application profile and property memberships. Future assignment, billing issuance, and invoice-number writes must be API/transaction controlled.
+
+Phase 2 installs the modular Firebase SDK and exposes its singleton App, Auth, Firestore, and Functions clients only through `src/lib/firebase/*`; no components, auth service, repositories, hooks, or CRUD paths import or use them yet. Configuration is Vite environment-based (`.env.example`), validates required values only when the client boundary is imported, and supports opt-in development-only Emulator Suite wiring that is HMR-safe. Setup instructions are in `docs/firebase/setup.md`.
 
 # Important Files
 
@@ -284,6 +286,8 @@ Key decisions: use top-level property-scoped collections (`propertyId` on all bu
 | `src/app/AppLayout.tsx` | Sidebar + header shell, `<Outlet/>`, toaster mount |
 | `src/data/storage/storage.ts` | Generic localStorage read/write helpers |
 | `src/data/repositories/*` | CRUD + domain logic per entity; the only code that touches `storage.ts` |
+| `src/lib/firebase/*` | Central modular Firebase App/Auth/Firestore/Functions client infrastructure, configuration validation, and development-only emulator wiring; not yet used by repositories or UI |
+| `docs/firebase/{data-model,setup}.md` | Firestore target domain model, migration design, and Firebase client setup instructions |
 | `src/data/seed/seedData.ts` | One-time idempotent demo data seeding, called from `src/main.tsx` |
 | `src/types/otherCharge.ts` | `OtherChargeMaster` type + create/update input types |
 | `src/data/repositories/otherChargeRepository.ts` | CRUD for the Other Charge Master list |
