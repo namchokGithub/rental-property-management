@@ -35,7 +35,7 @@ function ActionsMenu({
   onIssue,
   onMarkPaid,
   t,
-}: Omit<BillingTableProps, "records" | "roomById" | "tenantById"> & {
+}: Pick<BillingTableProps, "onEdit" | "onDelete" | "onIssue" | "onMarkPaid"> & {
   record: BillingRecord;
   t: (key: string) => string;
 }) {
