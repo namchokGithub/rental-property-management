@@ -134,20 +134,30 @@ export const billingRepository = {
       rentAmount: input.rentAmount,
       otherCharges,
     });
-    // The create form's status selector allows submitting a bill already
-    // `"issued"` (not just draft-then-issue), matching the pre-Firestore
-    // repository's behavior — so this path can also need a fresh invoice
-    // number, via the same transactional helper `update()` uses below.
-    const status: BillingStatus = input.status ?? "draft";
-
+    // `create()` always persists `status: "draft"`, regardless of
+    // `input.status` — even though the create form's status selector lets a
+    // user pick "issued" for a create-and-issue-in-one-step submission.
+    // `nextInvoiceNumber()` must NOT be called from here: its
+    // sibling-discovery (`getDocs()` on the month, see below) can only see
+    // documents that already exist, so a brand-new doc being created for the
+    // first time is invisible to any OTHER concurrent create's read set.
+    // Two admins submitting create-with-"issued" for two different rooms,
+    // same month, with no pre-existing bills that month, would each see an
+    // empty sibling set and independently compute the same
+    // `INV-YYYY-MM-001` — Firestore has no conflicting read to detect
+    // between them, so both would commit. `update()`'s transactional
+    // sibling-pinning only actually protects this invariant once the record
+    // already exists as a committed draft (i.e., by the time `update()` runs,
+    // it IS visible to other transactions' sibling queries). The UI layer
+    // (`BillingPage.tsx`) recovers "create and issue in one submission" by
+    // calling `update()` immediately after `create()` resolves, as a
+    // separate transactional call that goes through this safe path.
     await runTransaction(db, async (transaction) => {
       const ref = billingRef(propertyId, input.roomId, input.billingMonth);
       const existing = await transaction.get(ref);
       if (existing.exists()) {
         throw new Error("A bill for this room and month already exists");
       }
-      const invoiceNumber =
-        status === "issued" ? await nextInvoiceNumber(transaction, propertyId, input.billingMonth) : null;
       transaction.set(ref, {
         ...stripUndefined({ tenantId: input.tenantId }),
         roomId: input.roomId,
@@ -162,9 +172,9 @@ export const billingRepository = {
         // stored as a proper `Timestamp`, consistent with
         // issuedAt/paidAt/createdAt/updatedAt.
         dueDate: input.dueDate ? isoToTimestamp(input.dueDate) : null,
-        status,
-        invoiceNumber,
-        issuedAt: status === "issued" ? serverTimestamp() : null,
+        status: "draft",
+        invoiceNumber: null,
+        issuedAt: null,
         paidAt: null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),

@@ -295,7 +295,27 @@ export function BillingPage() {
         otherCharges={otherCharges}
         record={editingRecord}
         getLatestByRoomId={getLatestByRoomId}
-        onSubmit={(input) => (editingRecord ? updateBilling(editingRecord.id, input) : createBilling(input))}
+        onSubmit={async (input) => {
+          if (editingRecord) {
+            return updateBilling(editingRecord.id, input);
+          }
+          // `create()` always persists as a draft regardless of
+          // `input.status` (see billingRepository.ts) — a create+issue
+          // submission must go through a *second*, separately-awaited
+          // `update()` call against the now-existing draft, since that's the
+          // only path where the transactional sibling-pinning that prevents
+          // duplicate invoice numbers actually applies. Both calls share this
+          // same try/catch (via BillingFormDialog's handleSubmit, which wraps
+          // onSubmit): if create succeeds but this follow-up issue fails, the
+          // record is left as a committed draft — a safe, recoverable state,
+          // since the user can just click "Issue" again from the table — and
+          // the thrown error surfaces the existing generic failure toast
+          // rather than a silent partial success.
+          const newId = await createBilling(input);
+          if (input.status === "issued") {
+            await updateBilling(newId, { status: "issued" });
+          }
+        }}
       />
 
       <ConfirmDialog
