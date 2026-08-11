@@ -1,4 +1,4 @@
-import type { BillingRecord, BillingStatus } from "@/types/billing";
+import type { BillingRecord, BillingStatus, InvoiceRecord, InvoiceStatus } from "@/types/billing";
 import { isPastDue } from "@/lib/date";
 
 export function generateInvoiceNumber(billingMonth: string, existing: BillingRecord[]): string {
@@ -15,4 +15,9 @@ export function generateInvoiceNumber(billingMonth: string, existing: BillingRec
 export function resolveBillingStatus(record: Pick<BillingRecord, "status" | "dueDate">): BillingStatus {
   if (record.status === "issued" && isPastDue(record.dueDate)) return "overdue";
   return record.status;
+}
+
+export function resolveInvoiceStatus(record: InvoiceRecord): BillingStatus | InvoiceStatus {
+  if (record.status !== "issued") return record.status;
+  return isPastDue(record.dueDate) ? "overdue" : "issued";
 }

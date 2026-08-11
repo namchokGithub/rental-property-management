@@ -91,6 +91,7 @@ export interface Translations {
     issued: string;
     paid: string;
     overdue: string;
+    superseded: string;
     ended: string;
   };
   dashboard: {
@@ -198,6 +199,7 @@ export interface Translations {
     createBilling: string;
     editBilling: string;
     formDescription: string;
+    duplicateBillError: string;
     invoiceNumber: string;
     billingMonth: string;
     electricitySection: string;
@@ -227,6 +229,8 @@ export interface Translations {
     issuedToast: string;
     bulkIssueSelected: string;
     bulkIssuedToast: string;
+    reissuedToast: string;
+    reissueInvoice: string;
     paidToast: string;
     deleteConfirmTitle: string;
     deleteConfirmDescription: string;

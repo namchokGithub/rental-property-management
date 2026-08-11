@@ -21,7 +21,7 @@ import { useLanguage } from "@/i18n";
 import { matchesSearch } from "@/lib/search";
 import { formatBillingMonth, monthName, yearLabel } from "@/lib/date";
 import { resolveBillingStatus } from "@/lib/invoice";
-import type { BillingRecord, BillingStatus } from "@/types/billing";
+import { invoiceRecordsFromBilling, type BillingRecord, type BillingStatus } from "@/types/billing";
 import type { Room } from "@/types/room";
 import type { Tenant } from "@/types/tenant";
 
@@ -32,7 +32,7 @@ export function BillingPage() {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const { records, isLoading, createBilling, updateBilling, deleteBilling } = useBillingRecords();
+  const { records, isLoading, createBilling, updateBilling, reissueBilling, markInvoicePaid, deleteBilling } = useBillingRecords();
   const { rooms } = useRooms();
   const { tenants } = useTenants();
   const { assignments } = useAssignments();
@@ -277,9 +277,19 @@ export function BillingPage() {
                   toast.error(t("common.actionFailed"));
                 }
               }}
+              onReissue={async (record) => {
+                try {
+                  const invoiceNumber = await reissueBilling(record.id);
+                  toast.success(t("billing.reissuedToast", { invoiceNumber }));
+                } catch {
+                  toast.error(t("common.actionFailed"));
+                }
+              }}
               onMarkPaid={async (record) => {
                 try {
-                  await updateBilling(record.id, { status: "paid" });
+                  const invoice = invoiceRecordsFromBilling(record).find((candidate) => candidate.status === "issued");
+                  if (!invoice) return;
+                  await markInvoicePaid(record.id, invoice.id);
                   toast.success(t("billing.paidToast"));
                 } catch {
                   toast.error(t("common.actionFailed"));

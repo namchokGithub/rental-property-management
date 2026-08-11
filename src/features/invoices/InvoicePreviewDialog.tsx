@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { InvoicePrintView } from "@/features/invoices/InvoicePrintView";
 import { useAuth } from "@/auth";
 import { useLanguage } from "@/i18n";
-import { resolveBillingStatus } from "@/lib/invoice";
-import type { BillingRecord } from "@/types/billing";
+import { resolveInvoiceStatus } from "@/lib/invoice";
+import type { InvoiceRecord } from "@/types/billing";
 import type { Room } from "@/types/room";
 import type { Tenant } from "@/types/tenant";
 import type { PropertySettings } from "@/types/settings";
@@ -14,11 +14,11 @@ import type { PropertySettings } from "@/types/settings";
 interface InvoicePreviewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  record?: BillingRecord;
+  record?: InvoiceRecord;
   room?: Room;
   tenant?: Tenant;
   settings: PropertySettings;
-  onMarkPaid: (record: BillingRecord) => void;
+  onMarkPaid: (record: InvoiceRecord) => void;
 }
 
 export function InvoicePreviewDialog({ open, onOpenChange, record, room, tenant, settings, onMarkPaid }: InvoicePreviewDialogProps) {
@@ -28,8 +28,6 @@ export function InvoicePreviewDialog({ open, onOpenChange, record, room, tenant,
   const isAdmin = user?.role === "admin";
   if (!record || !room) return null;
 
-  const status = resolveBillingStatus(record);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
@@ -38,12 +36,12 @@ export function InvoicePreviewDialog({ open, onOpenChange, record, room, tenant,
         </DialogHeader>
         <InvoicePrintView record={record} room={room} tenant={tenant} settings={settings} />
         <DialogFooter>
-          {isAdmin && (status === "issued" || status === "overdue") && (
+          {isAdmin && (resolveInvoiceStatus(record) === "issued" || resolveInvoiceStatus(record) === "overdue") && (
             <Button variant="outline" onClick={() => onMarkPaid(record)}>
               <CheckCircle2 className="h-4 w-4" /> {t("invoice.markAsPaid")}
             </Button>
           )}
-          <Button onClick={() => navigate(`/invoices/${record.id}`)}>
+          <Button onClick={() => navigate(`/invoices/${record.billingId}?invoice=${record.id}`)}>
             <Printer className="h-4 w-4" /> {t("invoice.openFullPreview")}
           </Button>
         </DialogFooter>

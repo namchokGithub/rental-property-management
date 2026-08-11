@@ -21,9 +21,17 @@ import type {
   BillingRecord,
   BillingStatus,
   CreateBillingInput,
+  InvoiceSnapshot,
   MeterReading,
   UpdateBillingInput,
 } from "@/types/billing";
+
+export class BillingAlreadyExistsError extends Error {
+  constructor() {
+    super("A bill for this room and month already exists");
+    this.name = "BillingAlreadyExistsError";
+  }
+}
 
 // Firestore rejects writes containing an `undefined` field value (the client
 // is initialized without `ignoreUndefinedProperties`). Optional input fields
@@ -92,13 +100,6 @@ function withChargeIds(charges: Omit<BillingCharge, "id">[]): BillingCharge[] {
  * only be tracked via their own `ref` and Firestore would never detect the
  * conflict, silently allowing duplicate invoice numbers.
  *
- * `.data() as BillingRecord` below is a deliberate bare cast, not run
- * through a converter: `generateInvoiceNumber`/its
- * `.filter((record) => record.invoiceNumber)` only ever touch
- * `invoiceNumber` (a plain string/null field, never a Timestamp), so the
- * cast is safe here specifically. Don't copy this line as a general pattern
- * elsewhere — Timestamp-bearing fields on this same raw data would need the
- * real converter.
  */
 async function nextInvoiceNumber(
   transaction: Transaction,
@@ -107,10 +108,14 @@ async function nextInvoiceNumber(
 ): Promise<string> {
   const monthQuery = await getDocs(query(billingCollectionRef(propertyId), where("billingMonth", "==", billingMonth)));
   const siblingSnapshots = await Promise.all(monthQuery.docs.map((d) => transaction.get(d.ref)));
-  const existingForMonth = siblingSnapshots
-    .filter((s) => s.exists())
-    .map((s) => s.data() as BillingRecord)
-    .filter((record) => record.invoiceNumber);
+  const existingForMonth = siblingSnapshots.flatMap((snapshot) => {
+    if (!snapshot.exists()) return [];
+    const data = snapshot.data() as RawBillingDoc;
+    return [
+      ...(data.invoiceNumber ? [{ invoiceNumber: data.invoiceNumber }] : []),
+      ...(data.invoices ?? []).map((invoice) => ({ invoiceNumber: invoice.invoiceNumber })),
+    ];
+  }) as BillingRecord[];
   return generateInvoiceNumber(billingMonth, existingForMonth);
 }
 
@@ -121,6 +126,8 @@ async function nextInvoiceNumber(
 // `BillingRecord` and handed to a caller — that mistake is exactly Task 3's
 // Important finding.
 interface RawBillingDoc {
+  roomId: string;
+  tenantId?: string;
   status: BillingStatus;
   billingMonth: string;
   invoiceNumber: string | null;
@@ -128,8 +135,45 @@ interface RawBillingDoc {
   water: MeterReading;
   otherCharges: BillingCharge[];
   rentAmount: number;
+  subtotal: number;
+  total: number;
+  dueDate: Timestamp | null;
   issuedAt: Timestamp | null;
   paidAt: Timestamp | null;
+  invoices?: InvoiceSnapshot[];
+}
+
+function invoiceSnapshot(
+  record: RawBillingDoc,
+  invoiceNumber: string,
+  status: InvoiceSnapshot["status"],
+  issuedAt: string,
+): InvoiceSnapshot {
+  return {
+    id: crypto.randomUUID(),
+    invoiceNumber,
+    status,
+    issuedAt,
+    roomId: record.roomId,
+    ...(record.tenantId ? { tenantId: record.tenantId } : {}),
+    billingMonth: record.billingMonth,
+    electricity: record.electricity,
+    water: record.water,
+    rentAmount: record.rentAmount,
+    otherCharges: record.otherCharges,
+    subtotal: record.subtotal,
+    total: record.total,
+    ...(record.dueDate ? { dueDate: timestampToIso(record.dueDate) } : {}),
+  };
+}
+
+function invoiceHistory(record: RawBillingDoc, legacyInvoiceId: string = crypto.randomUUID()): InvoiceSnapshot[] {
+  if (record.invoices?.length) return record.invoices;
+  if (!record.invoiceNumber || !record.issuedAt) return [];
+  return [{
+    ...invoiceSnapshot(record, record.invoiceNumber, "issued", record.issuedAt.toDate().toISOString()),
+    id: legacyInvoiceId,
+  }];
 }
 
 export const billingRepository = {
@@ -176,7 +220,7 @@ export const billingRepository = {
       const ref = billingRef(propertyId, input.roomId, input.billingMonth);
       const existing = await transaction.get(ref);
       if (existing.exists()) {
-        throw new Error("A bill for this room and month already exists");
+        throw new BillingAlreadyExistsError();
       }
       transaction.set(ref, {
         ...stripUndefined({ tenantId: input.tenantId }),
@@ -194,6 +238,7 @@ export const billingRepository = {
         dueDate: input.dueDate ? isoToTimestamp(input.dueDate) : null,
         status: "draft",
         invoiceNumber: null,
+        invoices: [],
         issuedAt: null,
         paidAt: null,
         createdAt: serverTimestamp(),
@@ -254,12 +299,27 @@ export const billingRepository = {
         rentAmount,
         otherCharges,
       });
+      const nextRaw: RawBillingDoc = {
+        ...currentRaw,
+        roomId: input.roomId ?? currentRaw.roomId,
+        tenantId: input.tenantId ?? currentRaw.tenantId,
+        billingMonth: currentRaw.billingMonth,
+        electricity,
+        water,
+        rentAmount,
+        otherCharges,
+        subtotal: totals.subtotal,
+        total: totals.total,
+        dueDate: input.dueDate !== undefined ? isoToTimestamp(input.dueDate) : currentRaw.dueDate,
+      };
+      const invoices = willIssueNow && invoiceNumber
+        ? [...invoiceHistory(currentRaw), invoiceSnapshot(nextRaw, invoiceNumber, "issued", new Date().toISOString())]
+        : currentRaw.invoices;
 
       transaction.update(ref, {
         ...stripUndefined({
           roomId: input.roomId,
           tenantId: input.tenantId,
-          billingMonth: input.billingMonth,
           status: input.status,
         }),
         electricity,
@@ -268,12 +328,53 @@ export const billingRepository = {
         otherCharges,
         ...totals,
         invoiceNumber,
+        ...(invoices ? { invoices } : {}),
         ...(input.dueDate !== undefined ? { dueDate: isoToTimestamp(input.dueDate) } : {}),
         issuedAt: willIssueNow ? serverTimestamp() : (currentRaw.issuedAt ?? null),
         paidAt: willMarkPaidNow ? serverTimestamp() : (currentRaw.paidAt ?? null),
         updatedAt: serverTimestamp(),
       });
       return { invoiceNumber };
+    });
+  },
+
+  async reissue(propertyId: string, id: string): Promise<string> {
+    const ref = doc(billingCollectionRef(propertyId), id);
+    return runTransaction(db, async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      if (!snapshot.exists()) throw new Error("Billing record not found");
+      const currentRaw = snapshot.data() as RawBillingDoc;
+      const history = invoiceHistory(currentRaw, id);
+      const activeInvoice = [...history].reverse().find((invoice) => invoice.status !== "superseded");
+      if (!currentRaw.invoiceNumber || currentRaw.status === "draft" || activeInvoice?.status === "paid") {
+        throw new Error("Only unpaid issued bills can be reissued");
+      }
+      const invoiceNumber = await nextInvoiceNumber(transaction, propertyId, currentRaw.billingMonth);
+      const invoices = history.map((invoice) =>
+        invoice.status === "issued" ? { ...invoice, status: "superseded" as const } : invoice,
+      );
+      invoices.push(invoiceSnapshot(currentRaw, invoiceNumber, "issued", new Date().toISOString()));
+      transaction.update(ref, {
+        invoiceNumber,
+        invoices,
+        issuedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      return invoiceNumber;
+    });
+  },
+
+  async markInvoicePaid(propertyId: string, id: string, invoiceId: string): Promise<void> {
+    const ref = doc(billingCollectionRef(propertyId), id);
+    await runTransaction(db, async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      if (!snapshot.exists()) throw new Error("Billing record not found");
+      const currentRaw = snapshot.data() as RawBillingDoc;
+      const invoices = invoiceHistory(currentRaw, id).map((invoice) =>
+        invoice.id === invoiceId && invoice.status === "issued" ? { ...invoice, status: "paid" as const } : invoice,
+      );
+      if (!invoices.some((invoice) => invoice.id === invoiceId)) throw new Error("Invoice not found");
+      transaction.update(ref, { invoices, updatedAt: serverTimestamp() });
     });
   },
 

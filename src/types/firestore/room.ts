@@ -11,8 +11,6 @@ export interface Room {
   monthlyRent: number;
   status: RoomStatus;
   description?: string;
-  electricityRate?: number;
-  waterRate?: number;
   createdAt: FirestoreTimestamp;
   updatedAt: FirestoreTimestamp;
 }

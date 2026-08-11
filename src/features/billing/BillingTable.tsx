@@ -23,6 +23,7 @@ interface BillingTableProps {
   onEdit: (record: BillingRecord) => void;
   onDelete: (record: BillingRecord) => void;
   onIssue: (record: BillingRecord) => void;
+  onReissue: (record: BillingRecord) => void;
   onMarkPaid: (record: BillingRecord) => void;
   selectedIds: Set<string>;
   onToggleRecord: (id: string) => void;
@@ -34,9 +35,10 @@ function ActionsMenu({
   onEdit,
   onDelete,
   onIssue,
+  onReissue,
   onMarkPaid,
   t,
-}: Pick<BillingTableProps, "onEdit" | "onDelete" | "onIssue" | "onMarkPaid"> & {
+}: Pick<BillingTableProps, "onEdit" | "onDelete" | "onIssue" | "onReissue" | "onMarkPaid"> & {
   record: BillingRecord;
   t: (key: string) => string;
 }) {
@@ -64,6 +66,17 @@ function ActionsMenu({
             </Button>
           </TooltipTrigger>
           <TooltipContent>{t("common.issue")}</TooltipContent>
+        </Tooltip>
+      )}
+      {(status === "issued" || status === "overdue") && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onReissue(record)}>
+              <Send className="h-4 w-4" />
+              <span className="sr-only">{t("billing.reissueInvoice")}</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t("billing.reissueInvoice")}</TooltipContent>
         </Tooltip>
       )}
       {(status === "issued" || status === "overdue") && (
@@ -102,6 +115,7 @@ function BillingCard({
   onEdit,
   onDelete,
   onIssue,
+  onReissue,
   onMarkPaid,
   selectedIds,
   onToggleRecord,
@@ -140,7 +154,7 @@ function BillingCard({
               </p>
             </div>
           </div>
-          <ActionsMenu record={record} onEdit={onEdit} onDelete={onDelete} onIssue={onIssue} onMarkPaid={onMarkPaid} t={t} />
+          <ActionsMenu record={record} onEdit={onEdit} onDelete={onDelete} onIssue={onIssue} onReissue={onReissue} onMarkPaid={onMarkPaid} t={t} />
         </div>
         <div className="flex items-center justify-between">
           <StatusBadge status={resolveBillingStatus(record)} />
@@ -185,6 +199,7 @@ export function BillingTable({
   onEdit,
   onDelete,
   onIssue,
+  onReissue,
   onMarkPaid,
   selectedIds,
   onToggleRecord,
@@ -289,7 +304,7 @@ export function BillingTable({
                     <StatusBadge status={resolveBillingStatus(record)} />
                   </TableCell>
                   <TableCell className="sticky right-0 z-10 w-40 min-w-40 bg-card text-right">
-                    <ActionsMenu record={record} onEdit={onEdit} onDelete={onDelete} onIssue={onIssue} onMarkPaid={onMarkPaid} t={t} />
+                    <ActionsMenu record={record} onEdit={onEdit} onDelete={onDelete} onIssue={onIssue} onReissue={onReissue} onMarkPaid={onMarkPaid} t={t} />
                   </TableCell>
                 </TableRow>
               );
@@ -309,6 +324,7 @@ export function BillingTable({
             onEdit={onEdit}
             onDelete={onDelete}
             onIssue={onIssue}
+            onReissue={onReissue}
             onMarkPaid={onMarkPaid}
             selectedIds={selectedIds}
             onToggleRecord={onToggleRecord}

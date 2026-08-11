@@ -21,9 +21,9 @@ import { useSettings } from "@/hooks/useSettings";
 import { useLanguage } from "@/i18n";
 import { formatCurrency } from "@/lib/currency";
 import { formatBillingMonth, formatDate, monthName, yearLabel } from "@/lib/date";
-import { resolveBillingStatus } from "@/lib/invoice";
+import { resolveInvoiceStatus } from "@/lib/invoice";
 import { matchesSearch } from "@/lib/search";
-import type { BillingRecord } from "@/types/billing";
+import { invoiceRecordsFromBilling, type InvoiceRecord } from "@/types/billing";
 import type { Room } from "@/types/room";
 import type { Tenant } from "@/types/tenant";
 
@@ -33,13 +33,13 @@ export function InvoicesPage() {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const { records, isLoading, updateBilling } = useBillingRecords();
+  const { records, isLoading, markInvoicePaid } = useBillingRecords();
   const { rooms } = useRooms();
   const { tenants } = useTenants();
   const { settings } = useSettings();
   const navigate = useNavigate();
 
-  const [previewRecord, setPreviewRecord] = useState<BillingRecord | undefined>(undefined);
+  const [previewRecord, setPreviewRecord] = useState<InvoiceRecord | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState("");
   const [monthFilter, setMonthFilter] = useState<string>("all");
   const [yearFilter, setYearFilter] = useState<string>("all");
@@ -59,8 +59,8 @@ export function InvoicesPage() {
   const invoices = useMemo(
     () =>
       records
-        .filter((r) => r.invoiceNumber)
-        .sort((a, b) => (b.issuedAt ?? "").localeCompare(a.issuedAt ?? "")),
+        .flatMap(invoiceRecordsFromBilling)
+        .sort((a, b) => b.issuedAt.localeCompare(a.issuedAt)),
     [records]
   );
 
@@ -90,9 +90,9 @@ export function InvoicesPage() {
     [invoices, searchQuery, monthFilter, yearFilter, roomById, tenantById, language]
   );
 
-  async function markPaid(record: BillingRecord) {
+  async function markPaid(record: InvoiceRecord) {
     try {
-      await updateBilling(record.id, { status: "paid" });
+      await markInvoicePaid(record.billingId, record.id);
       toast.success(t("invoice.paidToast"));
       setPreviewRecord(undefined);
     } catch {
@@ -183,7 +183,6 @@ export function InvoicesPage() {
                 {filteredInvoices.map((record) => {
                   const room = roomById[record.roomId];
                   const tenant = record.tenantId ? tenantById[record.tenantId] : undefined;
-                  const status = resolveBillingStatus(record);
                   return (
                     <TableRow key={record.id}>
                       <TableCell className="font-medium">{record.invoiceNumber}</TableCell>
@@ -194,7 +193,7 @@ export function InvoicesPage() {
                       <TableCell>{record.dueDate ? formatDate(record.dueDate, language) : "—"}</TableCell>
                       <TableCell>{formatCurrency(record.total, language)}</TableCell>
                       <TableCell>
-                        <StatusBadge status={status} />
+                        <StatusBadge status={resolveInvoiceStatus(record)} />
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
@@ -213,7 +212,7 @@ export function InvoicesPage() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8"
-                                onClick={() => navigate(`/invoices/${record.id}`)}
+                                onClick={() => navigate(`/invoices/${record.billingId}?invoice=${record.id}`)}
                               >
                                 <Printer className="h-4 w-4" />
                                 <span className="sr-only">{t("invoice.printExport")}</span>
@@ -221,7 +220,7 @@ export function InvoicesPage() {
                             </TooltipTrigger>
                             <TooltipContent>{t("invoice.printExport")}</TooltipContent>
                           </Tooltip>
-                          {isAdmin && (status === "issued" || status === "overdue") && (
+                          {isAdmin && (resolveInvoiceStatus(record) === "issued" || resolveInvoiceStatus(record) === "overdue") && (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => markPaid(record)}>
@@ -245,7 +244,6 @@ export function InvoicesPage() {
             {filteredInvoices.map((record) => {
               const room = roomById[record.roomId];
               const tenant = record.tenantId ? tenantById[record.tenantId] : undefined;
-              const status = resolveBillingStatus(record);
               return (
                 <Card key={record.id}>
                   <CardContent className="space-y-2 p-4">
@@ -259,7 +257,7 @@ export function InvoicesPage() {
                           })}
                         </p>
                       </div>
-                      <StatusBadge status={status} />
+                      <StatusBadge status={resolveInvoiceStatus(record)} />
                     </div>
                     <p className="text-sm text-muted-foreground">{formatBillingMonth(record.billingMonth, language)}</p>
                     <p className="text-lg font-semibold">{formatCurrency(record.total, language)}</p>
@@ -267,10 +265,10 @@ export function InvoicesPage() {
                       <Button size="sm" variant="outline" onClick={() => setPreviewRecord(record)}>
                         {t("invoice.preview")}
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => navigate(`/invoices/${record.id}`)}>
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/invoices/${record.billingId}?invoice=${record.id}`)}>
                         <Printer className="h-4 w-4" /> {t("invoice.print")}
                       </Button>
-                      {isAdmin && (status === "issued" || status === "overdue") && (
+                      {isAdmin && (resolveInvoiceStatus(record) === "issued" || resolveInvoiceStatus(record) === "overdue") && (
                         <Button size="sm" onClick={() => markPaid(record)}>
                           {t("invoice.markAsPaid")}
                         </Button>

@@ -1,13 +1,14 @@
 import { useLanguage } from "@/i18n";
 import { formatCurrency } from "@/lib/currency";
 import { formatDate } from "@/lib/date";
-import type { BillingRecord } from "@/types/billing";
+import { resolveInvoiceStatus } from "@/lib/invoice";
+import type { InvoiceRecord } from "@/types/billing";
 import type { Room } from "@/types/room";
 import type { Tenant } from "@/types/tenant";
 import type { PropertySettings } from "@/types/settings";
 
 interface InvoicePrintViewProps {
-  record: BillingRecord;
+  record: InvoiceRecord;
   room: Room;
   tenant?: Tenant;
   settings: PropertySettings;
@@ -33,7 +34,7 @@ export function InvoicePrintView({ record, room, tenant, settings }: InvoicePrin
       <div className="mb-4 grid grid-cols-2 gap-2 text-sm">
         <p>
           <span className="font-medium">{t("invoice.date")}:</span>{" "}
-          {formatDate(record.issuedAt ?? record.createdAt, language)}
+          {formatDate(record.issuedAt, language)}
         </p>
         <p>
           <span className="font-medium">{t("invoice.invoiceNo")}:</span> {record.invoiceNumber ?? "-"}
@@ -46,7 +47,7 @@ export function InvoicePrintView({ record, room, tenant, settings }: InvoicePrin
           <span className="font-medium">{t("invoice.roomLabel")}:</span> {room.roomNumber}
         </p>
         <p>
-          <span className="font-medium">{t("invoice.statusLabel")}:</span> {t(`status.${record.status}`)}
+          <span className="font-medium">{t("invoice.statusLabel")}:</span> {t(`status.${resolveInvoiceStatus(record)}`)}
         </p>
       </div>
 

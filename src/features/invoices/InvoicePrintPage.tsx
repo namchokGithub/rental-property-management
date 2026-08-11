@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { ArrowLeft, Printer, CheckCircle2 } from "lucide-react";
 import { PageSpinner } from "@/components/common/PageSpinner";
@@ -12,15 +12,17 @@ import { useSettings } from "@/hooks/useSettings";
 import { useRooms } from "@/hooks/useRooms";
 import { useTenants } from "@/hooks/useTenants";
 import { useLanguage } from "@/i18n";
-import { resolveBillingStatus } from "@/lib/invoice";
+import { invoiceRecordsFromBilling } from "@/types/billing";
+import { resolveInvoiceStatus } from "@/lib/invoice";
 
 export function InvoicePrintPage() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { t } = useLanguage();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const { records, isLoading: billingLoading, updateBilling } = useBillingRecords();
+  const { records, isLoading: billingLoading, markInvoicePaid } = useBillingRecords();
   const { settings, isLoading: settingsLoading } = useSettings();
   const { rooms, isLoading: roomsLoading } = useRooms();
   const { tenants, isLoading: tenantsLoading } = useTenants();
@@ -28,7 +30,12 @@ export function InvoicePrintPage() {
 
   if (billingLoading || settingsLoading || roomsLoading || tenantsLoading || !settings) return <PageSpinner />;
 
-  const record = id ? records.find((r) => r.id === id) : undefined;
+  const billing = id ? records.find((r) => r.id === id) : undefined;
+  const requestedInvoiceId = searchParams.get("invoice");
+  const record = billing
+    ? invoiceRecordsFromBilling(billing).find((invoice) => invoice.id === requestedInvoiceId)
+      ?? invoiceRecordsFromBilling(billing).find((invoice) => invoice.status === "issued")
+    : undefined;
 
   if (!record) {
     return (
@@ -48,8 +55,6 @@ export function InvoicePrintPage() {
     return <div className="p-6">{t("invoice.roomNotFound")}</div>;
   }
 
-  const status = resolveBillingStatus(record);
-
   return (
     <div className="min-h-screen bg-muted/30">
       <div className="no-print flex items-center justify-between gap-2 border-b bg-card p-3">
@@ -57,14 +62,14 @@ export function InvoicePrintPage() {
           <ArrowLeft className="h-4 w-4" /> {t("invoice.back")}
         </Button>
         <div className="flex gap-2">
-          {isAdmin && (status === "issued" || status === "overdue") && (
+          {isAdmin && (resolveInvoiceStatus(record) === "issued" || resolveInvoiceStatus(record) === "overdue") && (
             <Button
               variant="outline"
               disabled={isMarkingPaid}
               onClick={async () => {
                 setIsMarkingPaid(true);
                 try {
-                  await updateBilling(record.id, { status: "paid" });
+                  await markInvoicePaid(record.billingId, record.id);
                   toast.success(t("invoice.paidToast"));
                 } catch {
                   toast.error(t("common.actionFailed"));

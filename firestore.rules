@@ -60,14 +60,16 @@ service cloud.firestore {
 
       match /billing/{billingId} {
         allow read: if hasPropertyAccess(propertyId);
-        // Once a bill is issued, invoiceNumber/issuedAt must never change again —
-        // the closest a client-only rule can get to the immutability the old
-        // backend's `invoices` collection gave for free.
+        // Issuance snapshots are retained in `invoices`, allowing a bill to be
+        // reissued while preserving every prior invoice as `superseded`.
         allow create, delete: if isAdminForProperty(propertyId);
         allow update: if isAdminForProperty(propertyId)
-          && (resource.data.invoiceNumber == null
-              || (request.resource.data.invoiceNumber == resource.data.invoiceNumber
-                  && request.resource.data.issuedAt == resource.data.issuedAt));
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'tenantId', 'electricity', 'water', 'rentAmount', 'otherCharges',
+            'subtotal', 'total', 'status',
+            'invoiceNumber', 'invoices', 'dueDate', 'issuedAt', 'paidAt',
+            'updatedAt'
+          ]);
       }
     }
 

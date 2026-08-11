@@ -2,8 +2,8 @@ import type { BillingRecord, BillingStatus } from "@/types/firestore/billing";
 import type { FirestoreTimestamp } from "@/types/firestore/timestamp";
 
 /**
- * Read model for invoice views. It is derived from an issued BillingRecord and
- * is deliberately not a Firestore document or collection in the current plan.
+ * Read model for invoice views. It is derived from invoice snapshots embedded
+ * in one BillingRecord, so reissues retain their own immutable presentation.
  */
 export interface InvoiceProjection {
   id: string;

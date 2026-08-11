@@ -27,7 +27,17 @@ export function useBillingRecords() {
     [propertyId],
   );
 
+  const reissueBilling = useCallback(
+    (id: string) => billingRepository.reissue(propertyId, id),
+    [propertyId],
+  );
+
+  const markInvoicePaid = useCallback(
+    (id: string, invoiceId: string) => billingRepository.markInvoicePaid(propertyId, id, invoiceId),
+    [propertyId],
+  );
+
   const deleteBilling = useCallback((id: string) => billingRepository.delete(propertyId, id), [propertyId]);
 
-  return { records, isLoading, createBilling, updateBilling, deleteBilling };
+  return { records, isLoading, createBilling, updateBilling, reissueBilling, markInvoicePaid, deleteBilling };
 }
