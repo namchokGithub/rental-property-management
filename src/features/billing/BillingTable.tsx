@@ -109,6 +109,8 @@ function BillingCard({
   language,
 }: BillingTableProps & { record: BillingRecord; t: (key: string, params?: Record<string, string | number>) => string; language: Language }) {
   const [expanded, setExpanded] = useState(false);
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const room = roomById[record.roomId];
   const tenant = record.tenantId ? tenantById[record.tenantId] : undefined;
 
@@ -117,13 +119,15 @@ function BillingCard({
       <CardContent className="space-y-3 p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-2">
-            <Checkbox
-              className="mt-1"
-              checked={selectedIds.has(record.id)}
-              onCheckedChange={() => onToggleRecord(record.id)}
-              disabled={record.status !== "draft"}
-              aria-label={t("common.selectRow")}
-            />
+            {isAdmin && (
+              <Checkbox
+                className="mt-1"
+                checked={selectedIds.has(record.id)}
+                onCheckedChange={() => onToggleRecord(record.id)}
+                disabled={record.status !== "draft"}
+                aria-label={t("common.selectRow")}
+              />
+            )}
             <div>
               <p className="font-medium">
                 {t("common.room")} {room?.roomNumber ?? "—"}
@@ -187,9 +191,13 @@ export function BillingTable({
   onToggleAll,
 }: BillingTableProps) {
   const { t, language } = useLanguage();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const selectableIds = records.filter((r) => r.status === "draft").map((r) => r.id);
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id));
   const someSelected = !allSelected && selectableIds.some((id) => selectedIds.has(id));
+  const roomStickyClass = isAdmin ? "left-10" : "left-0";
+  const tenantStickyClass = isAdmin ? "left-[8.5rem]" : "left-24";
 
   return (
     <>
@@ -197,18 +205,20 @@ export function BillingTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead rowSpan={2} className="sticky left-0 z-10 w-10 min-w-10 bg-muted align-middle">
-                <Checkbox
-                  checked={someSelected ? "indeterminate" : allSelected}
-                  onCheckedChange={() => onToggleAll(selectableIds)}
-                  disabled={selectableIds.length === 0}
-                  aria-label={t("common.selectAll")}
-                />
-              </TableHead>
-              <TableHead rowSpan={2} className="sticky left-10 z-10 w-24 min-w-24 bg-muted align-middle">
+              {isAdmin && (
+                <TableHead rowSpan={2} className="sticky left-0 z-10 w-10 min-w-10 bg-muted align-middle">
+                  <Checkbox
+                    checked={someSelected ? "indeterminate" : allSelected}
+                    onCheckedChange={() => onToggleAll(selectableIds)}
+                    disabled={selectableIds.length === 0}
+                    aria-label={t("common.selectAll")}
+                  />
+                </TableHead>
+              )}
+              <TableHead rowSpan={2} className={`sticky ${roomStickyClass} z-10 w-24 min-w-24 bg-muted align-middle`}>
                 {t("common.room")}
               </TableHead>
-              <TableHead rowSpan={2} className="sticky left-[8.5rem] z-10 w-36 min-w-36 bg-muted align-middle">
+              <TableHead rowSpan={2} className={`sticky ${tenantStickyClass} z-10 w-36 min-w-36 bg-muted align-middle`}>
                 {t("common.tenant")}
               </TableHead>
               <TableHead rowSpan={2} className="align-middle">{t("billing.invoiceNumber")}</TableHead>
@@ -245,18 +255,20 @@ export function BillingTable({
               const tenant = record.tenantId ? tenantById[record.tenantId] : undefined;
               return (
                 <TableRow key={record.id} data-state={selectedIds.has(record.id) ? "selected" : undefined}>
-                  <TableCell className="sticky left-0 z-10 w-10 min-w-10 bg-card">
-                    <Checkbox
-                      checked={selectedIds.has(record.id)}
-                      onCheckedChange={() => onToggleRecord(record.id)}
-                      disabled={record.status !== "draft"}
-                      aria-label={t("common.selectRow")}
-                    />
-                  </TableCell>
-                  <TableCell className="sticky left-10 z-10 w-24 min-w-24 bg-card font-medium">
+                  {isAdmin && (
+                    <TableCell className="sticky left-0 z-10 w-10 min-w-10 bg-card">
+                      <Checkbox
+                        checked={selectedIds.has(record.id)}
+                        onCheckedChange={() => onToggleRecord(record.id)}
+                        disabled={record.status !== "draft"}
+                        aria-label={t("common.selectRow")}
+                      />
+                    </TableCell>
+                  )}
+                  <TableCell className={`sticky ${roomStickyClass} z-10 w-24 min-w-24 bg-card font-medium`}>
                     {room?.roomNumber ?? "—"}
                   </TableCell>
-                  <TableCell className="sticky left-[8.5rem] z-10 w-36 min-w-36 bg-card">
+                  <TableCell className={`sticky ${tenantStickyClass} z-10 w-36 min-w-36 bg-card`}>
                     {tenant ? tenant.name : "—"}
                   </TableCell>
                   <TableCell>{record.invoiceNumber ?? "—"}</TableCell>
