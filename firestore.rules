@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // API access will be enforced by Firebase Admin SDK; client rules are
+    // intentionally closed until a future authentication/authorization phase.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

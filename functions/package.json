@@ -1,0 +1,24 @@
+{
+  "name": "rental-property-management-functions",
+  "private": true,
+  "version": "0.0.0",
+  "main": "src/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "emulators": "firebase emulators:start",
+    "serve": "firebase functions:shell",
+    "lint": "node --check src/index.js && node --check src/app.js && node --check src/config/firebase.js && node --check src/config/cors.js && node --check src/errors/app-error.js && node --check src/middleware/error.middleware.js && node --check src/routes/health.routes.js && node --check src/utils/response.js",
+    "test:smoke": "node src/smoke-test.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "firebase-admin": "^14.2.0",
+    "firebase-functions": "^7.3.2"
+  },
+  "devDependencies": {
+    "firebase-tools": "^15.26.0"
+  }
+}
