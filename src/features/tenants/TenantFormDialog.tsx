@@ -98,7 +98,19 @@ export function TenantFormDialog({ open, onOpenChange, tenant, onSubmit }: Tenan
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="name">{t("tenant.name")}</Label>
-            <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <Input
+              id="name"
+              value={form.name}
+              onChange={(e) => {
+                setForm({ ...form, name: e.target.value });
+                setErrors((prev) => {
+                  if (!("name" in prev)) return prev;
+                  const next = { ...prev };
+                  delete next.name;
+                  return next;
+                });
+              }}
+            />
             {errors.name && <p className="text-xs text-destructive">{t(errors.name)}</p>}
           </div>
           <div className="space-y-1.5">

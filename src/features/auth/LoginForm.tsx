@@ -21,6 +21,15 @@ export function LoginForm() {
   const [formError, setFormError] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  function clearError(field: string) {
+    setErrors((prev) => {
+      if (!(field in prev)) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSubmitting) return;
@@ -50,7 +59,11 @@ export function LoginForm() {
           type="email"
           autoComplete="email"
           value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          onChange={(event) => {
+            setEmail(event.target.value);
+            clearError("email");
+            setFormError(undefined);
+          }}
           aria-invalid={Boolean(errors.email)}
           disabled={isSubmitting}
         />
@@ -65,7 +78,11 @@ export function LoginForm() {
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             value={password}
-            onChange={(event) => setPassword(event.target.value)}
+            onChange={(event) => {
+              setPassword(event.target.value);
+              clearError("password");
+              setFormError(undefined);
+            }}
             aria-invalid={Boolean(errors.password)}
             disabled={isSubmitting}
             className="pr-10"

@@ -180,7 +180,17 @@ export function BillingFormDialog({
     });
   }
 
+  function clearError(field: string) {
+    setErrors((prev) => {
+      if (!(field in prev)) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
+
   function handleRoomChange(roomId: string) {
+    clearError("roomId");
     if (record) {
       setForm({ ...form, roomId });
       return;
@@ -296,7 +306,10 @@ export function BillingFormDialog({
                 id="billing-month"
                 type="month"
                 value={form.billingMonth}
-                onChange={(e) => setForm({ ...form, billingMonth: e.target.value })}
+                onChange={(e) => {
+                  setForm({ ...form, billingMonth: e.target.value });
+                  clearError("billingMonth");
+                }}
               />
               {errors.billingMonth && <p className="text-xs text-destructive">{t(errors.billingMonth)}</p>}
             </div>
@@ -311,18 +324,26 @@ export function BillingFormDialog({
                 <Label htmlFor="elec-prev">{t("billing.previousMeter")}</Label>
                 <Input
                   id="elec-prev"
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={form.electricityPreviousMeter}
-                  onChange={(e) => setForm({ ...form, electricityPreviousMeter: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, electricityPreviousMeter: e.target.value });
+                    clearError("electricityCurrentMeter");
+                  }}
                 />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="elec-cur">{t("billing.currentMeter")}</Label>
                 <Input
                   id="elec-cur"
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={form.electricityCurrentMeter}
-                  onChange={(e) => setForm({ ...form, electricityCurrentMeter: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, electricityCurrentMeter: e.target.value });
+                    clearError("electricityCurrentMeter");
+                  }}
                 />
                 {errors.electricityCurrentMeter && (
                   <p className="text-xs text-destructive">{t(errors.electricityCurrentMeter)}</p>
@@ -332,7 +353,8 @@ export function BillingFormDialog({
                 <Label htmlFor="elec-rate">{t("billing.rate")}</Label>
                 <Input
                   id="elec-rate"
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={form.electricityRate}
                   onChange={(e) => setForm({ ...form, electricityRate: e.target.value })}
                 />
@@ -356,18 +378,26 @@ export function BillingFormDialog({
                 <Label htmlFor="water-prev">{t("billing.previousMeter")}</Label>
                 <Input
                   id="water-prev"
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={form.waterPreviousMeter}
-                  onChange={(e) => setForm({ ...form, waterPreviousMeter: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, waterPreviousMeter: e.target.value });
+                    clearError("waterCurrentMeter");
+                  }}
                 />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="water-cur">{t("billing.currentMeter")}</Label>
                 <Input
                   id="water-cur"
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={form.waterCurrentMeter}
-                  onChange={(e) => setForm({ ...form, waterCurrentMeter: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, waterCurrentMeter: e.target.value });
+                    clearError("waterCurrentMeter");
+                  }}
                 />
                 {errors.waterCurrentMeter && <p className="text-xs text-destructive">{t(errors.waterCurrentMeter)}</p>}
               </div>
@@ -375,7 +405,8 @@ export function BillingFormDialog({
                 <Label htmlFor="water-rate">{t("billing.rate")}</Label>
                 <Input
                   id="water-rate"
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   value={form.waterRate}
                   onChange={(e) => setForm({ ...form, waterRate: e.target.value })}
                 />
@@ -397,7 +428,16 @@ export function BillingFormDialog({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="rent">{t("billing.rentAmount")}</Label>
-              <Input id="rent" type="number" value={form.rentAmount} onChange={(e) => setForm({ ...form, rentAmount: e.target.value })} />
+              <Input
+                id="rent"
+                type="text"
+                inputMode="decimal"
+                value={form.rentAmount}
+                onChange={(e) => {
+                  setForm({ ...form, rentAmount: e.target.value });
+                  clearError("rentAmount");
+                }}
+              />
               {errors.rentAmount && <p className="text-xs text-destructive">{t(errors.rentAmount)}</p>}
             </div>
             <div className="space-y-1.5">
@@ -456,7 +496,8 @@ export function BillingFormDialog({
                   />
                 )}
                 <Input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   className="w-32"
                   placeholder={t("billing.chargeAmountPlaceholder")}
                   value={charge.amount}

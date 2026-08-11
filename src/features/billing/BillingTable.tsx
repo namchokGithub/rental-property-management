@@ -193,7 +193,7 @@ export function BillingTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="sticky left-0 z-10 w-10 min-w-10 bg-muted">
+              <TableHead rowSpan={2} className="sticky left-0 z-10 w-10 min-w-10 bg-muted align-middle">
                 <Checkbox
                   checked={someSelected ? "indeterminate" : allSelected}
                   onCheckedChange={() => onToggleAll(selectableIds)}
@@ -201,26 +201,38 @@ export function BillingTable({
                   aria-label={t("common.selectAll")}
                 />
               </TableHead>
-              <TableHead className="sticky left-10 z-10 w-24 min-w-24 bg-muted">{t("common.room")}</TableHead>
-              <TableHead className="sticky left-[8.5rem] z-10 w-36 min-w-36 bg-muted">{t("common.tenant")}</TableHead>
-              <TableHead>{t("billing.invoiceNumber")}</TableHead>
-              <TableHead>{t("common.month")}</TableHead>
-              <TableHead>{t("billing.elecPrev")}</TableHead>
-              <TableHead>{t("billing.elecCur")}</TableHead>
-              <TableHead>{t("billing.elecUsage")}</TableHead>
-              <TableHead>{t("billing.elecRate")}</TableHead>
-              <TableHead>{t("billing.elecAmount")}</TableHead>
-              <TableHead>{t("billing.waterPrev")}</TableHead>
-              <TableHead>{t("billing.waterCur")}</TableHead>
-              <TableHead>{t("billing.waterUsage")}</TableHead>
-              <TableHead>{t("billing.waterRate")}</TableHead>
-              <TableHead>{t("billing.waterAmount")}</TableHead>
-              <TableHead>{t("billing.rent")}</TableHead>
-              <TableHead>{t("common.total")}</TableHead>
-              <TableHead>{t("common.status")}</TableHead>
-              <TableHead className="sticky right-0 z-10 w-40 min-w-40 bg-muted text-right">
+              <TableHead rowSpan={2} className="sticky left-10 z-10 w-24 min-w-24 bg-muted align-middle">
+                {t("common.room")}
+              </TableHead>
+              <TableHead rowSpan={2} className="sticky left-[8.5rem] z-10 w-36 min-w-36 bg-muted align-middle">
+                {t("common.tenant")}
+              </TableHead>
+              <TableHead rowSpan={2} className="align-middle">{t("billing.invoiceNumber")}</TableHead>
+              <TableHead rowSpan={2} className="align-middle">{t("common.month")}</TableHead>
+              <TableHead colSpan={5} className="border-l text-center">
+                {t("billing.electricityGroup")}
+              </TableHead>
+              <TableHead colSpan={5} className="border-l text-center">
+                {t("billing.waterGroup")}
+              </TableHead>
+              <TableHead rowSpan={2} className="align-middle">{t("billing.rent")}</TableHead>
+              <TableHead rowSpan={2} className="align-middle">{t("common.total")}</TableHead>
+              <TableHead rowSpan={2} className="align-middle">{t("common.status")}</TableHead>
+              <TableHead rowSpan={2} className="sticky right-0 z-10 w-40 min-w-40 bg-muted text-right align-middle">
                 {t("common.actions")}
               </TableHead>
+            </TableRow>
+            <TableRow>
+              <TableHead className="border-l">{t("billing.meterPrev")}</TableHead>
+              <TableHead>{t("billing.meterCur")}</TableHead>
+              <TableHead>{t("billing.meterUsage")}</TableHead>
+              <TableHead>{t("billing.meterRate")}</TableHead>
+              <TableHead>{t("billing.meterAmount")}</TableHead>
+              <TableHead className="border-l">{t("billing.meterPrev")}</TableHead>
+              <TableHead>{t("billing.meterCur")}</TableHead>
+              <TableHead>{t("billing.meterUsage")}</TableHead>
+              <TableHead>{t("billing.meterRate")}</TableHead>
+              <TableHead>{t("billing.meterAmount")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

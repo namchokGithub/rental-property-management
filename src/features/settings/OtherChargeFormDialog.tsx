@@ -47,6 +47,15 @@ export function OtherChargeFormDialog({ open, onOpenChange, charge, onSubmit }: 
     }
   }, [open, charge]);
 
+  function clearError(field: string) {
+    setErrors((prev) => {
+      if (!(field in prev)) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
+
   function handleSubmit() {
     const input: CreateOtherChargeInput = {
       nameTh: form.nameTh.trim(),
@@ -78,7 +87,10 @@ export function OtherChargeFormDialog({ open, onOpenChange, charge, onSubmit }: 
               id="charge-name-th"
               placeholder={t("settings.otherChargesNamePlaceholder")}
               value={form.nameTh}
-              onChange={(e) => setForm({ ...form, nameTh: e.target.value })}
+              onChange={(e) => {
+                setForm({ ...form, nameTh: e.target.value });
+                clearError("nameTh");
+              }}
             />
             {errors.nameTh && <p className="text-xs text-destructive">{t(errors.nameTh)}</p>}
           </div>
@@ -99,7 +111,10 @@ export function OtherChargeFormDialog({ open, onOpenChange, charge, onSubmit }: 
               min={0}
               placeholder={t("settings.otherChargesAmountPlaceholder")}
               value={form.defaultAmount}
-              onChange={(e) => setForm({ ...form, defaultAmount: e.target.value })}
+              onChange={(e) => {
+                setForm({ ...form, defaultAmount: e.target.value });
+                clearError("defaultAmount");
+              }}
             />
             {errors.defaultAmount && <p className="text-xs text-destructive">{t(errors.defaultAmount)}</p>}
           </div>
