@@ -25,5 +25,4 @@ export const router = createHashRouter(
     },
     { path: "/invoices/:id", element: <InvoicePrintPage /> },
   ],
-  { basename: import.meta.env.BASE_URL },
 );
