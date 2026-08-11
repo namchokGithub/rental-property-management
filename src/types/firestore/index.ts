@@ -1,0 +1,10 @@
+export type { FirestoreTimestamp } from "@/types/firestore/timestamp";
+export type { Property } from "@/types/firestore/property";
+export type { UserProfile, UserRole } from "@/types/firestore/user";
+export type { Room, RoomStatus } from "@/types/firestore/room";
+export type { Tenant, TenantStatus } from "@/types/firestore/tenant";
+export type { RoomTenantAssignment, AssignmentStatus } from "@/types/firestore/assignment";
+export type { OtherChargeMaster } from "@/types/firestore/other-charge";
+export type { BillingRecord, BillingCharge, BillingStatus, MeterReading } from "@/types/firestore/billing";
+export type { InvoiceProjection } from "@/types/firestore/invoice";
+export type { PropertySettings } from "@/types/firestore/settings";
