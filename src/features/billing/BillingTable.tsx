@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { useLanguage } from "@/i18n";
-import { formatCurrency } from "@/lib/currency";
+import { formatAmount, formatCurrency } from "@/lib/currency";
 import { formatBillingMonth } from "@/lib/date";
 import { resolveBillingStatus } from "@/lib/invoice";
 import type { BillingRecord } from "@/types/billing";
@@ -180,7 +180,9 @@ export function BillingTable({ records, roomById, tenantById, onEdit, onDelete, 
               <TableHead>{t("billing.rent")}</TableHead>
               <TableHead>{t("common.total")}</TableHead>
               <TableHead>{t("common.status")}</TableHead>
-              <TableHead className="text-right">{t("common.actions")}</TableHead>
+              <TableHead className="sticky right-0 z-10 w-40 min-w-40 bg-muted text-right">
+                {t("common.actions")}
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -200,19 +202,19 @@ export function BillingTable({ records, roomById, tenantById, onEdit, onDelete, 
                   <TableCell>{record.electricity.previousMeter}</TableCell>
                   <TableCell>{record.electricity.currentMeter}</TableCell>
                   <TableCell>{record.electricity.usage}</TableCell>
-                  <TableCell>{formatCurrency(record.electricity.rate, language)}</TableCell>
-                  <TableCell>{formatCurrency(record.electricity.amount, language)}</TableCell>
+                  <TableCell>{formatAmount(record.electricity.rate, language)}</TableCell>
+                  <TableCell>{formatAmount(record.electricity.amount, language)}</TableCell>
                   <TableCell>{record.water.previousMeter}</TableCell>
                   <TableCell>{record.water.currentMeter}</TableCell>
                   <TableCell>{record.water.usage}</TableCell>
-                  <TableCell>{formatCurrency(record.water.rate, language)}</TableCell>
-                  <TableCell>{formatCurrency(record.water.amount, language)}</TableCell>
-                  <TableCell>{formatCurrency(record.rentAmount, language)}</TableCell>
-                  <TableCell className="font-medium">{formatCurrency(record.total, language)}</TableCell>
+                  <TableCell>{formatAmount(record.water.rate, language)}</TableCell>
+                  <TableCell>{formatAmount(record.water.amount, language)}</TableCell>
+                  <TableCell>{formatAmount(record.rentAmount, language)}</TableCell>
+                  <TableCell className="font-medium">{formatAmount(record.total, language)}</TableCell>
                   <TableCell>
                     <StatusBadge status={resolveBillingStatus(record)} />
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="sticky right-0 z-10 w-40 min-w-40 bg-card text-right">
                     <ActionsMenu record={record} onEdit={onEdit} onDelete={onDelete} onIssue={onIssue} onMarkPaid={onMarkPaid} t={t} />
                   </TableCell>
                 </TableRow>
