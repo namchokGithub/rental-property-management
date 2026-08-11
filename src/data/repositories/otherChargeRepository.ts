@@ -29,15 +29,21 @@ export const otherChargeRepository = {
 
   async update(propertyId: string, id: string, input: UpdateOtherChargeInput): Promise<OtherChargeMaster> {
     const now = new Date().toISOString();
-    let updated: OtherChargeMaster | undefined;
-    await withMasters(propertyId, (masters) =>
-      masters.map((master) => {
+
+    const updated = await runTransaction(db, async (transaction) => {
+      const snapshot = await transaction.get(settingsRef(propertyId));
+      const current = (snapshot.data()?.otherChargeMasters ?? []) as OtherChargeMaster[];
+      let updated: OtherChargeMaster | undefined;
+      const next = current.map((master) => {
         if (master.id !== id) return master;
         updated = { ...master, ...input, updatedAt: now };
         return updated;
-      }),
-    );
-    if (!updated) throw new Error(`OtherChargeMaster ${id} not found`);
+      });
+      if (!updated) throw new Error(`OtherChargeMaster ${id} not found`);
+      transaction.set(settingsRef(propertyId), { otherChargeMasters: next }, { merge: true });
+      return updated;
+    });
+
     return updated;
   },
 
