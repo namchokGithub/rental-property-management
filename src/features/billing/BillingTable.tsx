@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { CheckCircle2, ChevronDown, ChevronUp, Pencil, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -22,6 +23,9 @@ interface BillingTableProps {
   onDelete: (record: BillingRecord) => void;
   onIssue: (record: BillingRecord) => void;
   onMarkPaid: (record: BillingRecord) => void;
+  selectedIds: Set<string>;
+  onToggleRecord: (id: string) => void;
+  onToggleAll: (ids: string[]) => void;
 }
 
 function ActionsMenu({
@@ -95,6 +99,8 @@ function BillingCard({
   onDelete,
   onIssue,
   onMarkPaid,
+  selectedIds,
+  onToggleRecord,
   t,
   language,
 }: BillingTableProps & { record: BillingRecord; t: (key: string, params?: Record<string, string | number>) => string; language: Language }) {
@@ -106,16 +112,25 @@ function BillingCard({
     <Card>
       <CardContent className="space-y-3 p-4">
         <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="font-medium">
-              {t("common.room")} {room?.roomNumber ?? "—"}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {t("billing.mobileCardSubtitle", {
-                tenant: tenant ? tenant.name : t("common.noTenant"),
-                month: formatBillingMonth(record.billingMonth, language),
-              })}
-            </p>
+          <div className="flex items-start gap-2">
+            <Checkbox
+              className="mt-1"
+              checked={selectedIds.has(record.id)}
+              onCheckedChange={() => onToggleRecord(record.id)}
+              disabled={record.status !== "draft"}
+              aria-label={t("common.selectRow")}
+            />
+            <div>
+              <p className="font-medium">
+                {t("common.room")} {room?.roomNumber ?? "—"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {t("billing.mobileCardSubtitle", {
+                  tenant: tenant ? tenant.name : t("common.noTenant"),
+                  month: formatBillingMonth(record.billingMonth, language),
+                })}
+              </p>
+            </div>
           </div>
           <ActionsMenu record={record} onEdit={onEdit} onDelete={onDelete} onIssue={onIssue} onMarkPaid={onMarkPaid} t={t} />
         </div>
@@ -155,16 +170,39 @@ function BillingCard({
   );
 }
 
-export function BillingTable({ records, roomById, tenantById, onEdit, onDelete, onIssue, onMarkPaid }: BillingTableProps) {
+export function BillingTable({
+  records,
+  roomById,
+  tenantById,
+  onEdit,
+  onDelete,
+  onIssue,
+  onMarkPaid,
+  selectedIds,
+  onToggleRecord,
+  onToggleAll,
+}: BillingTableProps) {
   const { t, language } = useLanguage();
+  const selectableIds = records.filter((r) => r.status === "draft").map((r) => r.id);
+  const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id));
+  const someSelected = !allSelected && selectableIds.some((id) => selectedIds.has(id));
+
   return (
     <>
       <div className="hidden overflow-x-auto rounded-xl border bg-card shadow-sm md:block">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="sticky left-0 z-10 w-24 min-w-24 bg-muted">{t("common.room")}</TableHead>
-              <TableHead className="sticky left-24 z-10 w-36 min-w-36 bg-muted">{t("common.tenant")}</TableHead>
+              <TableHead className="sticky left-0 z-10 w-10 min-w-10 bg-muted">
+                <Checkbox
+                  checked={someSelected ? "indeterminate" : allSelected}
+                  onCheckedChange={() => onToggleAll(selectableIds)}
+                  disabled={selectableIds.length === 0}
+                  aria-label={t("common.selectAll")}
+                />
+              </TableHead>
+              <TableHead className="sticky left-10 z-10 w-24 min-w-24 bg-muted">{t("common.room")}</TableHead>
+              <TableHead className="sticky left-[8.5rem] z-10 w-36 min-w-36 bg-muted">{t("common.tenant")}</TableHead>
               <TableHead>{t("billing.invoiceNumber")}</TableHead>
               <TableHead>{t("common.month")}</TableHead>
               <TableHead>{t("billing.elecPrev")}</TableHead>
@@ -190,11 +228,19 @@ export function BillingTable({ records, roomById, tenantById, onEdit, onDelete, 
               const room = roomById[record.roomId];
               const tenant = record.tenantId ? tenantById[record.tenantId] : undefined;
               return (
-                <TableRow key={record.id}>
-                  <TableCell className="sticky left-0 z-10 w-24 min-w-24 bg-card font-medium">
+                <TableRow key={record.id} data-state={selectedIds.has(record.id) ? "selected" : undefined}>
+                  <TableCell className="sticky left-0 z-10 w-10 min-w-10 bg-card">
+                    <Checkbox
+                      checked={selectedIds.has(record.id)}
+                      onCheckedChange={() => onToggleRecord(record.id)}
+                      disabled={record.status !== "draft"}
+                      aria-label={t("common.selectRow")}
+                    />
+                  </TableCell>
+                  <TableCell className="sticky left-10 z-10 w-24 min-w-24 bg-card font-medium">
                     {room?.roomNumber ?? "—"}
                   </TableCell>
-                  <TableCell className="sticky left-24 z-10 w-36 min-w-36 bg-card">
+                  <TableCell className="sticky left-[8.5rem] z-10 w-36 min-w-36 bg-card">
                     {tenant ? tenant.name : "—"}
                   </TableCell>
                   <TableCell>{record.invoiceNumber ?? "—"}</TableCell>
@@ -236,6 +282,9 @@ export function BillingTable({ records, roomById, tenantById, onEdit, onDelete, 
             onDelete={onDelete}
             onIssue={onIssue}
             onMarkPaid={onMarkPaid}
+            selectedIds={selectedIds}
+            onToggleRecord={onToggleRecord}
+            onToggleAll={onToggleAll}
             t={t}
             language={language}
           />

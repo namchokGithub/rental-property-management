@@ -58,6 +58,10 @@ export interface Translations {
     noResultsDescription: string;
     clearSearch: string;
     allStatuses: string;
+    allMonths: string;
+    allYears: string;
+    selectAll: string;
+    selectRow: string;
   };
   sidebar: {
     brand: string;
@@ -213,6 +217,8 @@ export interface Translations {
     updatedToast: string;
     deletedToast: string;
     issuedToast: string;
+    bulkIssueSelected: string;
+    bulkIssuedToast: string;
     paidToast: string;
     deleteConfirmTitle: string;
     deleteConfirmDescription: string;

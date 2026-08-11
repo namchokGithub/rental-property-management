@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useLanguage } from "@/i18n";
 import { calculateMeterReading, calculateBillingTotals } from "@/lib/calculations";
 import { formatCurrency } from "@/lib/currency";
+import { defaultDueDate } from "@/lib/date";
 import { validateBilling, type ValidationErrors } from "@/lib/validation";
 import type { Room } from "@/types/room";
 import type { Tenant } from "@/types/tenant";
@@ -24,6 +25,7 @@ import type { RoomTenantAssignment } from "@/types/assignment";
 import type { BillingRecord, BillingCharge, CreateBillingInput } from "@/types/billing";
 import type { PropertySettings } from "@/types/settings";
 import type { OtherChargeMaster } from "@/types/otherCharge";
+import type { Language } from "@/i18n/types";
 
 interface BillingFormDialogProps {
   open: boolean;
@@ -75,8 +77,10 @@ function buildFormState(params: {
   tenantId?: string;
   settings: PropertySettings;
   latest?: BillingRecord;
+  otherChargeMasters: OtherChargeMaster[];
+  language: Language;
 }): FormState {
-  const { record, room, tenantId, settings, latest } = params;
+  const { record, room, tenantId, settings, latest, otherChargeMasters, language } = params;
   if (record) {
     return {
       roomId: record.roomId,
@@ -94,10 +98,11 @@ function buildFormState(params: {
       otherCharges: chargesToRows(record.otherCharges),
     };
   }
+  const billingMonth = currentMonth();
   return {
     roomId: room?.id ?? "",
     tenantId: tenantId ?? "",
-    billingMonth: currentMonth(),
+    billingMonth,
     electricityPreviousMeter: latest ? String(latest.electricity.currentMeter) : "0",
     electricityCurrentMeter: "0",
     electricityRate: room ? String(room.electricityRate) : String(settings.defaultElectricityRate),
@@ -105,9 +110,16 @@ function buildFormState(params: {
     waterCurrentMeter: "0",
     waterRate: room ? String(room.waterRate) : String(settings.defaultWaterRate),
     rentAmount: room ? String(room.monthlyRent) : "0",
-    dueDate: "",
+    dueDate: defaultDueDate(billingMonth),
     status: "draft",
-    otherCharges: [],
+    otherCharges: otherChargeMasters
+      .filter((m) => m.isActive)
+      .map((m) => ({
+        key: crypto.randomUUID(),
+        masterId: m.id,
+        name: language === "en" && m.nameEn ? m.nameEn : m.nameTh,
+        amount: String(m.defaultAmount),
+      })),
   };
 }
 
@@ -124,16 +136,18 @@ export function BillingFormDialog({
   onSubmit,
 }: BillingFormDialogProps) {
   const { t, language } = useLanguage();
-  const [form, setForm] = useState<FormState>(() => buildFormState({ record, settings }));
+  const [form, setForm] = useState<FormState>(() =>
+    buildFormState({ record, settings, otherChargeMasters: otherCharges, language })
+  );
   const [errors, setErrors] = useState<ValidationErrors>({});
 
   useEffect(() => {
     if (open) {
-      setForm(buildFormState({ record, settings }));
+      setForm(buildFormState({ record, settings, otherChargeMasters: otherCharges, language }));
       setErrors({});
       setSelectedMasterId("");
     }
-  }, [open, record, settings]);
+  }, [open, record, settings, otherCharges, language]);
 
   const [selectedMasterId, setSelectedMasterId] = useState("");
 
@@ -174,7 +188,7 @@ export function BillingFormDialog({
     const room = rooms.find((r) => r.id === roomId);
     const assignment = activeAssignments.find((a) => a.roomId === roomId);
     const latest = getLatestByRoomId(roomId);
-    setForm(buildFormState({ room, tenantId: assignment?.tenantId, settings, latest }));
+    setForm(buildFormState({ room, tenantId: assignment?.tenantId, settings, latest, otherChargeMasters: otherCharges, language }));
   }
 
   function updateCharge(key: string, field: "name" | "amount", value: string) {
