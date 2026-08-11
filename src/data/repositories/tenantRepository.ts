@@ -1,33 +1,45 @@
-import { readCollection, writeCollection, STORAGE_KEYS } from "@/data/storage/storage";
-import type { Tenant, CreateTenantInput, UpdateTenantInput } from "@/types/tenant";
+import { collection, deleteDoc, doc, getDocs, query, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { createFirestoreCrudRepository } from "@/data/repositories/firestoreCrud";
+import type { CreateTenantInput, Tenant, UpdateTenantInput } from "@/types/tenant";
 
-function all(): Tenant[] {
-  return readCollection<Tenant>(STORAGE_KEYS.tenants);
+/**
+ * Thrown by `tenantRepository.delete()` when the tenant still has an active
+ * room assignment. Callers (`TenantsPage.tsx`) check for this specific type
+ * via `instanceof` to show the translated delete-guard message instead of
+ * this error's raw English `.message` — same pattern as
+ * `InvalidCredentialsError` in `auth.types.ts`.
+ */
+export class TenantHasActiveAssignmentError extends Error {
+  constructor() {
+    super("Cannot delete a tenant with an active room assignment");
+    this.name = "TenantHasActiveAssignmentError";
+  }
+}
+
+/**
+ * Deleting a tenant that still has an active room assignment would silently
+ * orphan that assignment's billing/history. The old backend enforced this;
+ * carried over here rather than deferred to the Assignments migration (Task
+ * 4) since it's a real data-integrity gap the moment Tenants goes live.
+ * `assignments` has no data yet until Task 4 lands, so this always resolves
+ * empty for now — harmless, and load-bearing once assignments are written.
+ */
+async function assertNoActiveAssignment(propertyId: string, tenantId: string): Promise<void> {
+  const active = await getDocs(
+    query(
+      collection(db, "properties", propertyId, "assignments"),
+      where("tenantId", "==", tenantId),
+      where("status", "==", "active"),
+    ),
+  );
+  if (!active.empty) throw new TenantHasActiveAssignmentError();
 }
 
 export const tenantRepository = {
-  getAll(): Tenant[] {
-    return all();
-  },
-  getById(id: string): Tenant | undefined {
-    return all().find((t) => t.id === id);
-  },
-  create(input: CreateTenantInput): Tenant {
-    const now = new Date().toISOString();
-    const tenant: Tenant = { ...input, status: input.status ?? "active", id: crypto.randomUUID(), createdAt: now, updatedAt: now };
-    writeCollection(STORAGE_KEYS.tenants, [...all(), tenant]);
-    return tenant;
-  },
-  update(id: string, input: UpdateTenantInput): Tenant {
-    const tenants = all();
-    const index = tenants.findIndex((t) => t.id === id);
-    if (index === -1) throw new Error(`Tenant ${id} not found`);
-    const updated: Tenant = { ...tenants[index], ...input, updatedAt: new Date().toISOString() };
-    tenants[index] = updated;
-    writeCollection(STORAGE_KEYS.tenants, tenants);
-    return updated;
-  },
-  delete(id: string): void {
-    writeCollection(STORAGE_KEYS.tenants, all().filter((t) => t.id !== id));
+  ...createFirestoreCrudRepository<Tenant, CreateTenantInput, UpdateTenantInput>("tenants"),
+  async delete(propertyId: string, id: string): Promise<void> {
+    await assertNoActiveAssignment(propertyId, id);
+    await deleteDoc(doc(db, "properties", propertyId, "tenants", id));
   },
 };

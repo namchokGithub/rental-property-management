@@ -2,12 +2,13 @@
 
 A responsive frontend web application for managing rental rooms, apartments, or dormitory rooms: rooms, tenants, tenant-room assignments, monthly utility/rent billing, invoice generation, and a dashboard overview.
 
-The project runs entirely on the frontend using `localStorage`, with an architecture prepared for future migration to Firebase or a backend REST API without rewriting the UI.
+The app talks directly to Firebase — Firebase Authentication for login and Cloud Firestore for every business record — with no backend server of any kind. It is deployed as a static site (see [Build](#build) below); Firestore Security Rules are the sole authorization boundary.
 
 ## Requirements
 
 - Node.js 20+
 - pnpm
+- A Firebase project (or the local Firebase Emulator Suite for development — see [Firebase Setup](docs/firebase/setup.md))
 
 ## Installation
 
@@ -18,10 +19,11 @@ pnpm install
 ## Development
 
 ```bash
+cp .env.example .env.local   # fill in your Firebase Web app config — see docs/firebase/setup.md
 pnpm dev
 ```
 
-Opens the app at `http://localhost:5173`. Demo data is seeded automatically into `localStorage` on first load.
+Opens the app at `http://localhost:5173`. There is no seed data — see [First-Time Setup](#first-time-setup) below to bootstrap a property and an admin user before the app has anything to show.
 
 ## Build
 
@@ -29,7 +31,7 @@ Opens the app at `http://localhost:5173`. Demo data is seeded automatically into
 pnpm build
 ```
 
-Type-checks with `tsc -b` and produces a production build in `dist/`.
+Type-checks with `tsc -b` and produces a static production build in `dist/`, ready to deploy to any static host (e.g. GitHub Pages — `vite.config.ts` sets `base: "/rental-property-management/"` for that target).
 
 ## Lint
 
@@ -39,16 +41,17 @@ pnpm lint
 
 ## Main Features
 
-- **Authentication** — demo login/logout gating the whole app, with a persistent session (see below).
+- **Authentication** — Firebase Authentication gates the whole app; a Firestore `users/{uid}` profile carries the role (`admin`/`staff`) and property access (see [Authentication](#authentication) below).
 - **Dashboard** — occupancy summary cards, room status breakdown, recent billing, quick actions.
-- **Rooms** — CRUD, status (available/occupied/maintenance/inactive), room detail with utility rates and billing history.
-- **Tenants** — CRUD, contact/emergency/lease info, current room lookup.
-- **Assignments** — assign a tenant to a room, end a tenancy, move a tenant to a different room. Only one active assignment per room at a time; room status updates automatically.
-- **Monthly Billing** — enter electricity/water meter readings and fees; usage and totals are calculated automatically. Wide table with sticky Room/Tenant columns on desktop, card layout on mobile.
+- **Rooms** — CRUD (admin only), status (available/occupied/maintenance/inactive), room detail with utility rates and billing history.
+- **Tenants** — CRUD (admin only), contact/emergency/lease info, current room lookup.
+- **Assignments** — assign a tenant to a room, end a tenancy, move a tenant to a different room (admin only). Only one active assignment per room at a time; room status updates automatically.
+- **Monthly Billing** — enter electricity/water meter readings and fees; usage and totals are calculated automatically. Wide table with sticky Room/Tenant columns on desktop, card layout on mobile. Issuing, marking paid, and bulk-issuing are admin only.
 - **Invoices** — auto-numbered (`INV-YYYY-MM-###`) invoice list, in-app preview, and a standalone printable bilingual invoice document (browser print / Save as PDF, A4-optimized).
-- **Settings** — property info and default billing rates, applied automatically to new rooms and billing records.
-- **Search** — every list page (Rooms, Tenants, Billing, Invoices) has a client-side search box that filters the loaded records instantly; no backend or state-management library involved.
+- **Settings** — property information, the default electricity/water rates and invoice note, plus an optional Other Charge Master list (e.g. parking or garbage fees) that users explicitly add to individual bills. Editing is admin only.
+- **Search** — every list page (Rooms, Tenants, Billing, Invoices) has a client-side search box that filters the loaded records instantly.
 - **Localization** — switch between Thai and English instantly, anywhere in the app (see below).
+- **Appearance & themes** — light, dark, and system appearance modes with four persisted accent themes: Sky Purple, Ocean, Emerald, and Rose.
 
 ## Tech Stack
 
@@ -58,7 +61,7 @@ pnpm lint
 - React Router
 - lucide-react icons
 - sonner (toast notifications)
-- `localStorage` behind a repository abstraction (see [context.md](context.md))
+- Firebase JS SDK (`firebase/auth`, `firebase/firestore`) — no `firebase-admin`, no Cloud Functions, no REST layer
 - Custom lightweight i18n (no library) — see Localization below
 
 ## Project Structure
@@ -66,32 +69,41 @@ pnpm lint
 ```
 src/
   app/            # router, layout shell
+  auth/           # Firebase-backed authentication service and React auth context
   components/     # ui primitives, layout, shared common components
-  data/           # storage, repositories, seed data
+  data/           # Firestore repositories (rooms, tenants, assignments, billing, settings, other charges)
   features/       # one folder per page/feature
-  hooks/          # thin hooks wrapping repositories
-  lib/            # pure calculation/formatting/validation utilities
+  hooks/          # thin reactive hooks (onSnapshot-driven) wrapping repositories
+  i18n/           # typed Thai/English dictionaries and language context
+  lib/            # pure calculation/formatting/validation utilities, Firebase client boundary
+  theme/          # appearance/accent theme context and persistence
   types/          # domain models
+docs/firebase/    # Firebase project setup and Firestore data-model documentation
+firestore.rules            # the only authorization boundary — see docs/firebase/data-model.md
+firestore.indexes.json     # composite indexes required by the two transactional queries
 ```
 
 See [context.md](context.md) for the full architecture, domain model, business rules, and continuation notes for future development.
 
 ## Authentication
 
-The app is gated behind a login screen. **This is frontend/demo authentication, not real security** — there is no backend, no password hashing, and no server verifying anything. Login runs entirely in the browser: a demo credential is compared in `src/auth/auth.service.ts`, and on success a user object (no password) is written to `localStorage` under `rental.auth.session`.
+The app is gated behind a login screen backed by real Firebase Authentication. There is no backend server: `AuthContext` subscribes to Firebase's `onAuthStateChanged()` and, on every signed-in transition, reads the user's application profile directly from Firestore at `users/{uid}` (`role`, `propertyIds`, `isActive`, `name`, `email`). A missing or inactive profile is treated as "not authorized" — the user stays on the login screen even though their Firebase credential is valid.
 
-This is deliberately architected so it *can* become real: the UI only ever talks to an `AuthProvider` interface (`src/auth/auth.types.ts`) through `useAuth()` — swapping the demo `LocalAuthService` for a `FirebaseAuthService` later means changing one line in `auth.service.ts`, not the login page, the form, the route protection, or the header's account menu. See the "Authentication" section in [context.md](context.md) for the full architecture.
+`role: "admin"` may read and write every registered property; `role: "staff"` may only read the properties in their `propertyIds` list. The header selector chooses the property the UI is currently managing. The UI hides write affordances (Add/Edit/Delete/Issue/Mark Paid/etc.) for `staff` users, but that is a UX convenience only — the actual enforcement is [Firestore Security Rules](firestore.rules), since there is no server to trust. A `staff` user who somehow triggers a write anyway (e.g. via devtools) gets a rejected Firestore write, not a security hole.
 
-**Do not treat this as production-ready.** Before real deployment: replace it with Firebase Authentication (or a real backend), since anyone can read the demo credential from the frontend source or edit the `localStorage` session by hand.
+The UI only ever talks to an `AuthProvider` interface (`src/auth/auth.types.ts`) through `useAuth()` — see [context.md](context.md#authentication) for the full architecture.
 
-### Demo Account
+### First-Time Setup
 
-```
-Email:    admin@email.com
-Password: admin123
-```
+There is no sign-up flow and, since there's no backend, no server-side script that can safely create a `users/{uid}` profile (Firestore rules deliberately forbid a user from writing their own profile/role — otherwise anyone could grant themselves `admin`). The very first property and admin user must be created by hand, once, via the [Firebase Console](https://console.firebase.google.com/) (or the Emulator UI for local development — see [Firebase Setup](docs/firebase/setup.md#emulator-suite)):
 
-This credential is for local demo purposes only — it's a plaintext constant in the frontend source, not a real account.
+1. **Authentication → Users → Add user.** Create the admin's email/password account. Note the generated UID.
+2. **Firestore Database → Start collection.** Create `properties/{propertyId}` (pick an ID such as `demo-property`) with `name` (string), `address` (string), and `phone` (string). This registry document makes the property available in the in-app property selector.
+3. Create `properties/{propertyId}/settings/general` with `propertyName` (string), `propertyAddress` (string), `phone` (string), `defaultElectricityRate` (number), `defaultWaterRate` (number), and `defaultInvoiceNote` (string). `otherChargeMasters` can be left unset — the app treats a missing array as empty.
+4. Create `users/{uid}` (document ID = the Auth UID from step 1) with fields `name` (string), `email` (string, matching the Auth account), `role` (string, `"admin"`), `propertyIds` (array of strings, e.g. `["demo-property"]`), `isActive` (boolean, `true`). Admins can access every registered property; `propertyIds` is retained as their default/fallback list and defines staff access.
+5. Sign in with that email/password and choose the active property from the selector in the header.
+
+To create a `staff` user later, repeat steps 1 and 4 with `role: "staff"` — no new property/settings documents are needed, just add the allowed property IDs to their `propertyIds` array. A `staff` user can switch only among those properties, can read their data, and never sees create/edit/delete buttons.
 
 ## Localization
 
@@ -113,13 +125,23 @@ The system was built to make this a translation-file-only change:
 
 No other component needs to change. See [context.md](context.md) for the full localization architecture.
 
-## Demo Data Behavior
+## Appearance and Accent Themes
 
-On first load (when `localStorage` has no rooms yet), the app seeds a small set of rooms, tenants, assignments, and billing records so every page has realistic content. Seeding is idempotent — it only runs once; clearing the relevant `localStorage` keys (see [context.md](context.md#storage-keys)) re-triggers it.
+Choose light, dark, or system appearance and one of four accent themes from the header menu. Both settings apply immediately and persist across visits using `app.appearance` and `app.accentTheme`. The saved theme is applied before React mounts to avoid a flash of the default theme.
+
+## Firebase Setup
+
+See [docs/firebase/setup.md](docs/firebase/setup.md) for Firebase Console project setup, `.env.local` configuration, and running the Auth + Firestore Emulator Suite locally:
+
+```bash
+firebase emulators:start --only auth,firestore
+```
+
+with `VITE_USE_FIREBASE_EMULATOR=true` in `.env.local` so the running `pnpm dev` instance connects to the emulators instead of a real project. See [docs/firebase/data-model.md](docs/firebase/data-model.md) for the full Firestore schema and [firestore.rules](firestore.rules) for the security rules.
 
 ## Current Limitations
 
-- Frontend only — no backend, no real database. Authentication exists but is demo-only (see Authentication above) — not secure for production.
-- Single property only (no multi-property support).
 - No real PDF generation service — invoice export relies on the browser's native print / "Save as PDF".
 - No automated recurring billing generation or notifications.
+- No automated test suite — verification is `pnpm build` (typecheck + production build), `pnpm lint`, and manual smoke testing against the Firebase Emulator Suite.
+- Firestore Security Rules enforce property/role boundaries but cannot cheaply enforce every cross-document business invariant (e.g. "at most one active assignment per room") the way a transactional client call does — a malicious `admin`-role account bypassing the app's own repository code via the raw SDK is a known, accepted trade-off of having no backend. See [context.md](context.md#known-limitations).

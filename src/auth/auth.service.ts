@@ -1,58 +1,74 @@
+import {
+  signInWithEmailAndPassword,
+  signOut,
+  type User as FirebaseUser,
+} from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 import type { AuthProvider, AuthUser } from "@/auth/auth.types";
 import { InvalidCredentialsError } from "@/auth/auth.types";
-import { readSession, removeSession, writeSession } from "@/auth/auth.storage";
 
-/**
- * DEMO ONLY — this is not real authentication.
- *
- * - The credential below is a plaintext constant shipped in the frontend bundle;
- *   anyone can read it from the built JS source.
- * - There is no server verifying anything; `login()` just compares strings in
- *   the browser and writes a session object to localStorage.
- * - That localStorage session can be edited or forged by hand in devtools.
- *
- * This must be replaced by a real backend (e.g. a `FirebaseAuthService`
- * implementing the same `AuthProvider` interface) before production use.
- */
-const DEMO_EMAIL = "admin@email.com";
-const DEMO_PASSWORD = "admin123";
-const DEMO_USER: AuthUser = {
-  id: "admin-001",
-  name: "Administrator",
-  email: DEMO_EMAIL,
-  role: "admin",
-};
+const INVALID_CREDENTIAL_CODES = new Set([
+  "auth/invalid-credential",
+  "auth/wrong-password",
+  "auth/user-not-found",
+  "auth/invalid-email",
+]);
 
-/** Display-only, for the demo credential hint on the login page. */
-export const DEMO_CREDENTIALS_HINT = {
-  email: DEMO_EMAIL,
-  password: DEMO_PASSWORD,
-};
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+interface UserProfileDoc {
+  name: string;
+  email: string;
+  role: "admin" | "staff";
+  propertyIds: string[];
+  isActive: boolean;
 }
 
-class LocalAuthService implements AuthProvider {
+export async function fetchUserProfile(uid: string): Promise<AuthUser | null> {
+  const snapshot = await getDoc(doc(db, "users", uid));
+  if (!snapshot.exists()) return null;
+  const data = snapshot.data() as UserProfileDoc;
+  if (!data.isActive) return null;
+  return {
+    id: uid,
+    name: data.name,
+    email: data.email,
+    role: data.role,
+    propertyIds: data.propertyIds,
+  };
+}
+
+class FirebaseAuthService implements AuthProvider {
   async login(email: string, password: string): Promise<AuthUser> {
-    await delay(400);
-    if (
-      email.trim().toLowerCase() !== DEMO_EMAIL ||
-      password !== DEMO_PASSWORD
-    ) {
+    let credential;
+    try {
+      credential = await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        "code" in error &&
+        INVALID_CREDENTIAL_CODES.has((error as { code: string }).code)
+      ) {
+        throw new InvalidCredentialsError();
+      }
+      throw error;
+    }
+    const profile = await fetchUserProfile(credential.user.uid);
+    if (!profile) {
+      await signOut(auth);
       throw new InvalidCredentialsError();
     }
-    writeSession(DEMO_USER);
-    return DEMO_USER;
+    return profile;
   }
 
   async logout(): Promise<void> {
-    removeSession();
+    await signOut(auth);
   }
 
   async getCurrentUser(): Promise<AuthUser | null> {
-    return readSession();
+    const current: FirebaseUser | null = auth.currentUser;
+    if (!current) return null;
+    return fetchUserProfile(current.uid);
   }
 }
 
-export const authService: AuthProvider = new LocalAuthService();
+export const authService: AuthProvider = new FirebaseAuthService();

@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from "react-router";
+import { createHashRouter, Navigate } from "react-router";
 import { AppLayout } from "@/app/AppLayout";
 import { DashboardPage } from "@/features/dashboard/DashboardPage";
 import { RoomsPage } from "@/features/rooms/RoomsPage";
@@ -8,7 +8,7 @@ import { InvoicesPage } from "@/features/invoices/InvoicesPage";
 import { InvoicePrintPage } from "@/features/invoices/InvoicePrintPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 
-export const router = createBrowserRouter(
+export const router = createHashRouter(
   [
     {
       path: "/",

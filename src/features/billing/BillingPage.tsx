@@ -3,12 +3,14 @@ import { toast } from "sonner";
 import { Receipt, Plus, Search, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/common/PageHeader";
+import { PageSpinner } from "@/components/common/PageSpinner";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { SearchInput } from "@/components/common/SearchInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BillingTable } from "@/features/billing/BillingTable";
 import { BillingFormDialog } from "@/features/billing/BillingFormDialog";
+import { useAuth } from "@/auth";
 import { useBillingRecords } from "@/hooks/useBillingRecords";
 import { useRooms } from "@/hooks/useRooms";
 import { useTenants } from "@/hooks/useTenants";
@@ -19,7 +21,7 @@ import { useLanguage } from "@/i18n";
 import { matchesSearch } from "@/lib/search";
 import { formatBillingMonth, monthName, yearLabel } from "@/lib/date";
 import { resolveBillingStatus } from "@/lib/invoice";
-import type { BillingRecord, BillingStatus } from "@/types/billing";
+import { invoiceRecordsFromBilling, type BillingRecord, type BillingStatus } from "@/types/billing";
 import type { Room } from "@/types/room";
 import type { Tenant } from "@/types/tenant";
 
@@ -28,7 +30,9 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0
 
 export function BillingPage() {
   const { t, language } = useLanguage();
-  const { records, createBilling, updateBilling, deleteBilling } = useBillingRecords();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  const { records, isLoading, createBilling, updateBilling, reissueBilling, markInvoicePaid, deleteBilling } = useBillingRecords();
   const { rooms } = useRooms();
   const { tenants } = useTenants();
   const { assignments } = useAssignments();
@@ -122,15 +126,35 @@ export function BillingPage() {
     });
   }
 
-  function handleBulkIssue() {
+  async function handleBulkIssue() {
     const ids = [...effectiveSelectedIds];
     if (ids.length === 0) return;
-    for (const id of ids) {
-      updateBilling(id, { status: "issued" });
+    // MUST stay sequential (for...of + await, not Promise.all): each
+    // transactional issuance reads the freshest "existing records for this
+    // month" state, so one issuance's write must commit before the next one
+    // reads — firing them concurrently would defeat that guarantee. Stops at
+    // the first failure rather than continuing past it, and only clears the
+    // ids that actually succeeded so a partial batch isn't misreported as
+    // fully issued.
+    const issuedIds: string[] = [];
+    try {
+      for (const id of ids) {
+        await updateBilling(id, { status: "issued" });
+        issuedIds.push(id);
+      }
+      toast.success(t("billing.bulkIssuedToast", { count: issuedIds.length }));
+    } catch {
+      toast.error(t("common.actionFailed"));
+    } finally {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        issuedIds.forEach((id) => next.delete(id));
+        return next;
+      });
     }
-    toast.success(t("billing.bulkIssuedToast", { count: ids.length }));
-    setSelectedIds(new Set());
   }
+
+  if (isLoading || !settings) return <PageSpinner />;
 
   return (
     <div className="space-y-6">
@@ -138,21 +162,23 @@ export function BillingPage() {
         title={t("billing.title")}
         description={t("billing.description")}
         actions={
-          <div className="flex items-center gap-2">
-            {effectiveSelectedIds.size > 0 && (
-              <Button variant="secondary" onClick={handleBulkIssue}>
-                <Send /> {t("billing.bulkIssueSelected", { count: effectiveSelectedIds.size })}
+          isAdmin && (
+            <div className="flex items-center gap-2">
+              {effectiveSelectedIds.size > 0 && (
+                <Button variant="secondary" onClick={handleBulkIssue}>
+                  <Send /> {t("billing.bulkIssueSelected", { count: effectiveSelectedIds.size })}
+                </Button>
+              )}
+              <Button
+                onClick={() => {
+                  setEditingRecord(undefined);
+                  setFormOpen(true);
+                }}
+              >
+                <Plus /> {t("billing.createBilling")}
               </Button>
-            )}
-            <Button
-              onClick={() => {
-                setEditingRecord(undefined);
-                setFormOpen(true);
-              }}
-            >
-              <Plus /> {t("billing.createBilling")}
-            </Button>
-          </div>
+            </div>
+          )
         }
       />
 
@@ -161,11 +187,15 @@ export function BillingPage() {
           icon={Receipt}
           title={t("billing.noBillingTitle")}
           description={t("billing.noBillingDescription")}
-          actionLabel={t("billing.createBilling")}
-          onAction={() => {
-            setEditingRecord(undefined);
-            setFormOpen(true);
-          }}
+          actionLabel={isAdmin ? t("billing.createBilling") : undefined}
+          onAction={
+            isAdmin
+              ? () => {
+                  setEditingRecord(undefined);
+                  setFormOpen(true);
+                }
+              : undefined
+          }
         />
       ) : (
         <>
@@ -239,13 +269,31 @@ export function BillingPage() {
                 setFormOpen(true);
               }}
               onDelete={setDeletingRecord}
-              onIssue={(record) => {
-                const updated = updateBilling(record.id, { status: "issued" });
-                toast.success(t("billing.issuedToast", { invoiceNumber: updated.invoiceNumber ?? "" }));
+              onIssue={async (record) => {
+                try {
+                  const { invoiceNumber } = await updateBilling(record.id, { status: "issued" });
+                  toast.success(t("billing.issuedToast", { invoiceNumber: invoiceNumber ?? "" }));
+                } catch {
+                  toast.error(t("common.actionFailed"));
+                }
               }}
-              onMarkPaid={(record) => {
-                updateBilling(record.id, { status: "paid" });
-                toast.success(t("billing.paidToast"));
+              onReissue={async (record) => {
+                try {
+                  const invoiceNumber = await reissueBilling(record.id);
+                  toast.success(t("billing.reissuedToast", { invoiceNumber }));
+                } catch {
+                  toast.error(t("common.actionFailed"));
+                }
+              }}
+              onMarkPaid={async (record) => {
+                try {
+                  const invoice = invoiceRecordsFromBilling(record).find((candidate) => candidate.status === "issued");
+                  if (!invoice) return;
+                  await markInvoicePaid(record.id, invoice.id);
+                  toast.success(t("billing.paidToast"));
+                } catch {
+                  toast.error(t("common.actionFailed"));
+                }
               }}
               selectedIds={effectiveSelectedIds}
               onToggleRecord={toggleRecord}
@@ -266,11 +314,25 @@ export function BillingPage() {
         otherCharges={otherCharges}
         record={editingRecord}
         getLatestByRoomId={getLatestByRoomId}
-        onSubmit={(input) => {
+        onSubmit={async (input) => {
           if (editingRecord) {
-            updateBilling(editingRecord.id, input);
-          } else {
-            createBilling(input);
+            return updateBilling(editingRecord.id, input);
+          }
+          // `create()` always persists as a draft regardless of
+          // `input.status` (see billingRepository.ts) — a create+issue
+          // submission must go through a *second*, separately-awaited
+          // `update()` call against the now-existing draft, since that's the
+          // only path where the transactional sibling-pinning that prevents
+          // duplicate invoice numbers actually applies. Both calls share this
+          // same try/catch (via BillingFormDialog's handleSubmit, which wraps
+          // onSubmit): if create succeeds but this follow-up issue fails, the
+          // record is left as a committed draft — a safe, recoverable state,
+          // since the user can just click "Issue" again from the table — and
+          // the thrown error surfaces the existing generic failure toast
+          // rather than a silent partial success.
+          const newId = await createBilling(input);
+          if (input.status === "issued") {
+            await updateBilling(newId, { status: "issued" });
           }
         }}
       />
@@ -284,11 +346,15 @@ export function BillingPage() {
         })}
         confirmLabel={t("common.delete")}
         destructive
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!deletingRecord) return;
-          deleteBilling(deletingRecord.id);
-          toast.success(t("billing.deletedToast"));
-          setDeletingRecord(undefined);
+          try {
+            await deleteBilling(deletingRecord.id);
+            toast.success(t("billing.deletedToast"));
+            setDeletingRecord(undefined);
+          } catch {
+            toast.error(t("common.actionFailed"));
+          }
         }}
       />
     </div>

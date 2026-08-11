@@ -1,32 +1,38 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { assignmentRepository } from "@/data/repositories/assignmentRepository";
+import { useActivePropertyId } from "@/property";
 import type { RoomTenantAssignment, CreateAssignmentInput } from "@/types/assignment";
 
 export function useAssignments() {
-  const [assignments, setAssignments] = useState<RoomTenantAssignment[]>(() => assignmentRepository.getAll());
+  const propertyId = useActivePropertyId();
+  const [assignments, setAssignments] = useState<RoomTenantAssignment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const refresh = useCallback(() => setAssignments(assignmentRepository.getAll()), []);
+  useEffect(() => {
+    setIsLoading(true);
+    const unsubscribe = assignmentRepository.subscribe(propertyId, (next) => {
+      setAssignments(next);
+      setIsLoading(false);
+    });
+    return unsubscribe;
+  }, [propertyId]);
 
   const assignTenant = useCallback(
-    (input: CreateAssignmentInput) => {
-      const assignment = assignmentRepository.assign(input);
-      refresh();
-      return assignment;
-    },
-    [refresh]
+    (input: CreateAssignmentInput) => assignmentRepository.assign(propertyId, input),
+    [propertyId],
   );
-
   const endTenancyByRoomId = useCallback(
-    (roomId: string, endDate: string) => {
-      assignmentRepository.endByRoomId(roomId, endDate);
-      refresh();
-    },
-    [refresh]
+    (roomId: string, endDate: string) => assignmentRepository.endByRoomId(propertyId, roomId, endDate),
+    [propertyId],
+  );
+  const getActiveByRoomId = useCallback(
+    (roomId: string) => assignments.find((a) => a.roomId === roomId && a.status === "active"),
+    [assignments],
+  );
+  const getActiveByTenantId = useCallback(
+    (tenantId: string) => assignments.find((a) => a.tenantId === tenantId && a.status === "active"),
+    [assignments],
   );
 
-  const getActiveByRoomId = useCallback((roomId: string) => assignmentRepository.getActiveByRoomId(roomId), []);
-  const getByRoomId = useCallback((roomId: string) => assignmentRepository.getByRoomId(roomId), []);
-  const getActiveByTenantId = useCallback((tenantId: string) => assignmentRepository.getActiveByTenantId(tenantId), []);
-
-  return { assignments, refresh, assignTenant, endTenancyByRoomId, getActiveByRoomId, getByRoomId, getActiveByTenantId };
+  return { assignments, isLoading, assignTenant, endTenancyByRoomId, getActiveByRoomId, getActiveByTenantId };
 }

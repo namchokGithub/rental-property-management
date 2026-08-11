@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { useAuth } from "@/auth";
 import { useLanguage } from "@/i18n";
 import { formatAmount, formatCurrency } from "@/lib/currency";
 import { formatBillingMonth } from "@/lib/date";
@@ -22,6 +23,7 @@ interface BillingTableProps {
   onEdit: (record: BillingRecord) => void;
   onDelete: (record: BillingRecord) => void;
   onIssue: (record: BillingRecord) => void;
+  onReissue: (record: BillingRecord) => void;
   onMarkPaid: (record: BillingRecord) => void;
   selectedIds: Set<string>;
   onToggleRecord: (id: string) => void;
@@ -33,13 +35,17 @@ function ActionsMenu({
   onEdit,
   onDelete,
   onIssue,
+  onReissue,
   onMarkPaid,
   t,
-}: Pick<BillingTableProps, "onEdit" | "onDelete" | "onIssue" | "onMarkPaid"> & {
+}: Pick<BillingTableProps, "onEdit" | "onDelete" | "onIssue" | "onReissue" | "onMarkPaid"> & {
   record: BillingRecord;
   t: (key: string) => string;
 }) {
   const status = resolveBillingStatus(record);
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  if (!isAdmin) return null;
   return (
     <div className="flex items-center justify-end gap-1">
       <Tooltip>
@@ -60,6 +66,17 @@ function ActionsMenu({
             </Button>
           </TooltipTrigger>
           <TooltipContent>{t("common.issue")}</TooltipContent>
+        </Tooltip>
+      )}
+      {(status === "issued" || status === "overdue") && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onReissue(record)}>
+              <Send className="h-4 w-4" />
+              <span className="sr-only">{t("billing.reissueInvoice")}</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t("billing.reissueInvoice")}</TooltipContent>
         </Tooltip>
       )}
       {(status === "issued" || status === "overdue") && (
@@ -98,6 +115,7 @@ function BillingCard({
   onEdit,
   onDelete,
   onIssue,
+  onReissue,
   onMarkPaid,
   selectedIds,
   onToggleRecord,
@@ -105,6 +123,8 @@ function BillingCard({
   language,
 }: BillingTableProps & { record: BillingRecord; t: (key: string, params?: Record<string, string | number>) => string; language: Language }) {
   const [expanded, setExpanded] = useState(false);
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const room = roomById[record.roomId];
   const tenant = record.tenantId ? tenantById[record.tenantId] : undefined;
 
@@ -113,13 +133,15 @@ function BillingCard({
       <CardContent className="space-y-3 p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-2">
-            <Checkbox
-              className="mt-1"
-              checked={selectedIds.has(record.id)}
-              onCheckedChange={() => onToggleRecord(record.id)}
-              disabled={record.status !== "draft"}
-              aria-label={t("common.selectRow")}
-            />
+            {isAdmin && (
+              <Checkbox
+                className="mt-1"
+                checked={selectedIds.has(record.id)}
+                onCheckedChange={() => onToggleRecord(record.id)}
+                disabled={record.status !== "draft"}
+                aria-label={t("common.selectRow")}
+              />
+            )}
             <div>
               <p className="font-medium">
                 {t("common.room")} {room?.roomNumber ?? "—"}
@@ -132,7 +154,7 @@ function BillingCard({
               </p>
             </div>
           </div>
-          <ActionsMenu record={record} onEdit={onEdit} onDelete={onDelete} onIssue={onIssue} onMarkPaid={onMarkPaid} t={t} />
+          <ActionsMenu record={record} onEdit={onEdit} onDelete={onDelete} onIssue={onIssue} onReissue={onReissue} onMarkPaid={onMarkPaid} t={t} />
         </div>
         <div className="flex items-center justify-between">
           <StatusBadge status={resolveBillingStatus(record)} />
@@ -177,15 +199,20 @@ export function BillingTable({
   onEdit,
   onDelete,
   onIssue,
+  onReissue,
   onMarkPaid,
   selectedIds,
   onToggleRecord,
   onToggleAll,
 }: BillingTableProps) {
   const { t, language } = useLanguage();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const selectableIds = records.filter((r) => r.status === "draft").map((r) => r.id);
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id));
   const someSelected = !allSelected && selectableIds.some((id) => selectedIds.has(id));
+  const roomStickyClass = isAdmin ? "left-10" : "left-0";
+  const tenantStickyClass = isAdmin ? "left-[8.5rem]" : "left-24";
 
   return (
     <>
@@ -193,18 +220,20 @@ export function BillingTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead rowSpan={2} className="sticky left-0 z-10 w-10 min-w-10 bg-muted align-middle">
-                <Checkbox
-                  checked={someSelected ? "indeterminate" : allSelected}
-                  onCheckedChange={() => onToggleAll(selectableIds)}
-                  disabled={selectableIds.length === 0}
-                  aria-label={t("common.selectAll")}
-                />
-              </TableHead>
-              <TableHead rowSpan={2} className="sticky left-10 z-10 w-24 min-w-24 bg-muted align-middle">
+              {isAdmin && (
+                <TableHead rowSpan={2} className="sticky left-0 z-10 w-10 min-w-10 bg-muted align-middle">
+                  <Checkbox
+                    checked={someSelected ? "indeterminate" : allSelected}
+                    onCheckedChange={() => onToggleAll(selectableIds)}
+                    disabled={selectableIds.length === 0}
+                    aria-label={t("common.selectAll")}
+                  />
+                </TableHead>
+              )}
+              <TableHead rowSpan={2} className={`sticky ${roomStickyClass} z-10 w-24 min-w-24 bg-muted align-middle`}>
                 {t("common.room")}
               </TableHead>
-              <TableHead rowSpan={2} className="sticky left-[8.5rem] z-10 w-36 min-w-36 bg-muted align-middle">
+              <TableHead rowSpan={2} className={`sticky ${tenantStickyClass} z-10 w-36 min-w-36 bg-muted align-middle`}>
                 {t("common.tenant")}
               </TableHead>
               <TableHead rowSpan={2} className="align-middle">{t("billing.invoiceNumber")}</TableHead>
@@ -241,18 +270,20 @@ export function BillingTable({
               const tenant = record.tenantId ? tenantById[record.tenantId] : undefined;
               return (
                 <TableRow key={record.id} data-state={selectedIds.has(record.id) ? "selected" : undefined}>
-                  <TableCell className="sticky left-0 z-10 w-10 min-w-10 bg-card">
-                    <Checkbox
-                      checked={selectedIds.has(record.id)}
-                      onCheckedChange={() => onToggleRecord(record.id)}
-                      disabled={record.status !== "draft"}
-                      aria-label={t("common.selectRow")}
-                    />
-                  </TableCell>
-                  <TableCell className="sticky left-10 z-10 w-24 min-w-24 bg-card font-medium">
+                  {isAdmin && (
+                    <TableCell className="sticky left-0 z-10 w-10 min-w-10 bg-card">
+                      <Checkbox
+                        checked={selectedIds.has(record.id)}
+                        onCheckedChange={() => onToggleRecord(record.id)}
+                        disabled={record.status !== "draft"}
+                        aria-label={t("common.selectRow")}
+                      />
+                    </TableCell>
+                  )}
+                  <TableCell className={`sticky ${roomStickyClass} z-10 w-24 min-w-24 bg-card font-medium`}>
                     {room?.roomNumber ?? "—"}
                   </TableCell>
-                  <TableCell className="sticky left-[8.5rem] z-10 w-36 min-w-36 bg-card">
+                  <TableCell className={`sticky ${tenantStickyClass} z-10 w-36 min-w-36 bg-card`}>
                     {tenant ? tenant.name : "—"}
                   </TableCell>
                   <TableCell>{record.invoiceNumber ?? "—"}</TableCell>
@@ -273,7 +304,7 @@ export function BillingTable({
                     <StatusBadge status={resolveBillingStatus(record)} />
                   </TableCell>
                   <TableCell className="sticky right-0 z-10 w-40 min-w-40 bg-card text-right">
-                    <ActionsMenu record={record} onEdit={onEdit} onDelete={onDelete} onIssue={onIssue} onMarkPaid={onMarkPaid} t={t} />
+                    <ActionsMenu record={record} onEdit={onEdit} onDelete={onDelete} onIssue={onIssue} onReissue={onReissue} onMarkPaid={onMarkPaid} t={t} />
                   </TableCell>
                 </TableRow>
               );
@@ -293,6 +324,7 @@ export function BillingTable({
             onEdit={onEdit}
             onDelete={onDelete}
             onIssue={onIssue}
+            onReissue={onReissue}
             onMarkPaid={onMarkPaid}
             selectedIds={selectedIds}
             onToggleRecord={onToggleRecord}

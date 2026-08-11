@@ -20,10 +20,10 @@ export interface Translations {
       emailInvalid: string;
       passwordRequired: string;
       invalidCredentials: string;
+      network: string;
     };
     logout: string;
     logoutSuccess: string;
-    demoAccountLabel: string;
   };
   common: {
     save: string;
@@ -37,6 +37,7 @@ export interface Translations {
     print: string;
     close: string;
     confirm: string;
+    actionFailed: string;
     search: string;
     actions: string;
     status: string;
@@ -75,6 +76,11 @@ export interface Translations {
   header: {
     openNavigation: string;
   };
+  property: {
+    select: string;
+    noneTitle: string;
+    noneDescription: string;
+  };
   status: {
     available: string;
     occupied: string;
@@ -85,6 +91,7 @@ export interface Translations {
     issued: string;
     paid: string;
     overdue: string;
+    superseded: string;
     ended: string;
   };
   dashboard: {
@@ -125,6 +132,7 @@ export interface Translations {
     deleteConfirmTitle: string;
     deleteConfirmDescriptionWithTenant: string;
     deleteConfirmDescription: string;
+    deleteBlockedActiveAssignment: string;
     endTenancyTitle: string;
     endTenancyDescription: string;
     createdToast: string;
@@ -160,6 +168,7 @@ export interface Translations {
     noTenantsDescription: string;
     deleteConfirmTitle: string;
     deleteConfirmDescription: string;
+    deleteBlockedActiveAssignment: string;
     createdToast: string;
     updatedToast: string;
     deletedToast: string;
@@ -190,6 +199,7 @@ export interface Translations {
     createBilling: string;
     editBilling: string;
     formDescription: string;
+    duplicateBillError: string;
     invoiceNumber: string;
     billingMonth: string;
     electricitySection: string;
@@ -219,6 +229,8 @@ export interface Translations {
     issuedToast: string;
     bulkIssueSelected: string;
     bulkIssuedToast: string;
+    reissuedToast: string;
+    reissueInvoice: string;
     paidToast: string;
     deleteConfirmTitle: string;
     deleteConfirmDescription: string;

@@ -8,8 +8,6 @@ export function validateRoom(input: Partial<CreateRoomInput & UpdateRoomInput>):
   const errors: ValidationErrors = {};
   if (!input.roomNumber || input.roomNumber.trim() === "") errors.roomNumber = "validation.room.roomNumberRequired";
   if (input.monthlyRent !== undefined && input.monthlyRent < 0) errors.monthlyRent = "validation.room.monthlyRentNegative";
-  if (input.electricityRate !== undefined && input.electricityRate < 0) errors.electricityRate = "validation.room.electricityRateNegative";
-  if (input.waterRate !== undefined && input.waterRate < 0) errors.waterRate = "validation.room.waterRateNegative";
   return errors;
 }
 

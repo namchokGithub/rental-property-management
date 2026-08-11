@@ -20,10 +20,10 @@ const en: Translations = {
       emailInvalid: "Invalid email format",
       passwordRequired: "Password is required",
       invalidCredentials: "Invalid email or password",
+      network: "Network error. Please check your connection and try again.",
     },
     logout: "Logout",
     logoutSuccess: "Logged out successfully",
-    demoAccountLabel: "Demo account",
   },
   common: {
     save: "Save",
@@ -37,6 +37,7 @@ const en: Translations = {
     print: "Print",
     close: "Close",
     confirm: "Confirm",
+    actionFailed: "Something went wrong. Please try again.",
     search: "Search",
     actions: "Actions",
     status: "Status",
@@ -75,6 +76,11 @@ const en: Translations = {
   header: {
     openNavigation: "Open navigation",
   },
+  property: {
+    select: "Select property",
+    noneTitle: "No property available",
+    noneDescription: "Create a property document or add a property ID to this user's profile.",
+  },
   status: {
     available: "Available",
     occupied: "Occupied",
@@ -85,6 +91,7 @@ const en: Translations = {
     issued: "Issued",
     paid: "Paid",
     overdue: "Overdue",
+    superseded: "Superseded",
     ended: "Ended",
   },
   dashboard: {
@@ -126,6 +133,7 @@ const en: Translations = {
     deleteConfirmDescriptionWithTenant:
       "Room {{roomNumber}} currently has a tenant. This will delete the room record permanently.",
     deleteConfirmDescription: "This will permanently delete room {{roomNumber}}.",
+    deleteBlockedActiveAssignment: "Cannot delete a room with an active tenant assignment.",
     endTenancyTitle: "End this tenancy?",
     endTenancyDescription:
       "The tenant will be removed from room {{roomNumber}} and the room will become available.",
@@ -162,6 +170,7 @@ const en: Translations = {
     noTenantsDescription: "Add your first tenant to start tracking leases.",
     deleteConfirmTitle: "Delete tenant {{name}}?",
     deleteConfirmDescription: "This will permanently delete this tenant's record.",
+    deleteBlockedActiveAssignment: "Cannot delete a tenant with an active room assignment.",
     createdToast: "Tenant created",
     updatedToast: "Tenant updated",
     deletedToast: "Tenant deleted",
@@ -192,6 +201,7 @@ const en: Translations = {
     createBilling: "Create Billing",
     editBilling: "Edit Billing Record",
     formDescription: "Meter usage and totals are calculated automatically.",
+    duplicateBillError: "A bill for room {{roomNumber}} already exists for {{billingMonth}}.",
     invoiceNumber: "Invoice #",
     billingMonth: "Billing Month",
     electricitySection: "Electricity",
@@ -221,6 +231,8 @@ const en: Translations = {
     issuedToast: "Invoice issued: {{invoiceNumber}}",
     bulkIssueSelected: "Issue Selected ({{count}})",
     bulkIssuedToast: "{{count}} invoices issued",
+    reissuedToast: "New invoice issued: {{invoiceNumber}}",
+    reissueInvoice: "Reissue Invoice",
     paidToast: "Marked as paid",
     deleteConfirmTitle: "Delete this billing record?",
     deleteConfirmDescription: "This will permanently delete the billing record for room {{roomNumber}}.",

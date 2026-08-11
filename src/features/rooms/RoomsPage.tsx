@@ -7,15 +7,18 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { SearchInput } from "@/components/common/SearchInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageSpinner } from "@/components/common/PageSpinner";
 import { RoomTable } from "@/features/rooms/RoomTable";
 import { RoomFormDialog } from "@/features/rooms/RoomFormDialog";
 import { RoomDetailSheet } from "@/features/rooms/RoomDetailSheet";
 import { AssignTenantDialog } from "@/features/assignments/AssignTenantDialog";
+import { useAuth } from "@/auth";
 import { useRooms } from "@/hooks/useRooms";
 import { useTenants } from "@/hooks/useTenants";
 import { useAssignments } from "@/hooks/useAssignments";
+import { useBillingRecords } from "@/hooks/useBillingRecords";
 import { useLanguage } from "@/i18n";
-import { billingRepository } from "@/data/repositories/billingRepository";
+import { RoomHasActiveAssignmentError } from "@/data/repositories/roomRepository";
 import { matchesSearch } from "@/lib/search";
 import type { Room, RoomStatus } from "@/types/room";
 
@@ -27,9 +30,12 @@ function today(): string {
 
 export function RoomsPage() {
   const { t } = useLanguage();
-  const { rooms, createRoom, updateRoom, deleteRoom } = useRooms();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  const { rooms, isLoading, createRoom, updateRoom, deleteRoom } = useRooms();
   const { tenants } = useTenants();
   const { assignments, assignTenant, endTenancyByRoomId, getActiveByTenantId } = useAssignments();
+  const { records: billingRecords } = useBillingRecords();
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | undefined>(undefined);
@@ -59,7 +65,7 @@ export function RoomsPage() {
 
   const detailAssignment = detailRoom ? activeAssignmentByRoomId.get(detailRoom.id) : undefined;
   const detailTenant = detailAssignment ? tenants.find((t) => t.id === detailAssignment.tenantId) : undefined;
-  const detailBillingHistory = detailRoom ? billingRepository.getByRoomId(detailRoom.id) : [];
+  const detailBillingHistory = detailRoom ? billingRecords.filter((r) => r.roomId === detailRoom.id) : [];
 
   const availableTenants = tenants.filter((t) => t.status === "active" && !getActiveByTenantId(t.id));
 
@@ -73,20 +79,24 @@ export function RoomsPage() {
     [rooms, searchQuery, statusFilter, tenantNameByRoomId]
   );
 
+  if (isLoading) return <PageSpinner />;
+
   return (
     <div className="space-y-6">
       <PageHeader
         title={t("room.title")}
         description={t("room.description")}
         actions={
-          <Button
-            onClick={() => {
-              setEditingRoom(undefined);
-              setFormOpen(true);
-            }}
-          >
-            <Plus /> {t("room.addRoom")}
-          </Button>
+          isAdmin && (
+            <Button
+              onClick={() => {
+                setEditingRoom(undefined);
+                setFormOpen(true);
+              }}
+            >
+              <Plus /> {t("room.addRoom")}
+            </Button>
+          )
         }
       />
 
@@ -95,11 +105,15 @@ export function RoomsPage() {
           icon={DoorOpen}
           title={t("room.noRoomsTitle")}
           description={t("room.noRoomsDescription")}
-          actionLabel={t("room.addRoom")}
-          onAction={() => {
-            setEditingRoom(undefined);
-            setFormOpen(true);
-          }}
+          actionLabel={isAdmin ? t("room.addRoom") : undefined}
+          onAction={
+            isAdmin
+              ? () => {
+                  setEditingRoom(undefined);
+                  setFormOpen(true);
+                }
+              : undefined
+          }
         />
       ) : (
         <>
@@ -157,13 +171,7 @@ export function RoomsPage() {
         open={formOpen}
         onOpenChange={setFormOpen}
         room={editingRoom}
-        onSubmit={(input) => {
-          if (editingRoom) {
-            updateRoom(editingRoom.id, input);
-          } else {
-            createRoom(input);
-          }
-        }}
+        onSubmit={(input) => (editingRoom ? updateRoom(editingRoom.id, input) : createRoom(input))}
       />
 
       <RoomDetailSheet
@@ -182,9 +190,13 @@ export function RoomsPage() {
         room={assigningRoom}
         availableRooms={[]}
         availableTenants={availableTenants}
-        onAssign={({ roomId, tenantId, startDate }) => {
-          assignTenant({ roomId, tenantId, startDate });
-          toast.success(t("room.assignedToast"));
+        onAssign={async ({ roomId, tenantId, startDate }) => {
+          try {
+            await assignTenant({ roomId, tenantId, startDate });
+            toast.success(t("room.assignedToast"));
+          } catch {
+            toast.error(t("common.actionFailed"));
+          }
         }}
       />
 
@@ -199,11 +211,19 @@ export function RoomsPage() {
         }
         confirmLabel={t("common.delete")}
         destructive
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!deletingRoom) return;
-          deleteRoom(deletingRoom.id);
-          toast.success(t("room.deletedToast"));
-          setDeletingRoom(undefined);
+          try {
+            await deleteRoom(deletingRoom.id);
+            toast.success(t("room.deletedToast"));
+            setDeletingRoom(undefined);
+          } catch (error) {
+            toast.error(
+              error instanceof RoomHasActiveAssignmentError
+                ? t("room.deleteBlockedActiveAssignment")
+                : t("common.actionFailed")
+            );
+          }
         }}
       />
 
@@ -213,11 +233,15 @@ export function RoomsPage() {
         title={t("room.endTenancyTitle")}
         description={t("room.endTenancyDescription", { roomNumber: endingTenancyRoom?.roomNumber ?? "" })}
         confirmLabel={t("room.endTenancy")}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!endingTenancyRoom) return;
-          endTenancyByRoomId(endingTenancyRoom.id, today());
-          toast.success(t("room.tenancyEndedToast"));
-          setEndingTenancyRoom(undefined);
+          try {
+            await endTenancyByRoomId(endingTenancyRoom.id, today());
+            toast.success(t("room.tenancyEndedToast"));
+            setEndingTenancyRoom(undefined);
+          } catch {
+            toast.error(t("common.actionFailed"));
+          }
         }}
       />
     </div>

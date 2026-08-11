@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/auth";
-import { DEMO_CREDENTIALS_HINT } from "@/auth/auth.service";
+import { FirebaseError } from "firebase/app";
 import { useLanguage } from "@/i18n";
 import { validateLogin, type ValidationErrors } from "@/lib/validation";
 
@@ -42,9 +42,13 @@ export function LoginForm() {
     setIsSubmitting(true);
     try {
       await login(email, password);
-    } catch {
-      // Never reveal whether the email or password specifically was wrong.
-      setFormError(t("auth.error.invalidCredentials"));
+    } catch (error) {
+      setFormError(
+        error instanceof FirebaseError && error.code === "auth/network-request-failed"
+          ? t("auth.error.network")
+          // Never reveal whether the email or password specifically was wrong.
+          : t("auth.error.invalidCredentials")
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -115,14 +119,6 @@ export function LoginForm() {
       <Button type="submit" className="h-10 w-full" disabled={isSubmitting}>
         {isSubmitting ? t("auth.login.loading") : t("auth.login.submit")}
       </Button>
-
-      {import.meta.env.DEV && (
-        <div className="rounded-lg bg-muted/60 p-3 text-xs text-muted-foreground">
-          <p className="mb-1 font-medium text-foreground">{t("auth.demoAccountLabel")}</p>
-          <p>{DEMO_CREDENTIALS_HINT.email}</p>
-          <p>{DEMO_CREDENTIALS_HINT.password}</p>
-        </div>
-      )}
     </form>
   );
 }

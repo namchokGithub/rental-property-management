@@ -7,15 +7,18 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { SearchInput } from "@/components/common/SearchInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageSpinner } from "@/components/common/PageSpinner";
 import { TenantTable } from "@/features/tenants/TenantTable";
 import { TenantFormDialog } from "@/features/tenants/TenantFormDialog";
 import { TenantDetailSheet } from "@/features/tenants/TenantDetailSheet";
 import { AssignTenantDialog } from "@/features/assignments/AssignTenantDialog";
+import { useAuth } from "@/auth";
 import { useTenants } from "@/hooks/useTenants";
 import { useRooms } from "@/hooks/useRooms";
 import { useAssignments } from "@/hooks/useAssignments";
 import { useLanguage } from "@/i18n";
 import { matchesSearch } from "@/lib/search";
+import { TenantHasActiveAssignmentError } from "@/data/repositories/tenantRepository";
 import type { Tenant, TenantStatus } from "@/types/tenant";
 import type { RoomTenantAssignment } from "@/types/assignment";
 
@@ -23,7 +26,9 @@ const TENANT_STATUSES: TenantStatus[] = ["active", "inactive"];
 
 export function TenantsPage() {
   const { t } = useLanguage();
-  const { tenants, createTenant, updateTenant, deleteTenant } = useTenants();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  const { tenants, isLoading, createTenant, updateTenant, deleteTenant } = useTenants();
   const { rooms } = useRooms();
   const { assignments, assignTenant, endTenancyByRoomId, getActiveByTenantId } = useAssignments();
 
@@ -66,20 +71,24 @@ export function TenantsPage() {
     [tenants, searchQuery, statusFilter, activeAssignmentByTenantId, roomById]
   );
 
+  if (isLoading) return <PageSpinner />;
+
   return (
     <div className="space-y-6">
       <PageHeader
         title={t("tenant.title")}
         description={t("tenant.description")}
         actions={
-          <Button
-            onClick={() => {
-              setEditingTenant(undefined);
-              setFormOpen(true);
-            }}
-          >
-            <Plus /> {t("tenant.addTenant")}
-          </Button>
+          isAdmin && (
+            <Button
+              onClick={() => {
+                setEditingTenant(undefined);
+                setFormOpen(true);
+              }}
+            >
+              <Plus /> {t("tenant.addTenant")}
+            </Button>
+          )
         }
       />
 
@@ -88,11 +97,15 @@ export function TenantsPage() {
           icon={Users}
           title={t("tenant.noTenantsTitle")}
           description={t("tenant.noTenantsDescription")}
-          actionLabel={t("tenant.addTenant")}
-          onAction={() => {
-            setEditingTenant(undefined);
-            setFormOpen(true);
-          }}
+          actionLabel={isAdmin ? t("tenant.addTenant") : undefined}
+          onAction={
+            isAdmin
+              ? () => {
+                  setEditingTenant(undefined);
+                  setFormOpen(true);
+                }
+              : undefined
+          }
         />
       ) : (
         <>
@@ -150,13 +163,7 @@ export function TenantsPage() {
         open={formOpen}
         onOpenChange={setFormOpen}
         tenant={editingTenant}
-        onSubmit={(input) => {
-          if (editingTenant) {
-            updateTenant(editingTenant.id, input);
-          } else {
-            createTenant(input);
-          }
-        }}
+        onSubmit={(input) => (editingTenant ? updateTenant(editingTenant.id, input) : createTenant(input))}
       />
 
       <TenantDetailSheet
@@ -174,13 +181,20 @@ export function TenantsPage() {
         tenant={assigningTenant}
         availableRooms={availableRooms}
         availableTenants={[]}
-        onAssign={({ roomId, tenantId, startDate }) => {
-          const existing = getActiveByTenantId(tenantId);
-          if (existing && existing.roomId !== roomId) {
-            endTenancyByRoomId(existing.roomId, startDate);
+        onAssign={async ({ roomId, tenantId, startDate }) => {
+          try {
+            const existing = getActiveByTenantId(tenantId);
+            if (existing && existing.roomId !== roomId) {
+              // Awaited so the old tenancy is fully ended (assignTenant's own
+              // transaction otherwise races it and sees the tenant as still
+              // actively assigned — see assignmentRepository.ts).
+              await endTenancyByRoomId(existing.roomId, startDate);
+            }
+            await assignTenant({ roomId, tenantId, startDate });
+            toast.success(t("tenant.roomAssignedToast"));
+          } catch {
+            toast.error(t("common.actionFailed"));
           }
-          assignTenant({ roomId, tenantId, startDate });
-          toast.success(t("tenant.roomAssignedToast"));
         }}
       />
 
@@ -193,11 +207,19 @@ export function TenantsPage() {
         description={t("tenant.deleteConfirmDescription")}
         confirmLabel={t("common.delete")}
         destructive
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!deletingTenant) return;
-          deleteTenant(deletingTenant.id);
-          toast.success(t("tenant.deletedToast"));
-          setDeletingTenant(undefined);
+          try {
+            await deleteTenant(deletingTenant.id);
+            toast.success(t("tenant.deletedToast"));
+            setDeletingTenant(undefined);
+          } catch (error) {
+            toast.error(
+              error instanceof TenantHasActiveAssignmentError
+                ? t("tenant.deleteBlockedActiveAssignment")
+                : t("common.actionFailed")
+            );
+          }
         }}
       />
     </div>

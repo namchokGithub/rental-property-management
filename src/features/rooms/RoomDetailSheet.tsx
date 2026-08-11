@@ -84,22 +84,6 @@ export function RoomDetailSheet({ open, onOpenChange, room, tenant, assignment, 
           <Separator />
 
           <section className="space-y-2">
-            <h3 className="text-sm font-semibold text-muted-foreground">{t("room.utilitySettings")}</h3>
-            <dl className="grid grid-cols-2 gap-y-1 text-sm">
-              <dt className="text-muted-foreground">{t("room.electricityRate")}</dt>
-              <dd>
-                {formatCurrency(room.electricityRate, language)} {t("room.perUnit")}
-              </dd>
-              <dt className="text-muted-foreground">{t("room.waterRate")}</dt>
-              <dd>
-                {formatCurrency(room.waterRate, language)} {t("room.perUnit")}
-              </dd>
-            </dl>
-          </section>
-
-          <Separator />
-
-          <section className="space-y-2">
             <h3 className="text-sm font-semibold text-muted-foreground">{t("room.billingHistory")}</h3>
             {billingHistory.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t("room.noBillingHistory")}</p>

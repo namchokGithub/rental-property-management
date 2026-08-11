@@ -17,6 +17,8 @@ import { LanguageSwitch } from "@/components/common/LanguageSwitch";
 import { ThemeMenu } from "@/components/common/ThemeMenu";
 import { useLanguage } from "@/i18n";
 import { useAuth } from "@/auth";
+import { useProperty } from "@/property";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 const PAGE_TITLE_KEYS: Record<string, string> = {
@@ -66,6 +68,7 @@ export function AppHeader() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const { t } = useLanguage();
+  const { properties, activePropertyId, setActivePropertyId } = useProperty();
   const titleKey = PAGE_TITLE_KEYS[location.pathname];
   const title = titleKey ? t(titleKey) : t("sidebar.brand");
 
@@ -91,6 +94,18 @@ export function AppHeader() {
         </Button>
       </Sheet>
       <h1 className="flex-1 text-lg font-semibold tracking-tight">{title}</h1>
+      <Select value={activePropertyId ?? undefined} onValueChange={setActivePropertyId}>
+        <SelectTrigger className="flex w-32 sm:w-48" aria-label={t("property.select")}>
+          <SelectValue placeholder={t("property.select")} />
+        </SelectTrigger>
+        <SelectContent>
+          {properties.map((property) => (
+            <SelectItem key={property.id} value={property.id}>
+              {property.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <LanguageSwitch />
       <ThemeMenu />
       <AccountMenu />

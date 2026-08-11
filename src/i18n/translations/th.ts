@@ -20,10 +20,10 @@ const th: Translations = {
       emailInvalid: "รูปแบบอีเมลไม่ถูกต้อง",
       passwordRequired: "กรุณากรอกรหัสผ่าน",
       invalidCredentials: "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
+      network: "เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่",
     },
     logout: "ออกจากระบบ",
     logoutSuccess: "ออกจากระบบแล้ว",
-    demoAccountLabel: "บัญชีสำหรับทดลอง",
   },
   common: {
     save: "บันทึก",
@@ -37,6 +37,7 @@ const th: Translations = {
     print: "พิมพ์",
     close: "ปิด",
     confirm: "ยืนยัน",
+    actionFailed: "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง",
     search: "ค้นหา",
     actions: "การดำเนินการ",
     status: "สถานะ",
@@ -75,6 +76,11 @@ const th: Translations = {
   header: {
     openNavigation: "เปิดเมนูนำทาง",
   },
+  property: {
+    select: "เลือกทรัพย์สิน",
+    noneTitle: "ไม่พบทรัพย์สินที่ใช้งานได้",
+    noneDescription: "สร้างข้อมูลทรัพย์สิน หรือเพิ่มรหัสทรัพย์สินในโปรไฟล์ผู้ใช้นี้",
+  },
   status: {
     available: "ว่าง",
     occupied: "มีผู้เช่า",
@@ -85,6 +91,7 @@ const th: Translations = {
     issued: "รอชำระ",
     paid: "ชำระแล้ว",
     overdue: "เกินกำหนดชำระ",
+    superseded: "ถูกแทนที่",
     ended: "สิ้นสุดแล้ว",
   },
   dashboard: {
@@ -126,6 +133,7 @@ const th: Translations = {
     deleteConfirmDescriptionWithTenant:
       "ห้อง {{roomNumber}} มีผู้เช่าอยู่ในขณะนี้ การลบจะเป็นการลบข้อมูลห้องอย่างถาวร",
     deleteConfirmDescription: "การดำเนินการนี้จะลบห้อง {{roomNumber}} อย่างถาวร",
+    deleteBlockedActiveAssignment: "ไม่สามารถลบห้องที่มีผู้เช่าที่ยังใช้งานอยู่ได้",
     endTenancyTitle: "ต้องการสิ้นสุดสัญญาเช่านี้หรือไม่?",
     endTenancyDescription: "ผู้เช่าจะถูกนำออกจากห้อง {{roomNumber}} และห้องจะเปลี่ยนเป็นสถานะว่าง",
     createdToast: "สร้างห้องเรียบร้อยแล้ว",
@@ -161,6 +169,7 @@ const th: Translations = {
     noTenantsDescription: "เพิ่มผู้เช่าคนแรกเพื่อเริ่มติดตามสัญญาเช่า",
     deleteConfirmTitle: "ต้องการลบผู้เช่า {{name}} หรือไม่?",
     deleteConfirmDescription: "การดำเนินการนี้จะลบข้อมูลผู้เช่านี้อย่างถาวร",
+    deleteBlockedActiveAssignment: "ไม่สามารถลบผู้เช่าที่มีการกำหนดห้องที่ยังใช้งานอยู่ได้",
     createdToast: "สร้างผู้เช่าเรียบร้อยแล้ว",
     updatedToast: "อัปเดตผู้เช่าเรียบร้อยแล้ว",
     deletedToast: "ลบผู้เช่าเรียบร้อยแล้ว",
@@ -191,6 +200,7 @@ const th: Translations = {
     createBilling: "สร้างบิล",
     editBilling: "แก้ไขรายการบิล",
     formDescription: "ระบบคำนวณค่าใช้งานและยอดรวมให้อัตโนมัติ",
+    duplicateBillError: "มีบิลของห้อง {{roomNumber}} สำหรับเดือน {{billingMonth}} อยู่แล้ว",
     invoiceNumber: "เลขที่ใบแจ้งหนี้",
     billingMonth: "เดือนที่เรียกเก็บ",
     electricitySection: "ค่าไฟฟ้า",
@@ -220,6 +230,8 @@ const th: Translations = {
     issuedToast: "ออกใบแจ้งหนี้แล้ว: {{invoiceNumber}}",
     bulkIssueSelected: "ส่งใบแจ้งหนี้ที่เลือก ({{count}})",
     bulkIssuedToast: "ออกใบแจ้งหนี้แล้ว {{count}} รายการ",
+    reissuedToast: "ออกใบแจ้งหนี้ฉบับใหม่แล้ว: {{invoiceNumber}}",
+    reissueInvoice: "ออกใบแจ้งหนี้ใหม่",
     paidToast: "บันทึกว่าชำระแล้ว",
     deleteConfirmTitle: "ต้องการลบรายการบิลนี้หรือไม่?",
     deleteConfirmDescription: "การดำเนินการนี้จะลบรายการบิลของห้อง {{roomNumber}} อย่างถาวร",

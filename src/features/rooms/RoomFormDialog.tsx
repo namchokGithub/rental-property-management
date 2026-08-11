@@ -13,7 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useSettings } from "@/hooks/useSettings";
 import { useLanguage } from "@/i18n";
 import { validateRoom, type ValidationErrors } from "@/lib/validation";
 import type { Room, CreateRoomInput, RoomStatus } from "@/types/room";
@@ -22,7 +21,7 @@ interface RoomFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   room?: Room;
-  onSubmit: (input: CreateRoomInput) => void;
+  onSubmit: (input: CreateRoomInput) => Promise<unknown>;
 }
 
 interface FormState {
@@ -30,20 +29,16 @@ interface FormState {
   floor: string;
   type: string;
   monthlyRent: string;
-  electricityRate: string;
-  waterRate: string;
   status: RoomStatus;
   description: string;
 }
 
-function toFormState(room: Room | undefined, defaults: { electricityRate: number; waterRate: number }): FormState {
+function toFormState(room: Room | undefined): FormState {
   return {
     roomNumber: room?.roomNumber ?? "",
     floor: room?.floor ?? "",
     type: room?.type ?? "",
     monthlyRent: room ? String(room.monthlyRent) : "",
-    electricityRate: room ? String(room.electricityRate) : String(defaults.electricityRate),
-    waterRate: room ? String(room.waterRate) : String(defaults.waterRate),
     status: room?.status ?? "available",
     description: room?.description ?? "",
   };
@@ -53,15 +48,13 @@ const STATUS_OPTIONS: RoomStatus[] = ["available", "occupied", "maintenance", "i
 
 export function RoomFormDialog({ open, onOpenChange, room, onSubmit }: RoomFormDialogProps) {
   const { t } = useLanguage();
-  const { settings } = useSettings();
-  const [form, setForm] = useState<FormState>(() =>
-    toFormState(room, { electricityRate: settings.defaultElectricityRate, waterRate: settings.defaultWaterRate })
-  );
+  const [form, setForm] = useState<FormState>(() => toFormState(room));
   const [errors, setErrors] = useState<ValidationErrors>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   function handleOpenChange(next: boolean) {
     if (next) {
-      setForm(toFormState(room, { electricityRate: settings.defaultElectricityRate, waterRate: settings.defaultWaterRate }));
+      setForm(toFormState(room));
       setErrors({});
     }
     onOpenChange(next);
@@ -76,14 +69,14 @@ export function RoomFormDialog({ open, onOpenChange, room, onSubmit }: RoomFormD
     });
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
+    if (isSubmitting) return;
+
     const input: CreateRoomInput = {
       roomNumber: form.roomNumber.trim(),
       floor: form.floor.trim() || undefined,
       type: form.type.trim() || undefined,
       monthlyRent: Number(form.monthlyRent) || 0,
-      electricityRate: Number(form.electricityRate) || 0,
-      waterRate: Number(form.waterRate) || 0,
       status: form.status,
       description: form.description.trim() || undefined,
     };
@@ -92,9 +85,16 @@ export function RoomFormDialog({ open, onOpenChange, room, onSubmit }: RoomFormD
       setErrors(validationErrors);
       return;
     }
-    onSubmit(input);
-    toast.success(room ? t("room.updatedToast") : t("room.createdToast"));
-    onOpenChange(false);
+    setIsSubmitting(true);
+    try {
+      await onSubmit(input);
+      toast.success(room ? t("room.updatedToast") : t("room.createdToast"));
+      onOpenChange(false);
+    } catch {
+      toast.error(t("common.actionFailed"));
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -155,35 +155,6 @@ export function RoomFormDialog({ open, onOpenChange, room, onSubmit }: RoomFormD
             />
             {errors.monthlyRent && <p className="text-xs text-destructive">{t(errors.monthlyRent)}</p>}
           </div>
-          <div />
-          <div className="space-y-1.5">
-            <Label htmlFor="electricityRate">{t("room.electricityRate")}</Label>
-            <Input
-              id="electricityRate"
-              type="text"
-              inputMode="decimal"
-              value={form.electricityRate}
-              onChange={(e) => {
-                setForm({ ...form, electricityRate: e.target.value });
-                clearError("electricityRate");
-              }}
-            />
-            {errors.electricityRate && <p className="text-xs text-destructive">{t(errors.electricityRate)}</p>}
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="waterRate">{t("room.waterRate")}</Label>
-            <Input
-              id="waterRate"
-              type="text"
-              inputMode="decimal"
-              value={form.waterRate}
-              onChange={(e) => {
-                setForm({ ...form, waterRate: e.target.value });
-                clearError("waterRate");
-              }}
-            />
-            {errors.waterRate && <p className="text-xs text-destructive">{t(errors.waterRate)}</p>}
-          </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="description">{t("room.descriptionLabel")}</Label>
             <Textarea
@@ -195,10 +166,12 @@ export function RoomFormDialog({ open, onOpenChange, room, onSubmit }: RoomFormD
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             {t("common.cancel")}
           </Button>
-          <Button onClick={handleSubmit}>{room ? t("common.saveChanges") : t("room.addRoom")}</Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting}>
+            {room ? t("common.saveChanges") : t("room.addRoom")}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
