@@ -57,6 +57,7 @@ const en: Translations = {
     noResultsTitle: "No results found",
     noResultsDescription: 'No results match "{{query}}". Try a different search.',
     clearSearch: "Clear search",
+    allStatuses: "All statuses",
   },
   sidebar: {
     brand: "Rental Manager",
@@ -149,8 +150,7 @@ const en: Translations = {
     editTenant: "Edit Tenant",
     addTenantDescription: "Enter the details for the new tenant.",
     editTenantDescription: "Update the details for this tenant.",
-    firstName: "First Name",
-    lastName: "Last Name",
+    name: "Full Name",
     identificationNumber: "Identification Number",
     emergencyContactName: "Emergency Contact Name",
     emergencyContactPhone: "Emergency Contact Phone",
@@ -333,8 +333,7 @@ const en: Translations = {
       waterRateNegative: "Water rate cannot be negative",
     },
     tenant: {
-      firstNameRequired: "First name is required",
-      lastNameRequired: "Last name is required",
+      nameRequired: "Name is required",
     },
     billing: {
       roomRequired: "Room is required",

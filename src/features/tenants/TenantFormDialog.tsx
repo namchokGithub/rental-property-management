@@ -25,8 +25,7 @@ interface TenantFormDialogProps {
 }
 
 interface FormState {
-  firstName: string;
-  lastName: string;
+  name: string;
   phone: string;
   email: string;
   identificationNumber: string;
@@ -39,8 +38,7 @@ interface FormState {
 
 function toFormState(tenant: Tenant | undefined): FormState {
   return {
-    firstName: tenant?.firstName ?? "",
-    lastName: tenant?.lastName ?? "",
+    name: tenant?.name ?? "",
     phone: tenant?.phone ?? "",
     email: tenant?.email ?? "",
     identificationNumber: tenant?.identificationNumber ?? "",
@@ -67,8 +65,7 @@ export function TenantFormDialog({ open, onOpenChange, tenant, onSubmit }: Tenan
 
   function handleSubmit() {
     const input: CreateTenantInput = {
-      firstName: form.firstName.trim(),
-      lastName: form.lastName.trim(),
+      name: form.name.trim(),
       phone: form.phone.trim() || undefined,
       email: form.email.trim() || undefined,
       identificationNumber: form.identificationNumber.trim() || undefined,
@@ -99,15 +96,10 @@ export function TenantFormDialog({ open, onOpenChange, tenant, onSubmit }: Tenan
         </DialogHeader>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="firstName">{t("tenant.firstName")}</Label>
-            <Input id="firstName" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
-            {errors.firstName && <p className="text-xs text-destructive">{t(errors.firstName)}</p>}
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="lastName">{t("tenant.lastName")}</Label>
-            <Input id="lastName" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
-            {errors.lastName && <p className="text-xs text-destructive">{t(errors.lastName)}</p>}
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="name">{t("tenant.name")}</Label>
+            <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            {errors.name && <p className="text-xs text-destructive">{t(errors.name)}</p>}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="phone">{t("common.phone")}</Label>

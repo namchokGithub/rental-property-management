@@ -62,7 +62,7 @@ export function BillingPage() {
         return matchesSearch(
           searchQuery,
           room?.roomNumber,
-          tenant ? `${tenant.firstName} ${tenant.lastName}` : undefined,
+          tenant ? tenant.name : undefined,
           record.invoiceNumber,
           record.billingMonth,
           formatBillingMonth(record.billingMonth, language)

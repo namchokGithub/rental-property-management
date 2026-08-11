@@ -64,7 +64,7 @@ export function InvoicesPage() {
           searchQuery,
           record.invoiceNumber,
           room?.roomNumber,
-          tenant ? `${tenant.firstName} ${tenant.lastName}` : undefined,
+          tenant ? tenant.name : undefined,
           formatBillingMonth(record.billingMonth, language)
         );
       }),
@@ -131,7 +131,7 @@ export function InvoicesPage() {
                     <TableRow key={record.id}>
                       <TableCell className="font-medium">{record.invoiceNumber}</TableCell>
                       <TableCell>{room?.roomNumber ?? "—"}</TableCell>
-                      <TableCell>{tenant ? `${tenant.firstName} ${tenant.lastName}` : "—"}</TableCell>
+                      <TableCell>{tenant ? tenant.name : "—"}</TableCell>
                       <TableCell>{formatBillingMonth(record.billingMonth, language)}</TableCell>
                       <TableCell>{record.issuedAt ? formatDate(record.issuedAt, language) : "—"}</TableCell>
                       <TableCell>{record.dueDate ? formatDate(record.dueDate, language) : "—"}</TableCell>
@@ -198,7 +198,7 @@ export function InvoicesPage() {
                         <p className="text-sm text-muted-foreground">
                           {t("invoice.mobileCardSubtitle", {
                             roomNumber: room?.roomNumber ?? "—",
-                            tenant: tenant ? `${tenant.firstName} ${tenant.lastName}` : t("common.noTenant"),
+                            tenant: tenant ? tenant.name : t("common.noTenant"),
                           })}
                         </p>
                       </div>

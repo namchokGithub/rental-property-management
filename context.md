@@ -104,7 +104,7 @@ Every list page (Rooms, Tenants, Billing, Invoices) has a client-side search box
 
 - `src/components/common/SearchInput.tsx` — the shared input (shadcn `Input` + `lucide-react` `Search` icon positioned absolutely inside), used identically on all four pages so the search UI is visually consistent.
 - `src/lib/search.ts` — `matchesSearch(query, ...fields)`, a small case-insensitive substring matcher shared by every page's filter `useMemo`. An empty query always matches (so the unfiltered list shows by default).
-- Each page decides its own searchable fields: Rooms (`roomNumber`, `floor`, `type`, current tenant name), Tenants (`firstName`, `lastName`, `phone`, current room number), Billing (room number, tenant name, `invoiceNumber`, `billingMonth` raw + formatted), Invoices (`invoiceNumber`, room number, tenant name, formatted billing month).
+- Each page decides its own searchable fields: Rooms (`roomNumber`, `floor`, `type`, current tenant name), Tenants (`name`, `phone`, current room number), Billing (room number, tenant name, `invoiceNumber`, `billingMonth` raw + formatted), Invoices (`invoiceNumber`, room number, tenant name, formatted billing month).
 - Search state (`searchQuery`) is local `useState` in the page component, matching the rest of the app's "no global state" strategy (see State strategy above).
 - Zero-records (nothing created yet) and zero-search-results (records exist, none match) render as two distinct `EmptyState`s — the former keeps its "create the first one" call-to-action, the latter shows a `Search`-icon empty state with a "clear search" action that resets `searchQuery`.
 
@@ -211,7 +211,7 @@ No component beyond those four spots needs to change — `ThemeMenu`, the Settin
 # Domain Model
 
 - **Room** (`src/types/room.ts`) — `id, roomNumber, floor?, type?, monthlyRent, status, description?, electricityRate, waterRate, createdAt, updatedAt`. `status: "available" | "occupied" | "maintenance" | "inactive"`. Never stores a tenant reference.
-- **Tenant** (`src/types/tenant.ts`) — `id, firstName, lastName, phone?, email?, identificationNumber?, address?, emergencyContactName?, emergencyContactPhone?, status, notes?, createdAt, updatedAt`. `status: "active" | "inactive"`.
+- **Tenant** (`src/types/tenant.ts`) — `id, name, phone?, email?, identificationNumber?, address?, emergencyContactName?, emergencyContactPhone?, status, notes?, createdAt, updatedAt`. `status: "active" | "inactive"`. `name` is a single free-text field (not split first/last) — see Data Migration History.
 - **RoomTenantAssignment** (`src/types/assignment.ts`) — `id, roomId, tenantId, startDate, endDate?, status, createdAt`. `status: "active" | "ended"`. This is the **only** source of truth for which tenant occupies which room — resolve "current tenant for room X" via `assignmentRepository.getActiveByRoomId(roomId)`, never via a field on `Room`.
 - **BillingRecord** (`src/types/billing.ts`) — `id, roomId, tenantId?, invoiceNumber?, billingMonth ("YYYY-MM"), electricity: MeterReading, water: MeterReading, rentAmount, otherCharges: BillingCharge[], subtotal, total, status, issuedAt?, dueDate?, paidAt?, createdAt, updatedAt`. `status: "draft" | "issued" | "paid" | "overdue"`. `invoiceNumber` is only set once the record is issued. There is no dedicated garbage-fee/meter-maintenance-fee field — every optional charge, fixed or one-off, lives in `otherCharges`.
 - **BillingCharge** — `id, masterId?, name, amount`. `masterId` links back to an `OtherChargeMaster` row when the charge was added from the master list; it's absent for a one-time custom charge typed directly on a bill. `name`/`amount` are a snapshot at the time the charge was added to this specific bill — editing them here never changes the master record, and vice versa.
@@ -270,6 +270,8 @@ Plus non-domain keys (none `rental.`-prefixed except the auth session, which fol
 
 **2026-08-10 — Fixed-fee-to-master-data migration.** `PropertySettings` used to carry `defaultGarbageFee`/`defaultElectricityMeterMaintenanceFee`/`defaultWaterMeterMaintenanceFee`, and `BillingRecord` mirrored them as dedicated scalar fields (`garbageFee`/`electricityMeterMaintenanceFee`/`waterMeterMaintenanceFee`), auto-applied to every new bill. These were replaced by `OtherChargeMaster` (optional, explicitly attached per bill) and folded into `BillingRecord.otherCharges`. `src/data/migrations/legacyChargeMigration.ts`, called unconditionally from `main.tsx` (not nested inside `seedIfEmpty()`, since that only runs on a truly empty install), performs a one-time idempotent migration: seeds 7 example `OtherChargeMaster` rows (using any pre-existing legacy settings values where present), converts any pre-existing `BillingRecord`'s nonzero legacy fee fields into `otherCharges` entries linked back to the matching seeded master by name, and strips the legacy fields from both collections. Safe to re-run — once the legacy fields are gone from a record, there's nothing left to migrate.
 
+**2026-08-11 — Tenant firstName/lastName merged into a single `name` field.** `Tenant.firstName`/`Tenant.lastName` were replaced by one `name: string` field across the type, validation (`validation.tenant.nameRequired` replaces the two `*Required` keys), the add/edit form (single full-width input), and every read site that used to concatenate `${firstName} ${lastName}` (tenant table/detail sheet, room/billing/invoice tenant lookups, assignment dialog, dashboard, seed data). `src/data/migrations/tenantNameMigration.ts`, called unconditionally from `main.tsx` alongside the other migrations, is a one-time idempotent pass that collapses any pre-existing tenant record's `firstName`/`lastName` into `name` (joined with a space, trimmed) and drops the legacy fields. Safe to re-run — a record with no legacy fields passes through unchanged.
+
 # Important Files
 
 | Path | Responsibility |
@@ -283,6 +285,7 @@ Plus non-domain keys (none `rental.`-prefixed except the auth session, which fol
 | `src/data/repositories/otherChargeRepository.ts` | CRUD for the Other Charge Master list |
 | `src/hooks/useOtherCharges.ts` | Reactive wrapper around `otherChargeRepository` |
 | `src/data/migrations/legacyChargeMigration.ts` | One-time idempotent legacy-fee-to-master-data migration, run from `main.tsx` |
+| `src/data/migrations/tenantNameMigration.ts` | One-time idempotent `firstName`/`lastName` → `name` migration, run from `main.tsx` |
 | `src/features/settings/OtherChargeSection.tsx`, `OtherChargeTable.tsx`, `OtherChargeFormDialog.tsx` | Other Charge Master management UI on the Settings page |
 | `src/hooks/use*.ts` | Thin reactive wrappers around repositories, consumed by feature pages |
 | `src/lib/calculations.ts` | Meter usage / billing total math |

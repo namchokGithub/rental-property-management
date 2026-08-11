@@ -112,7 +112,7 @@ function BillingCard({
             </p>
             <p className="text-sm text-muted-foreground">
               {t("billing.mobileCardSubtitle", {
-                tenant: tenant ? `${tenant.firstName} ${tenant.lastName}` : t("common.noTenant"),
+                tenant: tenant ? tenant.name : t("common.noTenant"),
                 month: formatBillingMonth(record.billingMonth, language),
               })}
             </p>
@@ -195,7 +195,7 @@ export function BillingTable({ records, roomById, tenantById, onEdit, onDelete, 
                     {room?.roomNumber ?? "—"}
                   </TableCell>
                   <TableCell className="sticky left-24 z-10 w-36 min-w-36 bg-card">
-                    {tenant ? `${tenant.firstName} ${tenant.lastName}` : "—"}
+                    {tenant ? tenant.name : "—"}
                   </TableCell>
                   <TableCell>{record.invoiceNumber ?? "—"}</TableCell>
                   <TableCell>{formatBillingMonth(record.billingMonth, language)}</TableCell>

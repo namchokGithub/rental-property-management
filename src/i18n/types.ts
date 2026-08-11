@@ -57,6 +57,7 @@ export interface Translations {
     noResultsTitle: string;
     noResultsDescription: string;
     clearSearch: string;
+    allStatuses: string;
   };
   sidebar: {
     brand: string;
@@ -147,8 +148,7 @@ export interface Translations {
     editTenant: string;
     addTenantDescription: string;
     editTenantDescription: string;
-    firstName: string;
-    lastName: string;
+    name: string;
     identificationNumber: string;
     emergencyContactName: string;
     emergencyContactPhone: string;
@@ -331,8 +331,7 @@ export interface Translations {
       waterRateNegative: string;
     };
     tenant: {
-      firstNameRequired: string;
-      lastNameRequired: string;
+      nameRequired: string;
     };
     billing: {
       roomRequired: string;

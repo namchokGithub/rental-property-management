@@ -24,7 +24,7 @@ export function TenantDetailSheet({ open, onOpenChange, tenant, currentRoom, ass
       <SheetContent className="sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>
-            {tenant.firstName} {tenant.lastName}
+            {tenant.name}
           </SheetTitle>
           <SheetDescription>{t("tenant.detailDescription")}</SheetDescription>
         </SheetHeader>

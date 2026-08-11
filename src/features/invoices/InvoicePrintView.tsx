@@ -40,7 +40,7 @@ export function InvoicePrintView({ record, room, tenant, settings }: InvoicePrin
         </p>
         <p>
           <span className="font-medium">{t("invoice.tenantLabel")}:</span>{" "}
-          {tenant ? `${tenant.firstName} ${tenant.lastName}` : "-"}
+          {tenant ? tenant.name : "-"}
         </p>
         <p>
           <span className="font-medium">{t("invoice.roomLabel")}:</span> {room.roomNumber}

@@ -270,7 +270,7 @@ export function BillingFormDialog({
                   <SelectItem value="none">{t("common.noTenant")}</SelectItem>
                   {tenants.map((tenant) => (
                     <SelectItem key={tenant.id} value={tenant.id}>
-                      {tenant.firstName} {tenant.lastName}
+                      {tenant.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

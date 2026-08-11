@@ -57,6 +57,7 @@ const th: Translations = {
     noResultsTitle: "ไม่พบผลลัพธ์",
     noResultsDescription: 'ไม่พบผลลัพธ์ที่ตรงกับ "{{query}}" ลองค้นหาด้วยคำอื่น',
     clearSearch: "ล้างการค้นหา",
+    allStatuses: "ทุกสถานะ",
   },
   sidebar: {
     brand: "Rental Manager",
@@ -112,8 +113,8 @@ const th: Translations = {
     floor: "ชั้น",
     type: "ประเภทห้อง",
     monthlyRent: "ค่าเช่ารายเดือน",
-    electricityRate: "ค่าไฟต่อหน่วย",
-    waterRate: "ค่าน้ำต่อหน่วย",
+    electricityRate: "ค่าไฟ ( ต่อหน่วย )",
+    waterRate: "ค่าน้ำ ( ต่อหน่วย )",
     descriptionLabel: "รายละเอียด",
     noRoomsTitle: "ยังไม่มีห้องพัก",
     noRoomsDescription: "เพิ่มห้องแรกของคุณเพื่อเริ่มจัดการอสังหาริมทรัพย์",
@@ -148,8 +149,7 @@ const th: Translations = {
     editTenant: "แก้ไขผู้เช่า",
     addTenantDescription: "กรอกรายละเอียดสำหรับผู้เช่าใหม่",
     editTenantDescription: "อัปเดตรายละเอียดของผู้เช่านี้",
-    firstName: "ชื่อ",
-    lastName: "นามสกุล",
+    name: "ชื่อ-นามสกุล",
     identificationNumber: "เลขบัตรประจำตัว",
     emergencyContactName: "ชื่อผู้ติดต่อฉุกเฉิน",
     emergencyContactPhone: "เบอร์โทรผู้ติดต่อฉุกเฉิน",
@@ -332,8 +332,7 @@ const th: Translations = {
       waterRateNegative: "ค่าน้ำต่อหน่วยต้องไม่ติดลบ",
     },
     tenant: {
-      firstNameRequired: "กรุณากรอกชื่อ",
-      lastNameRequired: "กรุณากรอกนามสกุล",
+      nameRequired: "กรุณากรอกชื่อ-นามสกุล",
     },
     billing: {
       roomRequired: "กรุณาเลือกห้อง",

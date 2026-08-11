@@ -133,8 +133,8 @@ export function RoomFormDialog({ open, onOpenChange, room, onSubmit }: RoomFormD
             <Label htmlFor="monthlyRent">{t("room.monthlyRent")}</Label>
             <Input
               id="monthlyRent"
-              type="number"
-              min={0}
+              type="text"
+              inputMode="decimal"
               value={form.monthlyRent}
               onChange={(e) => setForm({ ...form, monthlyRent: e.target.value })}
             />
@@ -145,8 +145,8 @@ export function RoomFormDialog({ open, onOpenChange, room, onSubmit }: RoomFormD
             <Label htmlFor="electricityRate">{t("room.electricityRate")}</Label>
             <Input
               id="electricityRate"
-              type="number"
-              min={0}
+              type="text"
+              inputMode="decimal"
               value={form.electricityRate}
               onChange={(e) => setForm({ ...form, electricityRate: e.target.value })}
             />
@@ -156,8 +156,8 @@ export function RoomFormDialog({ open, onOpenChange, room, onSubmit }: RoomFormD
             <Label htmlFor="waterRate">{t("room.waterRate")}</Label>
             <Input
               id="waterRate"
-              type="number"
-              min={0}
+              type="text"
+              inputMode="decimal"
               value={form.waterRate}
               onChange={(e) => setForm({ ...form, waterRate: e.target.value })}
             />

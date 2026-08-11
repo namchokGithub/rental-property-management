@@ -2,8 +2,7 @@ export type TenantStatus = "active" | "inactive";
 
 export interface Tenant {
   id: string;
-  firstName: string;
-  lastName: string;
+  name: string;
   phone?: string;
   email?: string;
   identificationNumber?: string;

@@ -65,7 +65,7 @@ export function AssignTenantDialog({
   const title =
     mode === "room"
       ? t("assignment.dialogTitleForRoom", { roomNumber: room?.roomNumber ?? "" })
-      : t("assignment.dialogTitleForTenant", { name: `${tenant?.firstName ?? ""} ${tenant?.lastName ?? ""}` });
+      : t("assignment.dialogTitleForTenant", { name: tenant?.name ?? "" });
   const options = mode === "room" ? availableTenants : availableRooms;
   const emptyMessage = mode === "room" ? t("assignment.noTenantsAvailable") : t("assignment.noRoomsAvailable");
 
@@ -91,7 +91,7 @@ export function AssignTenantDialog({
                   {mode === "room"
                     ? availableTenants.map((tenantOption) => (
                         <SelectItem key={tenantOption.id} value={tenantOption.id}>
-                          {tenantOption.firstName} {tenantOption.lastName}
+                          {tenantOption.name}
                         </SelectItem>
                       ))
                     : availableRooms.map((r) => (
