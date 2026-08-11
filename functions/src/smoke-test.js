@@ -22,6 +22,24 @@ async function verifyHttpResponses() {
     assert(healthResponse.status === 200, "Health endpoint did not return HTTP 200");
     assert(healthBody.success === true && healthBody.data.status === "ok", "Health endpoint response was not standardized");
 
+    const unauthenticatedResponse = await fetch(`http://127.0.0.1:${port}/api/v1/auth/me`);
+    const unauthenticatedBody = await unauthenticatedResponse.json();
+    assert(unauthenticatedResponse.status === 401, "Protected endpoint without token did not return HTTP 401");
+    assert(
+      unauthenticatedBody.success === false && unauthenticatedBody.error.code === "UNAUTHORIZED",
+      "Protected endpoint missing-token response was not standardized"
+    );
+
+    const invalidTokenResponse = await fetch(`http://127.0.0.1:${port}/api/v1/auth/me`, {
+      headers: { authorization: "Bearer not-a-firebase-token" },
+    });
+    const invalidTokenBody = await invalidTokenResponse.json();
+    assert(invalidTokenResponse.status === 401, "Protected endpoint with invalid token did not return HTTP 401");
+    assert(
+      invalidTokenBody.success === false && invalidTokenBody.error.code === "INVALID_TOKEN",
+      "Protected endpoint invalid-token response was not standardized"
+    );
+
     const missingResponse = await fetch(`http://127.0.0.1:${port}/api/v1/missing`);
     const missingBody = await missingResponse.json();
     assert(missingResponse.status === 404, "Unknown API route did not return HTTP 404");

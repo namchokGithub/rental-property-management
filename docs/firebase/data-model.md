@@ -34,7 +34,7 @@ The corresponding TypeScript interfaces are in `src/types/firestore/`. Persisted
 | Collection | Type | Notes |
 | --- | --- | --- |
 | `properties` | `Property` | Owns the name, address, and phone currently stored in local settings. |
-| `users` | `UserProfile` | Application profile only. Firebase Authentication owns the UID, credentials, and password handling. No password is stored here. |
+| `users` | `UserProfile` | Application profile only, including explicit `isActive` authorization state. Firebase Authentication owns the UID, credentials, and password handling. No password is stored here. |
 | `rooms` | `Room` | Has required `propertyId`; its `status` is a query-friendly operational field, not the tenant-history source of truth. |
 | `tenants` | `Tenant` | Has required `propertyId`; status describes the tenant record, not assignment history. |
 | `roomAssignments` | `RoomTenantAssignment` | Keeps tenancy history, including ended assignments. |

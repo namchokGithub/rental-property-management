@@ -272,13 +272,15 @@ Plus non-domain keys (none `rental.`-prefixed except the auth session, which fol
 
 # Firebase Migration
 
-**Status: Phase 1 — Firestore Data Model: Done; Phase 2 — Firebase Connection: Done; Phase 3 — Backend API: In Progress (Step 1 — Backend Foundation: Done); Phase 4 — Frontend Integration: Not Started.** The implementation remains frontend-only and continues to use the existing localStorage repositories unchanged. The Firestore target model and migration plan are documented in `docs/firebase/data-model.md`; prospective document interfaces live in `src/types/firestore/*` and are intentionally separate from the current local-storage types.
+**Status: Phase 1 — Firestore Data Model: Done; Phase 2 — Firebase Connection: Done; Phase 3 — Backend API: In Progress (Step 1 — Backend Foundation: Done; Step 2 — Authentication & Property Scope: Done); Phase 4 — Frontend Integration: Not Started.** The implementation remains frontend-only and continues to use the existing localStorage repositories unchanged. The Firestore target model and migration plan are documented in `docs/firebase/data-model.md`; prospective document interfaces live in `src/types/firestore/*` and are intentionally separate from the current local-storage types.
 
 Key decisions: use top-level property-scoped collections (`propertyId` on all business documents), store Firestore `Timestamp` values for persisted dates, preserve room/tenant/charge snapshots on billing records, and retain assignment history as the occupancy authority. Invoice screens remain a projection of issued `BillingRecord`s—there is no `invoices` collection unless a later requirement introduces independent invoice state or audit history. Firebase Authentication will own credentials; `users/{uid}` stores only the application profile and property memberships. Future assignment, billing issuance, and invoice-number writes must be API/transaction controlled.
 
 Phase 2 installs the modular Firebase SDK and exposes its singleton App, Auth, Firestore, and Functions clients only through `src/lib/firebase/*`; no components, auth service, repositories, hooks, or CRUD paths import or use them yet. Configuration is Vite environment-based (`.env.example`), validates required values only when the client boundary is imported, and supports opt-in development-only Emulator Suite wiring that is HMR-safe. Setup instructions are in `docs/firebase/setup.md`.
 
 Phase 3 Step 1 adds a separate JavaScript Firebase Functions backend in `functions/`. Its single 2nd gen HTTP `api` function hosts an Express application with the versioned `/api/v1` base path; only unauthenticated `GET /api/v1/health` is implemented. The backend flow is `HTTP API → Express → Cloud Functions → Firebase Admin SDK → Firestore`, with future domain code intended to follow `Route → Controller → Service → Repository`. Firebase Admin App, Firestore, and Auth are centralized in `functions/src/config/firebase.js`; CORS, response shapes, 404s, and error handling are likewise centralized. Run `pnpm --dir functions emulators --project demo-rental-property-management` for local Functions + Firestore emulation; see `docs/firebase/backend.md`. No frontend, auth, repository, localStorage, or domain CRUD code is connected to this backend.
+
+Phase 3 Step 2 protects backend routes with Firebase ID-token verification. The flow is `Request → requireAuth → Firebase Admin Auth.verifyIdToken() → users/{uid} profile → role/property-scope guard → controller`. `users/{uid}` holds the application profile (`email`, `displayName`, `role: "admin" | "staff"`, `propertyIds`, `isActive`, timestamps) and is required for access; credentials remain exclusively in Firebase Authentication. `GET /api/v1/auth/me` returns the safe authenticated context, while health remains public. `requireRole(...)` and `ensurePropertyAccess(user, propertyId)` are reusable foundations for future routes. Functions, Firestore, and Authentication emulators run together; an explicit emulator-only development-user seed script and real-token verification command are documented in `docs/firebase/authentication.md`. No frontend auth migration, localStorage change, or business CRUD is implemented.
 
 # Important Files
 
@@ -292,7 +294,11 @@ Phase 3 Step 1 adds a separate JavaScript Firebase Functions backend in `functio
 | `docs/firebase/{data-model,setup}.md` | Firestore target domain model, migration design, and Firebase client setup instructions |
 | `functions/src/{index,app}.js` | 2nd gen Cloud Function entry point and standalone Express API application |
 | `functions/src/config/firebase.js` | Singleton Firebase Admin initialization and shared Firestore/Auth Admin instances |
+| `functions/src/middleware/{auth,role}.middleware.js` | Firebase ID-token verification, user-context loading, and reusable role authorization |
+| `functions/src/services/{users,property-access}.service.js` | Application user-profile validation and reusable `propertyIds` authorization guard |
+| `functions/src/routes/auth.routes.js` | Protected `GET /api/v1/auth/me` endpoint |
 | `docs/firebase/backend.md` | Backend foundation architecture, health API, and local emulator instructions |
+| `docs/firebase/authentication.md` | Backend authentication flow, profile model, error behavior, and Auth Emulator workflow |
 | `src/data/seed/seedData.ts` | One-time idempotent demo data seeding, called from `src/main.tsx` |
 | `src/types/otherCharge.ts` | `OtherChargeMaster` type + create/update input types |
 | `src/data/repositories/otherChargeRepository.ts` | CRUD for the Other Charge Master list |

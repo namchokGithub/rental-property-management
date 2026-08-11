@@ -9,6 +9,7 @@ export interface UserProfile {
   displayName: string;
   role: UserRole;
   propertyIds: string[];
+  isActive: boolean;
   createdAt: FirestoreTimestamp;
   updatedAt: FirestoreTimestamp;
 }

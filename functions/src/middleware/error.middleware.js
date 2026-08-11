@@ -1,9 +1,10 @@
 const { logger } = require("firebase-functions");
 const { AppError } = require("../errors/app-error");
+const { ERROR_CODES } = require("../errors/error-codes");
 const { sendError } = require("../utils/response");
 
 function notFoundMiddleware(request, response, next) {
-  next(new AppError(404, "NOT_FOUND", "Resource not found"));
+  next(new AppError(404, ERROR_CODES.NOT_FOUND, "Resource not found"));
 }
 
 function errorMiddleware(error, request, response, next) {
@@ -25,7 +26,7 @@ function errorMiddleware(error, request, response, next) {
     method: request.method,
     path: request.originalUrl,
   });
-  return sendError(response, 500, "INTERNAL_ERROR", "Something went wrong");
+  return sendError(response, 500, ERROR_CODES.INTERNAL_ERROR, "Something went wrong");
 }
 
 module.exports = { notFoundMiddleware, errorMiddleware };

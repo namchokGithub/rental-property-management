@@ -1,6 +1,6 @@
 # Firebase Emulator Troubleshooting (macOS)
 
-คู่มือนี้ใช้สำหรับรัน Firebase Functions และ Firestore Emulator ของโปรเจกต์นี้ในเครื่อง local
+คู่มือนี้ใช้สำหรับรัน Firebase Functions, Firestore และ Authentication Emulator ของโปรเจกต์นี้ในเครื่อง local
 
 ## รัน Emulator
 
@@ -10,7 +10,7 @@
 pnpm --dir functions emulators --project demo-rental-property-management
 ```
 
-คำสั่งนี้จะเริ่ม Functions Emulator ที่ port `5001`, Firestore Emulator ที่ port `8080` และ Emulator UI ที่ port `4000`.
+คำสั่งนี้จะเริ่ม Functions Emulator ที่ port `5001`, Firestore Emulator ที่ port `8080`, Authentication Emulator ที่ port `9099` และ Emulator UI ที่ port `4001`.
 
 ## Error: Java Runtime ไม่พบ
 
@@ -119,4 +119,4 @@ pnpm --dir functions lint
 pnpm --dir functions test:smoke
 ```
 
-หาก port `5001`, `8080` หรือ `4000` ถูกใช้งานอยู่ ให้ปิด process เดิมก่อน หรือปรับ port ใน `firebase.json`.
+หาก port `5001`, `8080`, `9099` หรือ `4001` ถูกใช้งานอยู่ ให้ปิด process เดิมก่อน หรือปรับ port ใน `firebase.json`.
