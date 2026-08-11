@@ -21,6 +21,8 @@ tenants/{tenantId}
 roomAssignments/{assignmentId}
 otherChargeMasters/{chargeId}
 billingRecords/{billingId}
+invoices/{invoiceId}
+counters/{counterId}
 ```
 
 `users/{uid}` uses the Firebase Authentication UID as its document ID. All other document IDs are generated Firestore IDs. `propertySettings/{propertyId}` deliberately shares its document ID with its property; its `propertyId` field is retained for a consistent document contract and simple converter validation.
@@ -39,16 +41,18 @@ The corresponding TypeScript interfaces are in `src/types/firestore/`. Persisted
 | `tenants` | `Tenant` | Has required `propertyId`; status describes the tenant record, not assignment history. |
 | `roomAssignments` | `RoomTenantAssignment` | Keeps tenancy history, including ended assignments. |
 | `otherChargeMasters` | `OtherChargeMaster` | Optional charge templates only; nothing creates a charge on a bill automatically. |
-| `billingRecords` | `BillingRecord` | The financial record and invoice lifecycle source of truth. |
+| `billingRecords` | `BillingRecord` | The editable monthly calculation record. Step 6 creates/edits drafts; Step 7 stores invoice linkage and transitions it to issued/paid. |
+| `invoices` | `Invoice` | Immutable financial snapshot created from one BillingRecord at issuance. |
+| `counters` | `InvoiceCounter` | Transactional, property-and-month-scoped invoice sequence. |
 | `propertySettings` | `PropertySettings` | Per-property billing defaults and invoice note; it does not embed charge masters. |
 
 `BillingRecord` retains the current model's meter readings, calculated utility amounts, rent, other charges, totals, status, due date, issue date, paid date, and invoice number. It adds `propertyId`, `roomSnapshot`, and optional `tenantSnapshot`. `BillingCharge` is an embedded snapshot with its own generated ID and optional `masterId` provenance.
 
-### Invoice decision: derived from `BillingRecord`
+### Invoice decision: immutable `invoices` collection
 
-Do not create an `invoices` collection in this phase. The current application already treats a record with `invoiceNumber` as an invoice: `InvoicesPage` filters billing records, marking it paid updates the same billing record, and the print page renders that same record. Its invoice number, issue date, due date, and payment status are therefore not independent from billing today.
+Phase 3 Step 7 introduces `invoices` because issuance now needs an immutable, self-contained snapshot and a safe per-property/month number allocation. An invoice is created only from a `draft` BillingRecord; its invoice number, room/tenant snapshots, item lines, totals, note, due date, and billing month are copied at issuance and never edited. The BillingRecord retains `invoiceId`, `invoiceNumber`, `issuedAt`, and synchronized `status`/`paidAt` for operational list compatibility, but must not replace the Invoice snapshot as the historical print source.
 
-`InvoiceProjection` in `src/types/firestore/invoice.ts` documents the read model for invoice screens. It is derived from issued billing records and is not persisted. Introduce a dedicated `invoices` collection only if a later requirement adds independent state, such as immutable legal invoice revisions, print/export audit events, payment allocation across invoices, credit notes, or a distinct numbering lifecycle. That change should be a deliberate migration, not a duplicate write now.
+`counters/invoice-{propertyId}-{YYYY-MM}` holds `{ propertyId, type: "invoice", period, current }`. The creation transaction reads and increments this document while writing both Invoice and BillingRecord. Numbering is therefore unique and sequential within each property/month, with the format `INV-YYYY-MM-NNN`; different properties may each use the same visible sequence.
 
 ## Relationships and business rules
 
@@ -60,11 +64,13 @@ Property 1 ── 1 PropertySettings
 Room     1 ── * RoomTenantAssignment * ── 1 Tenant
 Room/Tenant ── * BillingRecord
 BillingRecord ── * embedded BillingCharge
+BillingRecord 1 ── 0..1 Invoice
 ```
 
 - Every room, tenant, assignment, master charge, and bill belongs to exactly one property. Referenced room and tenant documents must belong to the same property as the dependent document.
 - Assignment history is authoritative for occupancy. `Room` must not have `currentTenantId` as its only source of truth. If a future read optimization adds it, it is a denormalized cache updated atomically with the assignment, never historical authority.
-- At most one active assignment may exist for a room. The current local implementation closes the prior active room assignment when assigning a new tenant and sets the room to `occupied`; ending it makes an occupied room `available`. The future API must retain this behavior in a Firestore transaction. UI eligibility also currently prevents assigning a tenant who already has an active assignment; retain that policy if it remains desired.
+- At most one active assignment may exist for a room, and the current API also enforces at most one active assignment per tenant. The rule is isolated to the Assignment service so a future multi-room tenancy policy can change it without changing the data model. Assignment creation is a Firestore transaction that checks both active-assignment queries, creates the history row, sets the room to `occupied`, and touches the tenant audit timestamp to serialize concurrent assignments for that tenant. Ending is also transactional: it marks the row `ended`, saves `endDate`, and makes the room `available` only when its current status is `occupied`.
+- Room and Tenant deletion uses a Firestore transaction and is rejected while an active assignment exists. Ended assignment history is retained and never cascade-deleted; operationally, rooms/tenants with historical references should normally be set `inactive` rather than hard-deleted.
 - `maintenance` and `inactive` rooms must not be made `available` merely because a tenancy ends.
 - Room status and assignment changes must be coordinated atomically by the future API. Client Firestore writes should not be trusted to enforce this invariant.
 - Currency and meter values are finite, non-negative numbers. Meter usage is `currentMeter - previousMeter`; total calculation remains in the existing calculation domain service, then its result is persisted.
@@ -77,6 +83,11 @@ BillingRecord ── * embedded BillingCharge
 Bills must remain historically correct after room, tenant, rate, or charge-master changes.
 
 - At bill creation, copy the room number and monthly rent into `roomSnapshot`, and the resolved tenant full name into `tenantSnapshot` when a tenant exists.
+- A bill can be created for a room without an active tenant; in that case both `tenantId` and `tenantSnapshot` are `null`. When present, the active assignment resolves the tenant—clients never choose an arbitrary tenant for a bill.
+- Snapshot `invoiceNote` from `PropertySettings.defaultInvoiceNote` at creation. This is a billing creation default and must not be changed by later settings edits.
+- One normal bill is allowed per `(propertyId, roomId, billingMonth)`. The backend enforces it in the Firestore transaction that writes the draft, rather than trusting a preflight query.
+- Meter usage is `currentMeter - previousMeter`; negative usage is rejected. Monetary values are rounded to two decimal places after utility amount and aggregate calculations, providing a consistent decimal-THB strategy across utilities, charges, subtotal, and total.
+- Creating an invoice atomically reads the draft bill, verifies no invoice already exists for that billing ID, increments the relevant counter, writes the immutable Invoice, and transitions BillingRecord to `issued`. Mark-paid similarly updates Invoice and BillingRecord together. `overdue` is a display status derived from an issued invoice whose due date has passed; it is not persisted or scheduled in this phase.
 - Store the exact electricity and water readings, rates, usage, and amounts in the billing record. Never recompute historical amounts from current room or property settings.
 - Copy each selected optional master charge into `otherCharges` as `{ id, masterId?, name, amount }`. `masterId` supports traceability only. Editing, deactivating, or deleting an `OtherChargeMaster` never changes historical charge data.
 - The invoice print view must eventually render billing snapshots for historical identity fields, rather than look up a current room or tenant name. This is a future implementation change, not part of this phase.
@@ -99,7 +110,7 @@ All queries below must include a property scope unless reading an individual doc
 | Invoice list | `propertyId == :propertyId AND status IN ('issued','paid','overdue')`, ordered by `issuedAt DESC` | `(propertyId ASC, status ASC, issuedAt DESC)` |
 | Other charge masters | `propertyId == :propertyId AND isActive == true`, ordered by `nameTh` | `(propertyId ASC, isActive ASC, nameTh ASC)` |
 
-Firestore automatically indexes individual fields. Create these composite indexes only when the Firestore console/emulator confirms the exact query and order; no index configuration is added in this phase. If the UI requires all issued invoices but the final query model cannot express that set cleanly with status filters, use a materialized `isInvoiceIssued` boolean on `BillingRecord` and index `(propertyId, isInvoiceIssued, issuedAt DESC)`; do not infer invoices from an unindexed client-side full collection in production.
+Firestore automatically indexes individual fields. `firestore.indexes.json` now contains the Room Assignment indexes required by the implemented list filters (all property-scoped combinations of `status`, `roomId`, and `tenantId`, ordered by `startDate DESC`) and active room/tenant checks. If the UI requires all issued invoices but the final query model cannot express that set cleanly with status filters, use a materialized `isInvoiceIssued` boolean on `BillingRecord` and index `(propertyId, isInvoiceIssued, issuedAt DESC)`; do not infer invoices from an unindexed client-side full collection in production.
 
 ## Timestamp, writes, and identity strategy
 

@@ -15,7 +15,8 @@
     "test:resources": "node src/resource-api-foundation-test.js",
     "seed:dev-user": "node scripts/seed-dev-user.js",
     "test:auth:emulator": "node scripts/verify-auth-emulator.js",
-    "test:resources:emulator": "node scripts/verify-resource-apis-emulator.js"
+    "test:resources:emulator": "node scripts/verify-resource-apis-emulator.js",
+    "test:assignments:emulator": "node scripts/verify-assignments-emulator.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

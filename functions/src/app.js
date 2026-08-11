@@ -8,6 +8,9 @@ const { propertiesRouter } = require("./routes/properties.routes");
 const { settingsRouter } = require("./routes/settings.routes");
 const { roomsRouter } = require("./routes/rooms.routes");
 const { tenantsRouter } = require("./routes/tenants.routes");
+const { assignmentsRouter } = require("./routes/assignments.routes");
+const { billingRouter } = require("./routes/billing.routes");
+const { invoicesRouter } = require("./routes/invoices.routes");
 
 const app = express();
 
@@ -20,6 +23,9 @@ app.use("/api/v1/properties", settingsRouter);
 app.use("/api/v1/properties", otherChargesRouter);
 app.use("/api/v1/properties", roomsRouter);
 app.use("/api/v1/properties", tenantsRouter);
+app.use("/api/v1/properties", assignmentsRouter);
+app.use("/api/v1/properties", billingRouter);
+app.use("/api/v1/properties", invoicesRouter);
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);
 
