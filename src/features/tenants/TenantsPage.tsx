@@ -172,13 +172,20 @@ export function TenantsPage() {
         tenant={assigningTenant}
         availableRooms={availableRooms}
         availableTenants={[]}
-        onAssign={({ roomId, tenantId, startDate }) => {
-          const existing = getActiveByTenantId(tenantId);
-          if (existing && existing.roomId !== roomId) {
-            endTenancyByRoomId(existing.roomId, startDate);
+        onAssign={async ({ roomId, tenantId, startDate }) => {
+          try {
+            const existing = getActiveByTenantId(tenantId);
+            if (existing && existing.roomId !== roomId) {
+              // Awaited so the old tenancy is fully ended (assignTenant's own
+              // transaction otherwise races it and sees the tenant as still
+              // actively assigned — see assignmentRepository.ts).
+              await endTenancyByRoomId(existing.roomId, startDate);
+            }
+            await assignTenant({ roomId, tenantId, startDate });
+            toast.success(t("tenant.roomAssignedToast"));
+          } catch {
+            toast.error(t("common.actionFailed"));
           }
-          assignTenant({ roomId, tenantId, startDate });
-          toast.success(t("tenant.roomAssignedToast"));
         }}
       />
 

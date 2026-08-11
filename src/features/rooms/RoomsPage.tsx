@@ -180,9 +180,13 @@ export function RoomsPage() {
         room={assigningRoom}
         availableRooms={[]}
         availableTenants={availableTenants}
-        onAssign={({ roomId, tenantId, startDate }) => {
-          assignTenant({ roomId, tenantId, startDate });
-          toast.success(t("room.assignedToast"));
+        onAssign={async ({ roomId, tenantId, startDate }) => {
+          try {
+            await assignTenant({ roomId, tenantId, startDate });
+            toast.success(t("room.assignedToast"));
+          } catch {
+            toast.error(t("common.actionFailed"));
+          }
         }}
       />
 
@@ -219,11 +223,15 @@ export function RoomsPage() {
         title={t("room.endTenancyTitle")}
         description={t("room.endTenancyDescription", { roomNumber: endingTenancyRoom?.roomNumber ?? "" })}
         confirmLabel={t("room.endTenancy")}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!endingTenancyRoom) return;
-          endTenancyByRoomId(endingTenancyRoom.id, today());
-          toast.success(t("room.tenancyEndedToast"));
-          setEndingTenancyRoom(undefined);
+          try {
+            await endTenancyByRoomId(endingTenancyRoom.id, today());
+            toast.success(t("room.tenancyEndedToast"));
+            setEndingTenancyRoom(undefined);
+          } catch {
+            toast.error(t("common.actionFailed"));
+          }
         }}
       />
     </div>

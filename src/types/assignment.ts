@@ -8,6 +8,7 @@ export interface RoomTenantAssignment {
   endDate?: string;
   status: AssignmentStatus;
   createdAt: string;
+  updatedAt: string;
 }
 
 export type CreateAssignmentInput = Pick<RoomTenantAssignment, "roomId" | "tenantId" | "startDate">;

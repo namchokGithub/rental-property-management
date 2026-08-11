@@ -1,52 +1,60 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { collection, onSnapshot, type Timestamp } from "firebase/firestore";
 import { useAuth } from "@/auth";
 import { assignmentRepository } from "@/data/repositories/assignmentRepository";
-import { roomRepository } from "@/data/repositories/roomRepository";
-import { useRooms } from "@/hooks/useRooms";
+import { timestampToIso } from "@/data/repositories/converters/timestamp";
+import { db } from "@/lib/firebase";
 import { getActivePropertyId } from "@/lib/activeProperty";
 import type { RoomTenantAssignment, CreateAssignmentInput } from "@/types/assignment";
 
-/**
- * Assignments themselves are still local-storage-only (Task 4 migrates them
- * to Firestore, with the transactional room<->tenant<->assignment writes
- * that need). Rooms already moved to Firestore in this task, so the
- * room-status side effect that used to live inside `assignmentRepository`
- * (flip to "occupied"/"available") is handled here instead, where
- * `propertyId` and the live `rooms` list are available.
- */
+// `startDate`/`endDate`/`createdAt`/`updatedAt` are written as Firestore
+// `Timestamp`s (assignmentRepository.assign/endByRoomId) but the domain type
+// declares all four as ISO strings — convert on every read, same pattern as
+// `firestoreCrud.ts`'s `toDoc()`. `endDate` is allowed to stay `undefined`:
+// the type already makes it optional, and `timestampToIso(null)` correctly
+// returns `undefined` for the common "still active, no end date" case.
+function toAssignment(id: string, data: Record<string, unknown>): RoomTenantAssignment {
+  return {
+    id,
+    ...data,
+    startDate: timestampToIso(data.startDate as Timestamp | null | undefined) ?? new Date().toISOString(),
+    endDate: timestampToIso(data.endDate as Timestamp | null | undefined),
+    createdAt: timestampToIso(data.createdAt as Timestamp | null | undefined) ?? new Date().toISOString(),
+    updatedAt: timestampToIso(data.updatedAt as Timestamp | null | undefined) ?? new Date().toISOString(),
+  } as RoomTenantAssignment;
+}
+
 export function useAssignments() {
   const { user } = useAuth();
   const propertyId = getActivePropertyId(user?.propertyIds ?? []);
-  const { rooms } = useRooms();
-  const [assignments, setAssignments] = useState<RoomTenantAssignment[]>(() => assignmentRepository.getAll());
+  const [assignments, setAssignments] = useState<RoomTenantAssignment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const refresh = useCallback(() => setAssignments(assignmentRepository.getAll()), []);
+  useEffect(() => {
+    setIsLoading(true);
+    const unsubscribe = onSnapshot(collection(db, "properties", propertyId, "assignments"), (snapshot) => {
+      setAssignments(snapshot.docs.map((d) => toAssignment(d.id, d.data())));
+      setIsLoading(false);
+    });
+    return unsubscribe;
+  }, [propertyId]);
 
   const assignTenant = useCallback(
-    (input: CreateAssignmentInput) => {
-      const assignment = assignmentRepository.assign(input);
-      void roomRepository.update(propertyId, input.roomId, { status: "occupied" });
-      refresh();
-      return assignment;
-    },
-    [refresh, propertyId]
+    (input: CreateAssignmentInput) => assignmentRepository.assign(propertyId, input),
+    [propertyId],
   );
-
   const endTenancyByRoomId = useCallback(
-    (roomId: string, endDate: string) => {
-      assignmentRepository.endByRoomId(roomId, endDate);
-      const room = rooms.find((r) => r.id === roomId);
-      if (room && room.status === "occupied") {
-        void roomRepository.update(propertyId, roomId, { status: "available" });
-      }
-      refresh();
-    },
-    [refresh, propertyId, rooms]
+    (roomId: string, endDate: string) => assignmentRepository.endByRoomId(propertyId, roomId, endDate),
+    [propertyId],
+  );
+  const getActiveByRoomId = useCallback(
+    (roomId: string) => assignments.find((a) => a.roomId === roomId && a.status === "active"),
+    [assignments],
+  );
+  const getActiveByTenantId = useCallback(
+    (tenantId: string) => assignments.find((a) => a.tenantId === tenantId && a.status === "active"),
+    [assignments],
   );
 
-  const getActiveByRoomId = useCallback((roomId: string) => assignmentRepository.getActiveByRoomId(roomId), []);
-  const getByRoomId = useCallback((roomId: string) => assignmentRepository.getByRoomId(roomId), []);
-  const getActiveByTenantId = useCallback((tenantId: string) => assignmentRepository.getActiveByTenantId(tenantId), []);
-
-  return { assignments, refresh, assignTenant, endTenancyByRoomId, getActiveByRoomId, getByRoomId, getActiveByTenantId };
+  return { assignments, isLoading, assignTenant, endTenancyByRoomId, getActiveByRoomId, getActiveByTenantId };
 }
