@@ -2,8 +2,73 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // API access will be enforced by Firebase Admin SDK; client rules are
-    // intentionally closed until a future authentication/authorization phase.
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isActiveUser() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userProfile().isActive == true;
+    }
+
+    function hasPropertyAccess(propertyId) {
+      return isActiveUser() && propertyId in userProfile().propertyIds;
+    }
+
+    function isAdminForProperty(propertyId) {
+      return hasPropertyAccess(propertyId) && userProfile().role == 'admin';
+    }
+
+    // ---- Profiles: never client-writable. Created/edited by hand (Decision C). ----
+    match /users/{uid} {
+      allow get: if isSignedIn() && request.auth.uid == uid;
+      allow list, write: if false;
+    }
+
+    // ---- Property-scoped business data ----
+    match /properties/{propertyId} {
+      allow read: if hasPropertyAccess(propertyId);
+      allow write: if isAdminForProperty(propertyId);
+
+      match /settings/{settingsDoc} {
+        allow read: if hasPropertyAccess(propertyId);
+        allow write: if isAdminForProperty(propertyId);
+      }
+
+      match /rooms/{roomId} {
+        allow read: if hasPropertyAccess(propertyId);
+        allow write: if isAdminForProperty(propertyId);
+      }
+
+      match /tenants/{tenantId} {
+        allow read: if hasPropertyAccess(propertyId);
+        allow write: if isAdminForProperty(propertyId);
+      }
+
+      match /assignments/{assignmentId} {
+        allow read: if hasPropertyAccess(propertyId);
+        allow write: if isAdminForProperty(propertyId);
+      }
+
+      match /billing/{billingId} {
+        allow read: if hasPropertyAccess(propertyId);
+        // Once a bill is issued, invoiceNumber/issuedAt must never change again —
+        // the closest a client-only rule can get to the immutability the old
+        // backend's `invoices` collection gave for free.
+        allow create, delete: if isAdminForProperty(propertyId);
+        allow update: if isAdminForProperty(propertyId)
+          && (resource.data.invoiceNumber == null
+              || (request.resource.data.invoiceNumber == resource.data.invoiceNumber
+                  && request.resource.data.issuedAt == resource.data.issuedAt));
+      }
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

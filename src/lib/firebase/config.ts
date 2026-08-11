@@ -63,10 +63,6 @@ export function getFirebaseConfig(): FirebaseOptions {
   };
 }
 
-export function getFirebaseFunctionsRegion(): string {
-  return import.meta.env.VITE_FIREBASE_FUNCTIONS_REGION?.trim() || "us-central1";
-}
-
 export function shouldUseFirebaseEmulator(): boolean {
   return import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATOR === "true";
 }

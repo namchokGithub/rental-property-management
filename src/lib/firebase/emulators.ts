@@ -1,6 +1,5 @@
 import { connectAuthEmulator, type Auth } from "firebase/auth";
 import { connectFirestoreEmulator, type Firestore } from "firebase/firestore";
-import { connectFunctionsEmulator, type Functions } from "firebase/functions";
 import { shouldUseFirebaseEmulator } from "@/lib/firebase/config";
 
 const EMULATOR_HOST = "127.0.0.1";
@@ -13,7 +12,6 @@ type EmulatorConnectionState = typeof globalThis & {
 interface FirebaseClients {
   auth: Auth;
   db: Firestore;
-  functions: Functions;
 }
 
 /**
@@ -28,6 +26,5 @@ export function connectFirebaseEmulators(clients: FirebaseClients): void {
 
   connectAuthEmulator(clients.auth, `http://${EMULATOR_HOST}:9099`, { disableWarnings: true });
   connectFirestoreEmulator(clients.db, EMULATOR_HOST, 8080);
-  connectFunctionsEmulator(clients.functions, EMULATOR_HOST, 5001);
   state[EMULATOR_STATE_KEY] = true;
 }

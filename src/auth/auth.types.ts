@@ -5,17 +5,16 @@ export interface AuthUser {
   name: string;
   email: string;
   role: AuthRole;
-}
-
-export interface AuthSession {
-  user: AuthUser;
+  /** Property memberships from the Firestore `users/{uid}` profile — the authority for access, never localStorage. */
+  propertyIds: string[];
 }
 
 /**
- * Swappable authentication backend. `LocalAuthService` (auth.service.ts) is the
- * current DEMO-ONLY implementation; a future `FirebaseAuthService` implementing
- * this same interface can replace it without changing AuthContext, LoginPage,
- * LoginForm, ProtectedApp, or the header logout UI.
+ * Swappable authentication backend, implemented by `FirebaseAuthService`
+ * (auth.service.ts) against Firebase Authentication + the Firestore
+ * `users/{uid}` profile document. AuthContext, LoginPage, LoginForm,
+ * ProtectedApp, and the header logout UI depend only on this interface via
+ * `useAuth()`.
  */
 export interface AuthProvider {
   login(email: string, password: string): Promise<AuthUser>;
