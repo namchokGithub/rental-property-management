@@ -1,36 +1,53 @@
-import { readCollection, writeCollection, STORAGE_KEYS } from "@/data/storage/storage";
-import type { OtherChargeMaster, CreateOtherChargeInput, UpdateOtherChargeInput } from "@/types/otherCharge";
+import { doc, getDoc, runTransaction } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import type { CreateOtherChargeInput, OtherChargeMaster, UpdateOtherChargeInput } from "@/types/otherCharge";
 
-function all(): OtherChargeMaster[] {
-  return readCollection<OtherChargeMaster>(STORAGE_KEYS.otherCharges);
+function settingsRef(propertyId: string) {
+  return doc(db, "properties", propertyId, "settings", "general");
+}
+
+async function withMasters(
+  propertyId: string,
+  mutate: (masters: OtherChargeMaster[]) => OtherChargeMaster[],
+): Promise<OtherChargeMaster[]> {
+  return runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(settingsRef(propertyId));
+    const current = (snapshot.data()?.otherChargeMasters ?? []) as OtherChargeMaster[];
+    const next = mutate(current);
+    transaction.set(settingsRef(propertyId), { otherChargeMasters: next }, { merge: true });
+    return next;
+  });
 }
 
 export const otherChargeRepository = {
-  getAll(): OtherChargeMaster[] {
-    return all();
-  },
-  getActive(): OtherChargeMaster[] {
-    return all().filter((c) => c.isActive);
-  },
-  getById(id: string): OtherChargeMaster | undefined {
-    return all().find((c) => c.id === id);
-  },
-  create(input: CreateOtherChargeInput): OtherChargeMaster {
+  async create(propertyId: string, input: CreateOtherChargeInput): Promise<OtherChargeMaster> {
     const now = new Date().toISOString();
-    const charge: OtherChargeMaster = { ...input, id: crypto.randomUUID(), createdAt: now, updatedAt: now };
-    writeCollection(STORAGE_KEYS.otherCharges, [...all(), charge]);
-    return charge;
+    const created: OtherChargeMaster = { id: crypto.randomUUID(), ...input, createdAt: now, updatedAt: now };
+    await withMasters(propertyId, (masters) => [...masters, created]);
+    return created;
   },
-  update(id: string, input: UpdateOtherChargeInput): OtherChargeMaster {
-    const charges = all();
-    const index = charges.findIndex((c) => c.id === id);
-    if (index === -1) throw new Error(`Other charge ${id} not found`);
-    const updated: OtherChargeMaster = { ...charges[index], ...input, updatedAt: new Date().toISOString() };
-    charges[index] = updated;
-    writeCollection(STORAGE_KEYS.otherCharges, charges);
+
+  async update(propertyId: string, id: string, input: UpdateOtherChargeInput): Promise<OtherChargeMaster> {
+    const now = new Date().toISOString();
+    let updated: OtherChargeMaster | undefined;
+    await withMasters(propertyId, (masters) =>
+      masters.map((master) => {
+        if (master.id !== id) return master;
+        updated = { ...master, ...input, updatedAt: now };
+        return updated;
+      }),
+    );
+    if (!updated) throw new Error(`OtherChargeMaster ${id} not found`);
     return updated;
   },
-  delete(id: string): void {
-    writeCollection(STORAGE_KEYS.otherCharges, all().filter((c) => c.id !== id));
+
+  async delete(propertyId: string, id: string): Promise<void> {
+    await withMasters(propertyId, (masters) => masters.filter((master) => master.id !== id));
+  },
+
+  async getActive(propertyId: string): Promise<OtherChargeMaster[]> {
+    const snapshot = await getDoc(settingsRef(propertyId));
+    const masters = (snapshot.data()?.otherChargeMasters ?? []) as OtherChargeMaster[];
+    return masters.filter((master) => master.isActive);
   },
 };

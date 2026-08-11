@@ -5,10 +5,11 @@ import { ArrowLeft, Printer, CheckCircle2 } from "lucide-react";
 import { billingRepository } from "@/data/repositories/billingRepository";
 import { roomRepository } from "@/data/repositories/roomRepository";
 import { tenantRepository } from "@/data/repositories/tenantRepository";
-import { settingsRepository } from "@/data/repositories/settingsRepository";
+import { PageSpinner } from "@/components/common/PageSpinner";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import { InvoicePrintView } from "@/features/invoices/InvoicePrintView";
+import { useSettings } from "@/hooks/useSettings";
 import { useLanguage } from "@/i18n";
 import { resolveBillingStatus } from "@/lib/invoice";
 
@@ -17,6 +18,7 @@ export function InvoicePrintPage() {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const [record, setRecord] = useState(() => (id ? billingRepository.getById(id) : undefined));
+  const { settings, isLoading } = useSettings();
 
   if (!record) {
     return (
@@ -31,11 +33,12 @@ export function InvoicePrintPage() {
 
   const room = roomRepository.getById(record.roomId);
   const tenant = record.tenantId ? tenantRepository.getById(record.tenantId) : undefined;
-  const settings = settingsRepository.get();
 
   if (!room) {
     return <div className="p-6">{t("invoice.roomNotFound")}</div>;
   }
+
+  if (isLoading || !settings) return <PageSpinner />;
 
   const status = resolveBillingStatus(record);
 

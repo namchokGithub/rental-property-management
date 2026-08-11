@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/common/PageHeader";
+import { PageSpinner } from "@/components/common/PageSpinner";
 import { ThemeAccentSwatches } from "@/components/common/ThemeAccentSwatches";
 import { OtherChargeSection } from "@/features/settings/OtherChargeSection";
 import { useSettings } from "@/hooks/useSettings";
@@ -40,8 +41,20 @@ function toFormState(settings: PropertySettings) {
 }
 
 export function SettingsPage() {
+  const { settings, isLoading, updateSettings } = useSettings();
+
+  if (isLoading || !settings) return <PageSpinner />;
+
+  return <SettingsForm settings={settings} updateSettings={updateSettings} />;
+}
+
+interface SettingsFormProps {
+  settings: PropertySettings;
+  updateSettings: (input: Partial<PropertySettings>) => Promise<PropertySettings>;
+}
+
+function SettingsForm({ settings, updateSettings }: SettingsFormProps) {
   const { t } = useLanguage();
-  const { settings, updateSettings } = useSettings();
   const [form, setForm] = useState(() => toFormState(settings));
   const { appearance, accentTheme, setAppearance, setAccentTheme } = useTheme();
 

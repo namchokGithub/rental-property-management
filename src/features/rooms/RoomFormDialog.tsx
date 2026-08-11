@@ -55,13 +55,13 @@ export function RoomFormDialog({ open, onOpenChange, room, onSubmit }: RoomFormD
   const { t } = useLanguage();
   const { settings } = useSettings();
   const [form, setForm] = useState<FormState>(() =>
-    toFormState(room, { electricityRate: settings.defaultElectricityRate, waterRate: settings.defaultWaterRate })
+    toFormState(room, { electricityRate: settings?.defaultElectricityRate ?? 0, waterRate: settings?.defaultWaterRate ?? 0 })
   );
   const [errors, setErrors] = useState<ValidationErrors>({});
 
   function handleOpenChange(next: boolean) {
     if (next) {
-      setForm(toFormState(room, { electricityRate: settings.defaultElectricityRate, waterRate: settings.defaultWaterRate }));
+      setForm(toFormState(room, { electricityRate: settings?.defaultElectricityRate ?? 0, waterRate: settings?.defaultWaterRate ?? 0 }));
       setErrors({});
     }
     onOpenChange(next);

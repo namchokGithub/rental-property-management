@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { CheckCircle2, Eye, FileText, Printer, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageSpinner } from "@/components/common/PageSpinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -91,6 +92,8 @@ export function InvoicesPage() {
     toast.success(t("invoice.paidToast"));
     setPreviewRecord(undefined);
   }
+
+  if (!settings) return <PageSpinner />;
 
   return (
     <div className="space-y-6">

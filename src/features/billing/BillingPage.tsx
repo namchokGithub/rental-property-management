@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Receipt, Plus, Search, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/common/PageHeader";
+import { PageSpinner } from "@/components/common/PageSpinner";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { SearchInput } from "@/components/common/SearchInput";
@@ -131,6 +132,8 @@ export function BillingPage() {
     toast.success(t("billing.bulkIssuedToast", { count: ids.length }));
     setSelectedIds(new Set());
   }
+
+  if (!settings) return <PageSpinner />;
 
   return (
     <div className="space-y-6">

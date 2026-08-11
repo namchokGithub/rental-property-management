@@ -1,22 +1,34 @@
-import { readValue, writeValue, STORAGE_KEYS } from "@/data/storage/storage";
+import { doc, getDoc, onSnapshot, setDoc, type Unsubscribe } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import type { PropertySettings } from "@/types/settings";
 
 const DEFAULTS: PropertySettings = {
-  propertyName: "Sunrise Apartments",
+  propertyName: "",
   propertyAddress: "",
   phone: "",
-  defaultElectricityRate: 8,
-  defaultWaterRate: 18,
-  defaultInvoiceNote: "Please pay by the due date to avoid late fees.",
+  defaultElectricityRate: 0,
+  defaultWaterRate: 0,
+  defaultInvoiceNote: "",
 };
 
+function settingsRef(propertyId: string) {
+  return doc(db, "properties", propertyId, "settings", "general");
+}
+
 export const settingsRepository = {
-  get(): PropertySettings {
-    return readValue<PropertySettings>(STORAGE_KEYS.settings, DEFAULTS);
+  async get(propertyId: string): Promise<PropertySettings> {
+    const snapshot = await getDoc(settingsRef(propertyId));
+    return snapshot.exists() ? (snapshot.data() as PropertySettings) : DEFAULTS;
   },
-  update(input: Partial<PropertySettings>): PropertySettings {
-    const merged = { ...settingsRepository.get(), ...input };
-    writeValue(STORAGE_KEYS.settings, merged);
-    return merged;
+
+  async update(propertyId: string, input: Partial<PropertySettings>): Promise<PropertySettings> {
+    await setDoc(settingsRef(propertyId), input, { merge: true });
+    return settingsRepository.get(propertyId);
+  },
+
+  subscribe(propertyId: string, callback: (settings: PropertySettings) => void): Unsubscribe {
+    return onSnapshot(settingsRef(propertyId), (snapshot) => {
+      callback(snapshot.exists() ? (snapshot.data() as PropertySettings) : DEFAULTS);
+    });
   },
 };
