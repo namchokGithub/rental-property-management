@@ -6,6 +6,7 @@ import { PageSpinner } from "@/components/common/PageSpinner";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import { InvoicePrintView } from "@/features/invoices/InvoicePrintView";
+import { useAuth } from "@/auth";
 import { useBillingRecords } from "@/hooks/useBillingRecords";
 import { useSettings } from "@/hooks/useSettings";
 import { useRooms } from "@/hooks/useRooms";
@@ -17,6 +18,8 @@ export function InvoicePrintPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const { records, isLoading: billingLoading, updateBilling } = useBillingRecords();
   const { settings, isLoading: settingsLoading } = useSettings();
   const { rooms, isLoading: roomsLoading } = useRooms();
@@ -54,7 +57,7 @@ export function InvoicePrintPage() {
           <ArrowLeft className="h-4 w-4" /> {t("invoice.back")}
         </Button>
         <div className="flex gap-2">
-          {(status === "issued" || status === "overdue") && (
+          {isAdmin && (status === "issued" || status === "overdue") && (
             <Button
               variant="outline"
               disabled={isMarkingPaid}

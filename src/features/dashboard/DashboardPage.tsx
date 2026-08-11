@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { useAuth } from "@/auth";
 import { useRooms } from "@/hooks/useRooms";
 import { useTenants } from "@/hooks/useTenants";
 import { useBillingRecords } from "@/hooks/useBillingRecords";
@@ -41,6 +42,8 @@ interface SummaryCard {
 export function DashboardPage() {
   const navigate = useNavigate();
   const { t, language } = useLanguage();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const { rooms } = useRooms();
   const { tenants } = useTenants();
   const { records } = useBillingRecords();
@@ -130,8 +133,8 @@ export function DashboardPage() {
                 icon={Receipt}
                 title={t("dashboard.noBillingTitle")}
                 description={t("dashboard.noBillingDescription")}
-                actionLabel={t("dashboard.createBilling")}
-                onAction={() => navigate("/billing")}
+                actionLabel={isAdmin ? t("dashboard.createBilling") : undefined}
+                onAction={isAdmin ? () => navigate("/billing") : undefined}
               />
             ) : (
               <Table>
@@ -172,15 +175,19 @@ export function DashboardPage() {
           <CardTitle className="text-base">{t("dashboard.quickActions")}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <Button onClick={() => navigate("/rooms")}>
-            <Plus /> {t("dashboard.addRoom")}
-          </Button>
-          <Button variant="outline" onClick={() => navigate("/tenants")}>
-            <UserPlus /> {t("dashboard.addTenant")}
-          </Button>
-          <Button variant="outline" onClick={() => navigate("/billing")}>
-            <Receipt /> {t("dashboard.createBilling")}
-          </Button>
+          {isAdmin && (
+            <>
+              <Button onClick={() => navigate("/rooms")}>
+                <Plus /> {t("dashboard.addRoom")}
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/tenants")}>
+                <UserPlus /> {t("dashboard.addTenant")}
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/billing")}>
+                <Receipt /> {t("dashboard.createBilling")}
+              </Button>
+            </>
+          )}
           <Button variant="outline" onClick={() => navigate("/invoices")}>
             <FileText /> {t("dashboard.viewInvoices")}
           </Button>

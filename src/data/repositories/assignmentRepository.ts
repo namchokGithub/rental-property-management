@@ -1,9 +1,21 @@
-import { collection, doc, getDocs, query, runTransaction, serverTimestamp, Timestamp, where } from "firebase/firestore";
+import { collection, doc, getDocs, onSnapshot, query, runTransaction, serverTimestamp, Timestamp, where, type Unsubscribe } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { CreateAssignmentInput } from "@/types/assignment";
+import { timestampToIso } from "@/data/repositories/converters/timestamp";
+import type { CreateAssignmentInput, RoomTenantAssignment } from "@/types/assignment";
 
 function assignmentsRef(propertyId: string) {
   return collection(db, "properties", propertyId, "assignments");
+}
+
+function toAssignment(id: string, data: Record<string, unknown>): RoomTenantAssignment {
+  return {
+    id,
+    ...data,
+    startDate: timestampToIso(data.startDate as Timestamp | null | undefined) ?? new Date().toISOString(),
+    endDate: timestampToIso(data.endDate as Timestamp | null | undefined),
+    createdAt: timestampToIso(data.createdAt as Timestamp | null | undefined) ?? new Date().toISOString(),
+    updatedAt: timestampToIso(data.updatedAt as Timestamp | null | undefined) ?? new Date().toISOString(),
+  } as RoomTenantAssignment;
 }
 
 /**
@@ -29,6 +41,12 @@ function assignmentsRef(propertyId: string) {
  * capability on this SDK.
  */
 export const assignmentRepository = {
+  subscribe(propertyId: string, callback: (assignments: RoomTenantAssignment[]) => void): Unsubscribe {
+    return onSnapshot(assignmentsRef(propertyId), (snapshot) => {
+      callback(snapshot.docs.map((document) => toAssignment(document.id, document.data())));
+    });
+  },
+
   async assign(propertyId: string, input: CreateAssignmentInput): Promise<string> {
     return runTransaction(db, async (transaction) => {
       const roomRef = doc(db, "properties", propertyId, "rooms", input.roomId);

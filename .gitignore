@@ -145,3 +145,6 @@ vite.config.ts.timestamp-*
 .vscode
 
 *.DS_Store
+
+# superpowers subagent-driven-development scratch workspace
+.superpowers/

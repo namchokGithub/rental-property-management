@@ -3,17 +3,19 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  onSnapshot,
   query,
   runTransaction,
   serverTimestamp,
   where,
   type Timestamp,
   type Transaction,
+  type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { calculateMeterReading, calculateBillingTotals } from "@/lib/calculations";
 import { generateInvoiceNumber } from "@/lib/invoice";
-import { isoToTimestamp } from "@/data/repositories/converters/timestamp";
+import { isoToTimestamp, timestampToIso } from "@/data/repositories/converters/timestamp";
 import type {
   BillingCharge,
   BillingRecord,
@@ -44,6 +46,18 @@ function billingCollectionRef(propertyId: string) {
 
 function billingRef(propertyId: string, roomId: string, billingMonth: string) {
   return doc(billingCollectionRef(propertyId), billingDocId(roomId, billingMonth));
+}
+
+function toBillingRecord(id: string, data: Record<string, unknown>): BillingRecord {
+  return {
+    id,
+    ...data,
+    issuedAt: timestampToIso(data.issuedAt as Timestamp | null | undefined),
+    dueDate: timestampToIso(data.dueDate as Timestamp | null | undefined),
+    paidAt: timestampToIso(data.paidAt as Timestamp | null | undefined),
+    createdAt: timestampToIso(data.createdAt as Timestamp | null | undefined) ?? new Date().toISOString(),
+    updatedAt: timestampToIso(data.updatedAt as Timestamp | null | undefined) ?? new Date().toISOString(),
+  } as BillingRecord;
 }
 
 // Every form submission sends `otherCharges` without ids (`Omit<BillingCharge,
@@ -119,6 +133,12 @@ interface RawBillingDoc {
 }
 
 export const billingRepository = {
+  subscribe(propertyId: string, callback: (records: BillingRecord[]) => void): Unsubscribe {
+    return onSnapshot(billingCollectionRef(propertyId), (snapshot) => {
+      callback(snapshot.docs.map((document) => toBillingRecord(document.id, document.data())));
+    });
+  },
+
   async create(propertyId: string, input: CreateBillingInput): Promise<string> {
     const id = billingDocId(input.roomId, input.billingMonth);
     const electricity = calculateMeterReading(

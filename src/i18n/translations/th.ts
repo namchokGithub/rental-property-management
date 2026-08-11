@@ -20,10 +20,10 @@ const th: Translations = {
       emailInvalid: "รูปแบบอีเมลไม่ถูกต้อง",
       passwordRequired: "กรุณากรอกรหัสผ่าน",
       invalidCredentials: "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
+      network: "เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่",
     },
     logout: "ออกจากระบบ",
     logoutSuccess: "ออกจากระบบแล้ว",
-    demoAccountLabel: "บัญชีสำหรับทดลอง",
   },
   common: {
     save: "บันทึก",

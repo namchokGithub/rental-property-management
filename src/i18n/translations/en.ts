@@ -20,10 +20,10 @@ const en: Translations = {
       emailInvalid: "Invalid email format",
       passwordRequired: "Password is required",
       invalidCredentials: "Invalid email or password",
+      network: "Network error. Please check your connection and try again.",
     },
     logout: "Logout",
     logoutSuccess: "Logged out successfully",
-    demoAccountLabel: "Demo account",
   },
   common: {
     save: "Save",

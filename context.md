@@ -50,8 +50,8 @@ src/data/repositories/
   firestoreCrud.ts           # generic single-subcollection CRUD factory (getAll/subscribe/create/update/delete), reused by rooms + tenants
   roomRepository.ts          # firestoreCrud("rooms") + an active-assignment delete guard
   tenantRepository.ts        # firestoreCrud("tenants") + the same delete guard, keyed on tenantId
-  assignmentRepository.ts    # hand-written: assign()/endByRoomId() each run inside runTransaction()
-  billingRepository.ts       # hand-written: create() checks-then-writes a deterministic doc ID; update() issues invoiceNumber transactionally
+  assignmentRepository.ts    # hand-written: subscribe(); assign()/endByRoomId() each run inside runTransaction()
+  billingRepository.ts       # hand-written: subscribe(); create() checks-then-writes a deterministic doc ID; update() issues invoiceNumber transactionally
   settingsRepository.ts      # get/update/subscribe against one document, properties/{propertyId}/settings/general
   otherChargeRepository.ts   # create/update/delete operate on that same document's embedded otherChargeMasters array, via runTransaction() read-modify-write
 ```

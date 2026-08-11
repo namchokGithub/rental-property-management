@@ -20,10 +20,10 @@ export interface Translations {
       emailInvalid: string;
       passwordRequired: string;
       invalidCredentials: string;
+      network: string;
     };
     logout: string;
     logoutSuccess: string;
-    demoAccountLabel: string;
   };
   common: {
     save: string;
