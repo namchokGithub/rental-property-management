@@ -29,7 +29,7 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0
 
 export function BillingPage() {
   const { t, language } = useLanguage();
-  const { records, createBilling, updateBilling, deleteBilling } = useBillingRecords();
+  const { records, isLoading, createBilling, updateBilling, deleteBilling } = useBillingRecords();
   const { rooms } = useRooms();
   const { tenants } = useTenants();
   const { assignments } = useAssignments();
@@ -123,17 +123,35 @@ export function BillingPage() {
     });
   }
 
-  function handleBulkIssue() {
+  async function handleBulkIssue() {
     const ids = [...effectiveSelectedIds];
     if (ids.length === 0) return;
-    for (const id of ids) {
-      updateBilling(id, { status: "issued" });
+    // MUST stay sequential (for...of + await, not Promise.all): each
+    // transactional issuance reads the freshest "existing records for this
+    // month" state, so one issuance's write must commit before the next one
+    // reads — firing them concurrently would defeat that guarantee. Stops at
+    // the first failure rather than continuing past it, and only clears the
+    // ids that actually succeeded so a partial batch isn't misreported as
+    // fully issued.
+    const issuedIds: string[] = [];
+    try {
+      for (const id of ids) {
+        await updateBilling(id, { status: "issued" });
+        issuedIds.push(id);
+      }
+      toast.success(t("billing.bulkIssuedToast", { count: issuedIds.length }));
+    } catch {
+      toast.error(t("common.actionFailed"));
+    } finally {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        issuedIds.forEach((id) => next.delete(id));
+        return next;
+      });
     }
-    toast.success(t("billing.bulkIssuedToast", { count: ids.length }));
-    setSelectedIds(new Set());
   }
 
-  if (!settings) return <PageSpinner />;
+  if (isLoading || !settings) return <PageSpinner />;
 
   return (
     <div className="space-y-6">
@@ -242,13 +260,21 @@ export function BillingPage() {
                 setFormOpen(true);
               }}
               onDelete={setDeletingRecord}
-              onIssue={(record) => {
-                const updated = updateBilling(record.id, { status: "issued" });
-                toast.success(t("billing.issuedToast", { invoiceNumber: updated.invoiceNumber ?? "" }));
+              onIssue={async (record) => {
+                try {
+                  const { invoiceNumber } = await updateBilling(record.id, { status: "issued" });
+                  toast.success(t("billing.issuedToast", { invoiceNumber: invoiceNumber ?? "" }));
+                } catch {
+                  toast.error(t("common.actionFailed"));
+                }
               }}
-              onMarkPaid={(record) => {
-                updateBilling(record.id, { status: "paid" });
-                toast.success(t("billing.paidToast"));
+              onMarkPaid={async (record) => {
+                try {
+                  await updateBilling(record.id, { status: "paid" });
+                  toast.success(t("billing.paidToast"));
+                } catch {
+                  toast.error(t("common.actionFailed"));
+                }
               }}
               selectedIds={effectiveSelectedIds}
               onToggleRecord={toggleRecord}
@@ -269,13 +295,7 @@ export function BillingPage() {
         otherCharges={otherCharges}
         record={editingRecord}
         getLatestByRoomId={getLatestByRoomId}
-        onSubmit={(input) => {
-          if (editingRecord) {
-            updateBilling(editingRecord.id, input);
-          } else {
-            createBilling(input);
-          }
-        }}
+        onSubmit={(input) => (editingRecord ? updateBilling(editingRecord.id, input) : createBilling(input))}
       />
 
       <ConfirmDialog
@@ -287,11 +307,15 @@ export function BillingPage() {
         })}
         confirmLabel={t("common.delete")}
         destructive
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!deletingRecord) return;
-          deleteBilling(deletingRecord.id);
-          toast.success(t("billing.deletedToast"));
-          setDeletingRecord(undefined);
+          try {
+            await deleteBilling(deletingRecord.id);
+            toast.success(t("billing.deletedToast"));
+            setDeletingRecord(undefined);
+          } catch {
+            toast.error(t("common.actionFailed"));
+          }
         }}
       />
     </div>

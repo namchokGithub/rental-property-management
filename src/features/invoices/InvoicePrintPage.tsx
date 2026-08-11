@@ -2,11 +2,11 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { ArrowLeft, Printer, CheckCircle2 } from "lucide-react";
-import { billingRepository } from "@/data/repositories/billingRepository";
 import { PageSpinner } from "@/components/common/PageSpinner";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import { InvoicePrintView } from "@/features/invoices/InvoicePrintView";
+import { useBillingRecords } from "@/hooks/useBillingRecords";
 import { useSettings } from "@/hooks/useSettings";
 import { useRooms } from "@/hooks/useRooms";
 import { useTenants } from "@/hooks/useTenants";
@@ -17,10 +17,15 @@ export function InvoicePrintPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useLanguage();
-  const [record, setRecord] = useState(() => (id ? billingRepository.getById(id) : undefined));
+  const { records, isLoading: billingLoading, updateBilling } = useBillingRecords();
   const { settings, isLoading: settingsLoading } = useSettings();
   const { rooms, isLoading: roomsLoading } = useRooms();
   const { tenants, isLoading: tenantsLoading } = useTenants();
+  const [isMarkingPaid, setIsMarkingPaid] = useState(false);
+
+  if (billingLoading || settingsLoading || roomsLoading || tenantsLoading || !settings) return <PageSpinner />;
+
+  const record = id ? records.find((r) => r.id === id) : undefined;
 
   if (!record) {
     return (
@@ -32,8 +37,6 @@ export function InvoicePrintPage() {
       </div>
     );
   }
-
-  if (settingsLoading || roomsLoading || tenantsLoading || !settings) return <PageSpinner />;
 
   const room = rooms.find((r) => r.id === record.roomId);
   const tenant = record.tenantId ? tenants.find((tn) => tn.id === record.tenantId) : undefined;
@@ -54,10 +57,17 @@ export function InvoicePrintPage() {
           {(status === "issued" || status === "overdue") && (
             <Button
               variant="outline"
-              onClick={() => {
-                const updated = billingRepository.update(record.id, { status: "paid" });
-                setRecord(updated);
-                toast.success(t("invoice.paidToast"));
+              disabled={isMarkingPaid}
+              onClick={async () => {
+                setIsMarkingPaid(true);
+                try {
+                  await updateBilling(record.id, { status: "paid" });
+                  toast.success(t("invoice.paidToast"));
+                } catch {
+                  toast.error(t("common.actionFailed"));
+                } finally {
+                  setIsMarkingPaid(false);
+                }
               }}
             >
               <CheckCircle2 className="h-4 w-4" /> {t("invoice.markAsPaid")}

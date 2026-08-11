@@ -1,99 +1,253 @@
-import { readCollection, writeCollection, STORAGE_KEYS } from "@/data/storage/storage";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  query,
+  runTransaction,
+  serverTimestamp,
+  where,
+  type Timestamp,
+  type Transaction,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { calculateMeterReading, calculateBillingTotals } from "@/lib/calculations";
 import { generateInvoiceNumber } from "@/lib/invoice";
-import type { BillingRecord, CreateBillingInput, UpdateBillingInput, BillingCharge } from "@/types/billing";
+import { isoToTimestamp } from "@/data/repositories/converters/timestamp";
+import type {
+  BillingCharge,
+  BillingRecord,
+  BillingStatus,
+  CreateBillingInput,
+  MeterReading,
+  UpdateBillingInput,
+} from "@/types/billing";
 
-function all(): BillingRecord[] {
-  return readCollection<BillingRecord>(STORAGE_KEYS.billing);
+// Firestore rejects writes containing an `undefined` field value (the client
+// is initialized without `ignoreUndefinedProperties`). Optional input fields
+// are commonly built as `value || undefined` by the forms, so every write
+// needs this first. `billingRepository.ts` needs bespoke transactions, so it
+// doesn't build on `firestoreCrud.ts`'s factory — this is the same 2-line
+// utility duplicated locally rather than exporting that file's private
+// helper just to save a few lines (YAGNI).
+function stripUndefined(input: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
 }
 
-function buildCharges(input: Omit<BillingCharge, "id">[]): BillingCharge[] {
-  return input.map((c) => ({ ...c, id: crypto.randomUUID() }));
+function billingDocId(roomId: string, billingMonth: string): string {
+  return `${roomId}_${billingMonth}`;
 }
 
-function computeRecord(input: CreateBillingInput, id: string, now: string): BillingRecord {
-  const electricity = calculateMeterReading(input.electricityPreviousMeter, input.electricityCurrentMeter, input.electricityRate);
-  const water = calculateMeterReading(input.waterPreviousMeter, input.waterCurrentMeter, input.waterRate);
-  const otherCharges = buildCharges(input.otherCharges);
-  const totals = calculateBillingTotals({
-    electricityAmount: electricity.amount,
-    waterAmount: water.amount,
-    rentAmount: input.rentAmount,
-    otherCharges,
-  });
-  const status = input.status ?? "draft";
-  return {
-    id,
-    roomId: input.roomId,
-    tenantId: input.tenantId,
-    billingMonth: input.billingMonth,
-    electricity,
-    water,
-    rentAmount: input.rentAmount,
-    otherCharges,
-    subtotal: totals.subtotal,
-    total: totals.total,
-    status,
-    invoiceNumber: status === "issued" ? generateInvoiceNumber(input.billingMonth, all()) : undefined,
-    issuedAt: status === "issued" ? now : undefined,
-    dueDate: input.dueDate,
-    createdAt: now,
-    updatedAt: now,
-  };
+function billingCollectionRef(propertyId: string) {
+  return collection(db, "properties", propertyId, "billing");
+}
+
+function billingRef(propertyId: string, roomId: string, billingMonth: string) {
+  return doc(billingCollectionRef(propertyId), billingDocId(roomId, billingMonth));
+}
+
+// Every form submission sends `otherCharges` without ids (`Omit<BillingCharge,
+// "id">[]`) since `BillingFormDialog` never round-trips the master-charge ids
+// as `BillingCharge.id` — mirrors the pre-Firestore repository's
+// `buildCharges()`, which also assigned a fresh id on every write.
+function withChargeIds(charges: Omit<BillingCharge, "id">[]): BillingCharge[] {
+  return charges.map((c) => ({ ...c, id: crypto.randomUUID() }));
+}
+
+/**
+ * Assigns the next sequence number for `billingMonth`, reading the freshest
+ * server state from inside the caller's transaction. Same logic
+ * `generateInvoiceNumber()` always ran (untouched, reused as-is) — the only
+ * change is *where* "existing records for this month" comes from.
+ *
+ * Adaptation from the naive "just query inside the transaction" idea: the
+ * web client SDK's `Transaction.get()` only accepts a `DocumentReference` —
+ * there's no `transaction.get(query)` overload (same missing-overload
+ * constraint `assignmentRepository.ts` documents) — so the month's sibling
+ * docs are first discovered via a plain `getDocs()` query, exactly like
+ * `assignmentRepository.endByRoomId()` does for its active-assignment
+ * lookup. The part that actually matters for correctness: every sibling
+ * found is then re-read via `transaction.get(ref)`, pulling it into this
+ * transaction's tracked read-set. Two concurrent issuances for the same
+ * property+month each end up transactionally reading every *other* bill in
+ * that month (including each other's target doc) — so whichever commits
+ * first bumps a version the other already read, and Firestore aborts and
+ * retries the loser, which then re-executes this whole function, re-reads,
+ * and sees the winner's already-committed `invoiceNumber`. Without this
+ * re-read step, two different documents being issued concurrently would each
+ * only be tracked via their own `ref` and Firestore would never detect the
+ * conflict, silently allowing duplicate invoice numbers.
+ *
+ * `.data() as BillingRecord` below is a deliberate bare cast, not run
+ * through a converter: `generateInvoiceNumber`/its
+ * `.filter((record) => record.invoiceNumber)` only ever touch
+ * `invoiceNumber` (a plain string/null field, never a Timestamp), so the
+ * cast is safe here specifically. Don't copy this line as a general pattern
+ * elsewhere — Timestamp-bearing fields on this same raw data would need the
+ * real converter.
+ */
+async function nextInvoiceNumber(
+  transaction: Transaction,
+  propertyId: string,
+  billingMonth: string,
+): Promise<string> {
+  const monthQuery = await getDocs(query(billingCollectionRef(propertyId), where("billingMonth", "==", billingMonth)));
+  const siblingSnapshots = await Promise.all(monthQuery.docs.map((d) => transaction.get(d.ref)));
+  const existingForMonth = siblingSnapshots
+    .filter((s) => s.exists())
+    .map((s) => s.data() as BillingRecord)
+    .filter((record) => record.invoiceNumber);
+  return generateInvoiceNumber(billingMonth, existingForMonth);
+}
+
+// Raw Firestore data as read inside a transaction: date fields are
+// Timestamps here, not the ISO strings `BillingRecord` declares. Fine for
+// this module's own use below (only ever round-tripped Timestamp-to-Timestamp,
+// or read as plain strings/numbers) but this shape must never be cast to
+// `BillingRecord` and handed to a caller — that mistake is exactly Task 3's
+// Important finding.
+interface RawBillingDoc {
+  status: BillingStatus;
+  billingMonth: string;
+  invoiceNumber: string | null;
+  electricity: MeterReading;
+  water: MeterReading;
+  otherCharges: BillingCharge[];
+  rentAmount: number;
+  issuedAt: Timestamp | null;
+  paidAt: Timestamp | null;
 }
 
 export const billingRepository = {
-  getAll(): BillingRecord[] {
-    return all();
+  async create(propertyId: string, input: CreateBillingInput): Promise<string> {
+    const id = billingDocId(input.roomId, input.billingMonth);
+    const electricity = calculateMeterReading(
+      input.electricityPreviousMeter,
+      input.electricityCurrentMeter,
+      input.electricityRate,
+    );
+    const water = calculateMeterReading(input.waterPreviousMeter, input.waterCurrentMeter, input.waterRate);
+    const otherCharges = withChargeIds(input.otherCharges);
+    const totals = calculateBillingTotals({
+      electricityAmount: electricity.amount,
+      waterAmount: water.amount,
+      rentAmount: input.rentAmount,
+      otherCharges,
+    });
+    // The create form's status selector allows submitting a bill already
+    // `"issued"` (not just draft-then-issue), matching the pre-Firestore
+    // repository's behavior — so this path can also need a fresh invoice
+    // number, via the same transactional helper `update()` uses below.
+    const status: BillingStatus = input.status ?? "draft";
+
+    await runTransaction(db, async (transaction) => {
+      const ref = billingRef(propertyId, input.roomId, input.billingMonth);
+      const existing = await transaction.get(ref);
+      if (existing.exists()) {
+        throw new Error("A bill for this room and month already exists");
+      }
+      const invoiceNumber =
+        status === "issued" ? await nextInvoiceNumber(transaction, propertyId, input.billingMonth) : null;
+      transaction.set(ref, {
+        ...stripUndefined({ tenantId: input.tenantId }),
+        roomId: input.roomId,
+        billingMonth: input.billingMonth,
+        electricity,
+        water,
+        rentAmount: input.rentAmount,
+        otherCharges,
+        ...totals,
+        // Set explicitly, overriding whatever raw string
+        // `stripUndefined(input)` would otherwise have left in place — always
+        // stored as a proper `Timestamp`, consistent with
+        // issuedAt/paidAt/createdAt/updatedAt.
+        dueDate: input.dueDate ? isoToTimestamp(input.dueDate) : null,
+        status,
+        invoiceNumber,
+        issuedAt: status === "issued" ? serverTimestamp() : null,
+        paidAt: null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    });
+    return id;
   },
-  getById(id: string): BillingRecord | undefined {
-    return all().find((b) => b.id === id);
+
+  async update(propertyId: string, id: string, input: UpdateBillingInput): Promise<{ invoiceNumber: string | null }> {
+    const ref = doc(billingCollectionRef(propertyId), id);
+    return runTransaction(db, async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      if (!snapshot.exists()) throw new Error("Billing record not found");
+      const currentRaw = snapshot.data() as RawBillingDoc;
+
+      const willIssueNow = input.status === "issued" && currentRaw.status !== "issued";
+      const willMarkPaidNow = input.status === "paid" && currentRaw.status !== "paid";
+
+      const invoiceNumber = willIssueNow
+        ? await nextInvoiceNumber(transaction, propertyId, currentRaw.billingMonth)
+        : (currentRaw.invoiceNumber ?? null);
+
+      // `UpdateBillingInput` doubles as both a full-form edit (every meter
+      // field present) and a status-only patch (`{ status: "issued" }` from
+      // the table's Issue/Mark Paid actions) — only recompute a reading when
+      // at least one of its three inputs was actually provided, otherwise
+      // keep the record's existing reading untouched.
+      const touchesElectricity =
+        input.electricityPreviousMeter !== undefined ||
+        input.electricityCurrentMeter !== undefined ||
+        input.electricityRate !== undefined;
+      const electricity = touchesElectricity
+        ? calculateMeterReading(
+            input.electricityPreviousMeter ?? currentRaw.electricity.previousMeter,
+            input.electricityCurrentMeter ?? currentRaw.electricity.currentMeter,
+            input.electricityRate ?? currentRaw.electricity.rate,
+          )
+        : currentRaw.electricity;
+
+      const touchesWater =
+        input.waterPreviousMeter !== undefined ||
+        input.waterCurrentMeter !== undefined ||
+        input.waterRate !== undefined;
+      const water = touchesWater
+        ? calculateMeterReading(
+            input.waterPreviousMeter ?? currentRaw.water.previousMeter,
+            input.waterCurrentMeter ?? currentRaw.water.currentMeter,
+            input.waterRate ?? currentRaw.water.rate,
+          )
+        : currentRaw.water;
+
+      const otherCharges = input.otherCharges ? withChargeIds(input.otherCharges) : currentRaw.otherCharges;
+      const rentAmount = input.rentAmount ?? currentRaw.rentAmount;
+      const totals = calculateBillingTotals({
+        electricityAmount: electricity.amount,
+        waterAmount: water.amount,
+        rentAmount,
+        otherCharges,
+      });
+
+      transaction.update(ref, {
+        ...stripUndefined({
+          roomId: input.roomId,
+          tenantId: input.tenantId,
+          billingMonth: input.billingMonth,
+          status: input.status,
+        }),
+        electricity,
+        water,
+        rentAmount,
+        otherCharges,
+        ...totals,
+        invoiceNumber,
+        ...(input.dueDate !== undefined ? { dueDate: isoToTimestamp(input.dueDate) } : {}),
+        issuedAt: willIssueNow ? serverTimestamp() : (currentRaw.issuedAt ?? null),
+        paidAt: willMarkPaidNow ? serverTimestamp() : (currentRaw.paidAt ?? null),
+        updatedAt: serverTimestamp(),
+      });
+      return { invoiceNumber };
+    });
   },
-  getByRoomId(roomId: string): BillingRecord[] {
-    return all().filter((b) => b.roomId === roomId);
-  },
-  create(input: CreateBillingInput): BillingRecord {
-    const now = new Date().toISOString();
-    const record = computeRecord(input, crypto.randomUUID(), now);
-    writeCollection(STORAGE_KEYS.billing, [...all(), record]);
-    return record;
-  },
-  update(id: string, input: UpdateBillingInput): BillingRecord {
-    const records = all();
-    const index = records.findIndex((b) => b.id === id);
-    if (index === -1) throw new Error(`Billing record ${id} not found`);
-    const existing = records[index];
-    const merged: CreateBillingInput = {
-      roomId: input.roomId ?? existing.roomId,
-      tenantId: input.tenantId ?? existing.tenantId,
-      billingMonth: input.billingMonth ?? existing.billingMonth,
-      electricityPreviousMeter: input.electricityPreviousMeter ?? existing.electricity.previousMeter,
-      electricityCurrentMeter: input.electricityCurrentMeter ?? existing.electricity.currentMeter,
-      electricityRate: input.electricityRate ?? existing.electricity.rate,
-      waterPreviousMeter: input.waterPreviousMeter ?? existing.water.previousMeter,
-      waterCurrentMeter: input.waterCurrentMeter ?? existing.water.currentMeter,
-      waterRate: input.waterRate ?? existing.water.rate,
-      rentAmount: input.rentAmount ?? existing.rentAmount,
-      otherCharges: input.otherCharges ?? existing.otherCharges,
-      dueDate: input.dueDate ?? existing.dueDate,
-      status: input.status ?? existing.status,
-    };
-    const recomputed = computeRecord(merged, existing.id, existing.createdAt);
-    const wasIssuedNow = existing.status !== "issued" && recomputed.status === "issued";
-    const updated: BillingRecord = {
-      ...recomputed,
-      invoiceNumber: wasIssuedNow
-        ? generateInvoiceNumber(merged.billingMonth, all().filter((b) => b.id !== id))
-        : (existing.invoiceNumber ?? recomputed.invoiceNumber),
-      issuedAt: wasIssuedNow ? new Date().toISOString() : existing.issuedAt,
-      paidAt: recomputed.status === "paid" ? (existing.paidAt ?? new Date().toISOString()) : existing.paidAt,
-      updatedAt: new Date().toISOString(),
-    };
-    records[index] = updated;
-    writeCollection(STORAGE_KEYS.billing, records);
-    return updated;
-  },
-  delete(id: string): void {
-    writeCollection(STORAGE_KEYS.billing, all().filter((b) => b.id !== id));
+
+  async delete(propertyId: string, id: string): Promise<void> {
+    await deleteDoc(doc(billingCollectionRef(propertyId), id));
   },
 };

@@ -15,8 +15,8 @@ import { AssignTenantDialog } from "@/features/assignments/AssignTenantDialog";
 import { useRooms } from "@/hooks/useRooms";
 import { useTenants } from "@/hooks/useTenants";
 import { useAssignments } from "@/hooks/useAssignments";
+import { useBillingRecords } from "@/hooks/useBillingRecords";
 import { useLanguage } from "@/i18n";
-import { billingRepository } from "@/data/repositories/billingRepository";
 import { RoomHasActiveAssignmentError } from "@/data/repositories/roomRepository";
 import { matchesSearch } from "@/lib/search";
 import type { Room, RoomStatus } from "@/types/room";
@@ -32,6 +32,7 @@ export function RoomsPage() {
   const { rooms, isLoading, createRoom, updateRoom, deleteRoom } = useRooms();
   const { tenants } = useTenants();
   const { assignments, assignTenant, endTenancyByRoomId, getActiveByTenantId } = useAssignments();
+  const { records: billingRecords } = useBillingRecords();
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | undefined>(undefined);
@@ -61,7 +62,7 @@ export function RoomsPage() {
 
   const detailAssignment = detailRoom ? activeAssignmentByRoomId.get(detailRoom.id) : undefined;
   const detailTenant = detailAssignment ? tenants.find((t) => t.id === detailAssignment.tenantId) : undefined;
-  const detailBillingHistory = detailRoom ? billingRepository.getByRoomId(detailRoom.id) : [];
+  const detailBillingHistory = detailRoom ? billingRecords.filter((r) => r.roomId === detailRoom.id) : [];
 
   const availableTenants = tenants.filter((t) => t.status === "active" && !getActiveByTenantId(t.id));
 

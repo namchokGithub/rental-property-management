@@ -30,7 +30,7 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0
 
 export function InvoicesPage() {
   const { t, language } = useLanguage();
-  const { records, updateBilling } = useBillingRecords();
+  const { records, isLoading, updateBilling } = useBillingRecords();
   const { rooms } = useRooms();
   const { tenants } = useTenants();
   const { settings } = useSettings();
@@ -87,13 +87,17 @@ export function InvoicesPage() {
     [invoices, searchQuery, monthFilter, yearFilter, roomById, tenantById, language]
   );
 
-  function markPaid(record: BillingRecord) {
-    updateBilling(record.id, { status: "paid" });
-    toast.success(t("invoice.paidToast"));
-    setPreviewRecord(undefined);
+  async function markPaid(record: BillingRecord) {
+    try {
+      await updateBilling(record.id, { status: "paid" });
+      toast.success(t("invoice.paidToast"));
+      setPreviewRecord(undefined);
+    } catch {
+      toast.error(t("common.actionFailed"));
+    }
   }
 
-  if (!settings) return <PageSpinner />;
+  if (isLoading || !settings) return <PageSpinner />;
 
   return (
     <div className="space-y-6">

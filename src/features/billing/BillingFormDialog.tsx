@@ -37,7 +37,7 @@ interface BillingFormDialogProps {
   otherCharges: OtherChargeMaster[];
   record?: BillingRecord;
   getLatestByRoomId: (roomId: string) => BillingRecord | undefined;
-  onSubmit: (input: CreateBillingInput) => void;
+  onSubmit: (input: CreateBillingInput) => Promise<unknown>;
 }
 
 interface ChargeRow {
@@ -140,6 +140,7 @@ export function BillingFormDialog({
     buildFormState({ record, settings, otherChargeMasters: otherCharges, language })
   );
   const [errors, setErrors] = useState<ValidationErrors>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -230,7 +231,9 @@ export function BillingFormDialog({
     otherCharges: chargesPreview,
   });
 
-  function handleSubmit() {
+  async function handleSubmit() {
+    if (isSubmitting) return;
+
     const input: CreateBillingInput = {
       roomId: form.roomId,
       tenantId: form.tenantId || undefined,
@@ -253,9 +256,16 @@ export function BillingFormDialog({
       setErrors(validationErrors);
       return;
     }
-    onSubmit(input);
-    toast.success(record ? t("billing.updatedToast") : t("billing.createdToast"));
-    onOpenChange(false);
+    setIsSubmitting(true);
+    try {
+      await onSubmit(input);
+      toast.success(record ? t("billing.updatedToast") : t("billing.createdToast"));
+      onOpenChange(false);
+    } catch {
+      toast.error(t("common.actionFailed"));
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -526,10 +536,12 @@ export function BillingFormDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             {t("common.cancel")}
           </Button>
-          <Button onClick={handleSubmit}>{record ? t("common.saveChanges") : t("billing.createBilling")}</Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting}>
+            {record ? t("common.saveChanges") : t("billing.createBilling")}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
