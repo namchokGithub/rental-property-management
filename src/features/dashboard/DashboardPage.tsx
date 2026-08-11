@@ -151,7 +151,7 @@ export function DashboardPage() {
                     return (
                       <TableRow key={record.id}>
                         <TableCell>{room?.roomNumber ?? "—"}</TableCell>
-                        <TableCell>{tenant ? `${tenant.firstName} ${tenant.lastName}` : "—"}</TableCell>
+                        <TableCell>{tenant ? tenant.name : "—"}</TableCell>
                         <TableCell>{formatBillingMonth(record.billingMonth, language)}</TableCell>
                         <TableCell>{formatCurrency(record.total, language)}</TableCell>
                         <TableCell>

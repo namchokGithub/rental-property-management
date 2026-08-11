@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { SearchInput } from "@/components/common/SearchInput";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InvoicePreviewDialog } from "@/features/invoices/InvoicePreviewDialog";
 import { useBillingRecords } from "@/hooks/useBillingRecords";
 import { useRooms } from "@/hooks/useRooms";
@@ -17,12 +18,14 @@ import { useTenants } from "@/hooks/useTenants";
 import { useSettings } from "@/hooks/useSettings";
 import { useLanguage } from "@/i18n";
 import { formatCurrency } from "@/lib/currency";
-import { formatBillingMonth, formatDate } from "@/lib/date";
+import { formatBillingMonth, formatDate, monthName, yearLabel } from "@/lib/date";
 import { resolveBillingStatus } from "@/lib/invoice";
 import { matchesSearch } from "@/lib/search";
 import type { BillingRecord } from "@/types/billing";
 import type { Room } from "@/types/room";
 import type { Tenant } from "@/types/tenant";
+
+const MONTHS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
 
 export function InvoicesPage() {
   const { t, language } = useLanguage();
@@ -34,6 +37,8 @@ export function InvoicesPage() {
 
   const [previewRecord, setPreviewRecord] = useState<BillingRecord | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState("");
+  const [monthFilter, setMonthFilter] = useState<string>("all");
+  const [yearFilter, setYearFilter] = useState<string>("all");
 
   const roomById = useMemo(() => {
     const map: Record<string, Room> = {};
@@ -55,20 +60,30 @@ export function InvoicesPage() {
     [records]
   );
 
+  const availableYears = useMemo(
+    () => Array.from(new Set(invoices.map((r) => r.billingMonth.slice(0, 4)))).sort((a, b) => b.localeCompare(a)),
+    [invoices]
+  );
+
   const filteredInvoices = useMemo(
     () =>
-      invoices.filter((record) => {
-        const room = roomById[record.roomId];
-        const tenant = record.tenantId ? tenantById[record.tenantId] : undefined;
-        return matchesSearch(
-          searchQuery,
-          record.invoiceNumber,
-          room?.roomNumber,
-          tenant ? `${tenant.firstName} ${tenant.lastName}` : undefined,
-          formatBillingMonth(record.billingMonth, language)
-        );
-      }),
-    [invoices, searchQuery, roomById, tenantById, language]
+      invoices
+        .filter((record) => {
+          const [year, month] = record.billingMonth.split("-");
+          return (yearFilter === "all" || year === yearFilter) && (monthFilter === "all" || month === monthFilter);
+        })
+        .filter((record) => {
+          const room = roomById[record.roomId];
+          const tenant = record.tenantId ? tenantById[record.tenantId] : undefined;
+          return matchesSearch(
+            searchQuery,
+            record.invoiceNumber,
+            room?.roomNumber,
+            tenant ? tenant.name : undefined,
+            formatBillingMonth(record.billingMonth, language)
+          );
+        }),
+    [invoices, searchQuery, monthFilter, yearFilter, roomById, tenantById, language]
   );
 
   function markPaid(record: BillingRecord) {
@@ -91,19 +106,51 @@ export function InvoicesPage() {
         />
       ) : (
         <>
-          <SearchInput
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder={t("common.search")}
-            className="w-full sm:max-w-sm"
-          />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <SearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder={t("common.search")}
+              className="w-full sm:max-w-sm"
+            />
+            <Select value={monthFilter} onValueChange={setMonthFilter}>
+              <SelectTrigger className="w-full sm:w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("common.allMonths")}</SelectItem>
+                {MONTHS.map((month) => (
+                  <SelectItem key={month} value={month}>
+                    {monthName(Number(month), language)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={yearFilter} onValueChange={setYearFilter}>
+              <SelectTrigger className="w-full sm:w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("common.allYears")}</SelectItem>
+                {availableYears.map((year) => (
+                  <SelectItem key={year} value={year}>
+                    {yearLabel(Number(year), language)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           {filteredInvoices.length === 0 ? (
             <EmptyState
               icon={Search}
               title={t("common.noResultsTitle")}
               description={t("common.noResultsDescription", { query: searchQuery })}
               actionLabel={t("common.clearSearch")}
-              onAction={() => setSearchQuery("")}
+              onAction={() => {
+                setSearchQuery("");
+                setMonthFilter("all");
+                setYearFilter("all");
+              }}
             />
           ) : (
             <>
@@ -131,7 +178,7 @@ export function InvoicesPage() {
                     <TableRow key={record.id}>
                       <TableCell className="font-medium">{record.invoiceNumber}</TableCell>
                       <TableCell>{room?.roomNumber ?? "—"}</TableCell>
-                      <TableCell>{tenant ? `${tenant.firstName} ${tenant.lastName}` : "—"}</TableCell>
+                      <TableCell>{tenant ? tenant.name : "—"}</TableCell>
                       <TableCell>{formatBillingMonth(record.billingMonth, language)}</TableCell>
                       <TableCell>{record.issuedAt ? formatDate(record.issuedAt, language) : "—"}</TableCell>
                       <TableCell>{record.dueDate ? formatDate(record.dueDate, language) : "—"}</TableCell>
@@ -198,7 +245,7 @@ export function InvoicesPage() {
                         <p className="text-sm text-muted-foreground">
                           {t("invoice.mobileCardSubtitle", {
                             roomNumber: room?.roomNumber ?? "—",
-                            tenant: tenant ? `${tenant.firstName} ${tenant.lastName}` : t("common.noTenant"),
+                            tenant: tenant ? tenant.name : t("common.noTenant"),
                           })}
                         </p>
                       </div>

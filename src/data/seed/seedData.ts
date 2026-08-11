@@ -23,10 +23,10 @@ export function seedIfEmpty(): void {
   ];
 
   const tenants = [
-    tenantRepository.create({ firstName: "Somchai", lastName: "Jaidee", phone: "081-111-2222", email: "somchai@example.com" }),
-    tenantRepository.create({ firstName: "Nari", lastName: "Suksawat", phone: "082-222-3333", email: "nari@example.com" }),
-    tenantRepository.create({ firstName: "Kittipong", lastName: "Rattana", phone: "083-333-4444" }),
-    tenantRepository.create({ firstName: "Ploy", lastName: "Wongsa", phone: "084-444-5555", status: "inactive" }),
+    tenantRepository.create({ name: "Somchai Jaidee", phone: "081-111-2222", email: "somchai@example.com" }),
+    tenantRepository.create({ name: "Nari Suksawat", phone: "082-222-3333", email: "nari@example.com" }),
+    tenantRepository.create({ name: "Kittipong Rattana", phone: "083-333-4444" }),
+    tenantRepository.create({ name: "Ploy Wongsa", phone: "084-444-5555", status: "inactive" }),
   ];
 
   assignmentRepository.assign({ roomId: rooms[1].id, tenantId: tenants[0].id, startDate: "2026-05-01" });

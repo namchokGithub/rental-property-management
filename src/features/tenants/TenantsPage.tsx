@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { SearchInput } from "@/components/common/SearchInput";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TenantTable } from "@/features/tenants/TenantTable";
 import { TenantFormDialog } from "@/features/tenants/TenantFormDialog";
 import { TenantDetailSheet } from "@/features/tenants/TenantDetailSheet";
@@ -15,8 +16,10 @@ import { useRooms } from "@/hooks/useRooms";
 import { useAssignments } from "@/hooks/useAssignments";
 import { useLanguage } from "@/i18n";
 import { matchesSearch } from "@/lib/search";
-import type { Tenant } from "@/types/tenant";
+import type { Tenant, TenantStatus } from "@/types/tenant";
 import type { RoomTenantAssignment } from "@/types/assignment";
+
+const TENANT_STATUSES: TenantStatus[] = ["active", "inactive"];
 
 export function TenantsPage() {
   const { t } = useLanguage();
@@ -30,6 +33,7 @@ export function TenantsPage() {
   const [deletingTenant, setDeletingTenant] = useState<Tenant | undefined>(undefined);
   const [assigningTenant, setAssigningTenant] = useState<Tenant | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<TenantStatus | "all">("all");
 
   const activeAssignmentByTenantId = useMemo(() => {
     const map: Record<string, RoomTenantAssignment> = {};
@@ -52,12 +56,14 @@ export function TenantsPage() {
 
   const filteredTenants = useMemo(
     () =>
-      tenants.filter((tenant) => {
-        const assignment = activeAssignmentByTenantId[tenant.id];
-        const room = assignment ? roomById[assignment.roomId] : undefined;
-        return matchesSearch(searchQuery, tenant.firstName, tenant.lastName, tenant.phone, room?.roomNumber);
-      }),
-    [tenants, searchQuery, activeAssignmentByTenantId, roomById]
+      tenants
+        .filter((tenant) => statusFilter === "all" || tenant.status === statusFilter)
+        .filter((tenant) => {
+          const assignment = activeAssignmentByTenantId[tenant.id];
+          const room = assignment ? roomById[assignment.roomId] : undefined;
+          return matchesSearch(searchQuery, tenant.name, tenant.phone, room?.roomNumber);
+        }),
+    [tenants, searchQuery, statusFilter, activeAssignmentByTenantId, roomById]
   );
 
   return (
@@ -90,19 +96,37 @@ export function TenantsPage() {
         />
       ) : (
         <>
-          <SearchInput
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder={t("common.search")}
-            className="w-full sm:max-w-sm"
-          />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <SearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder={t("common.search")}
+              className="w-full sm:max-w-sm"
+            />
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as TenantStatus | "all")}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("common.allStatuses")}</SelectItem>
+                {TENANT_STATUSES.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {t(`status.${status}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           {filteredTenants.length === 0 ? (
             <EmptyState
               icon={Search}
               title={t("common.noResultsTitle")}
               description={t("common.noResultsDescription", { query: searchQuery })}
               actionLabel={t("common.clearSearch")}
-              onAction={() => setSearchQuery("")}
+              onAction={() => {
+                setSearchQuery("");
+                setStatusFilter("all");
+              }}
             />
           ) : (
             <TenantTable
@@ -164,7 +188,7 @@ export function TenantsPage() {
         open={deletingTenant !== undefined}
         onOpenChange={(open) => !open && setDeletingTenant(undefined)}
         title={t("tenant.deleteConfirmTitle", {
-          name: `${deletingTenant?.firstName ?? ""} ${deletingTenant?.lastName ?? ""}`,
+          name: deletingTenant?.name ?? "",
         })}
         description={t("tenant.deleteConfirmDescription")}
         confirmLabel={t("common.delete")}

@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { SearchInput } from "@/components/common/SearchInput";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RoomTable } from "@/features/rooms/RoomTable";
 import { RoomFormDialog } from "@/features/rooms/RoomFormDialog";
 import { RoomDetailSheet } from "@/features/rooms/RoomDetailSheet";
@@ -16,7 +17,9 @@ import { useAssignments } from "@/hooks/useAssignments";
 import { useLanguage } from "@/i18n";
 import { billingRepository } from "@/data/repositories/billingRepository";
 import { matchesSearch } from "@/lib/search";
-import type { Room } from "@/types/room";
+import type { Room, RoomStatus } from "@/types/room";
+
+const ROOM_STATUSES: RoomStatus[] = ["available", "occupied", "maintenance", "inactive"];
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -35,6 +38,7 @@ export function RoomsPage() {
   const [assigningRoom, setAssigningRoom] = useState<Room | undefined>(undefined);
   const [endingTenancyRoom, setEndingTenancyRoom] = useState<Room | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<RoomStatus | "all">("all");
 
   const activeAssignmentByRoomId = useMemo(() => {
     const map = new Map<string, (typeof assignments)[number]>();
@@ -48,7 +52,7 @@ export function RoomsPage() {
     const map: Record<string, string> = {};
     for (const [roomId, assignment] of activeAssignmentByRoomId) {
       const tenant = tenants.find((t) => t.id === assignment.tenantId);
-      if (tenant) map[roomId] = `${tenant.firstName} ${tenant.lastName}`;
+      if (tenant) map[roomId] = tenant.name;
     }
     return map;
   }, [activeAssignmentByRoomId, tenants]);
@@ -61,10 +65,12 @@ export function RoomsPage() {
 
   const filteredRooms = useMemo(
     () =>
-      rooms.filter((room) =>
-        matchesSearch(searchQuery, room.roomNumber, room.floor, room.type, tenantNameByRoomId[room.id])
-      ),
-    [rooms, searchQuery, tenantNameByRoomId]
+      rooms
+        .filter((room) => statusFilter === "all" || room.status === statusFilter)
+        .filter((room) =>
+          matchesSearch(searchQuery, room.roomNumber, room.floor, room.type, tenantNameByRoomId[room.id])
+        ),
+    [rooms, searchQuery, statusFilter, tenantNameByRoomId]
   );
 
   return (
@@ -97,19 +103,37 @@ export function RoomsPage() {
         />
       ) : (
         <>
-          <SearchInput
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder={t("common.search")}
-            className="w-full sm:max-w-sm"
-          />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <SearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder={t("common.search")}
+              className="w-full sm:max-w-sm"
+            />
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as RoomStatus | "all")}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t("common.allStatuses")}</SelectItem>
+                {ROOM_STATUSES.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {t(`status.${status}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           {filteredRooms.length === 0 ? (
             <EmptyState
               icon={Search}
               title={t("common.noResultsTitle")}
               description={t("common.noResultsDescription", { query: searchQuery })}
               actionLabel={t("common.clearSearch")}
-              onAction={() => setSearchQuery("")}
+              onAction={() => {
+                setSearchQuery("");
+                setStatusFilter("all");
+              }}
             />
           ) : (
             <RoomTable

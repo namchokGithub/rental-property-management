@@ -67,6 +67,15 @@ export function RoomFormDialog({ open, onOpenChange, room, onSubmit }: RoomFormD
     onOpenChange(next);
   }
 
+  function clearError(field: string) {
+    setErrors((prev) => {
+      if (!(field in prev)) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
+
   function handleSubmit() {
     const input: CreateRoomInput = {
       roomNumber: form.roomNumber.trim(),
@@ -102,7 +111,10 @@ export function RoomFormDialog({ open, onOpenChange, room, onSubmit }: RoomFormD
             <Input
               id="roomNumber"
               value={form.roomNumber}
-              onChange={(e) => setForm({ ...form, roomNumber: e.target.value })}
+              onChange={(e) => {
+                setForm({ ...form, roomNumber: e.target.value });
+                clearError("roomNumber");
+              }}
             />
             {errors.roomNumber && <p className="text-xs text-destructive">{t(errors.roomNumber)}</p>}
           </div>
@@ -133,10 +145,13 @@ export function RoomFormDialog({ open, onOpenChange, room, onSubmit }: RoomFormD
             <Label htmlFor="monthlyRent">{t("room.monthlyRent")}</Label>
             <Input
               id="monthlyRent"
-              type="number"
-              min={0}
+              type="text"
+              inputMode="decimal"
               value={form.monthlyRent}
-              onChange={(e) => setForm({ ...form, monthlyRent: e.target.value })}
+              onChange={(e) => {
+                setForm({ ...form, monthlyRent: e.target.value });
+                clearError("monthlyRent");
+              }}
             />
             {errors.monthlyRent && <p className="text-xs text-destructive">{t(errors.monthlyRent)}</p>}
           </div>
@@ -145,10 +160,13 @@ export function RoomFormDialog({ open, onOpenChange, room, onSubmit }: RoomFormD
             <Label htmlFor="electricityRate">{t("room.electricityRate")}</Label>
             <Input
               id="electricityRate"
-              type="number"
-              min={0}
+              type="text"
+              inputMode="decimal"
               value={form.electricityRate}
-              onChange={(e) => setForm({ ...form, electricityRate: e.target.value })}
+              onChange={(e) => {
+                setForm({ ...form, electricityRate: e.target.value });
+                clearError("electricityRate");
+              }}
             />
             {errors.electricityRate && <p className="text-xs text-destructive">{t(errors.electricityRate)}</p>}
           </div>
@@ -156,10 +174,13 @@ export function RoomFormDialog({ open, onOpenChange, room, onSubmit }: RoomFormD
             <Label htmlFor="waterRate">{t("room.waterRate")}</Label>
             <Input
               id="waterRate"
-              type="number"
-              min={0}
+              type="text"
+              inputMode="decimal"
               value={form.waterRate}
-              onChange={(e) => setForm({ ...form, waterRate: e.target.value })}
+              onChange={(e) => {
+                setForm({ ...form, waterRate: e.target.value });
+                clearError("waterRate");
+              }}
             />
             {errors.waterRate && <p className="text-xs text-destructive">{t(errors.waterRate)}</p>}
           </div>

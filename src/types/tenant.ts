@@ -15,7 +15,12 @@ export interface Tenant {
   updatedAt: string;
 }
 
-export type CreateTenantInput = Omit<Tenant, "id" | "createdAt" | "updatedAt" | "status"> & {
+export type CreateTenantInput = Omit<
+  Tenant,
+  "id" | "createdAt" | "updatedAt" | "status"
+> & {
   status?: TenantStatus;
 };
-export type UpdateTenantInput = Partial<Omit<Tenant, "id" | "createdAt" | "updatedAt">>;
+export type UpdateTenantInput = Partial<
+  Omit<Tenant, "id" | "createdAt" | "updatedAt">
+>;

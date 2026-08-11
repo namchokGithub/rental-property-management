@@ -50,7 +50,7 @@ export function TenantTable({
             return (
               <TableRow key={tenant.id}>
                 <TableCell className="font-medium">
-                  {tenant.firstName} {tenant.lastName}
+                  {tenant.name}
                 </TableCell>
                 <TableCell>{tenant.phone ?? "—"}</TableCell>
                 <TableCell>{room?.roomNumber ?? "—"}</TableCell>

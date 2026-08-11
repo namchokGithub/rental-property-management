@@ -67,7 +67,7 @@ export function RoomDetailSheet({ open, onOpenChange, room, tenant, assignment, 
               <dl className="grid grid-cols-2 gap-y-1 text-sm">
                 <dt className="text-muted-foreground">{t("common.name")}</dt>
                 <dd>
-                  {tenant.firstName} {tenant.lastName}
+                  {tenant.name}
                 </dd>
                 <dt className="text-muted-foreground">{t("common.phone")}</dt>
                 <dd>{tenant.phone ?? "—"}</dd>

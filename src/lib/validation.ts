@@ -15,8 +15,7 @@ export function validateRoom(input: Partial<CreateRoomInput & UpdateRoomInput>):
 
 export function validateTenant(input: Partial<CreateTenantInput & UpdateTenantInput>): ValidationErrors {
   const errors: ValidationErrors = {};
-  if (!input.firstName || input.firstName.trim() === "") errors.firstName = "validation.tenant.firstNameRequired";
-  if (!input.lastName || input.lastName.trim() === "") errors.lastName = "validation.tenant.lastNameRequired";
+  if (!input.name || input.name.trim() === "") errors.name = "validation.tenant.nameRequired";
   return errors;
 }
 

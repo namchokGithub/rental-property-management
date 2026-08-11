@@ -57,6 +57,11 @@ export interface Translations {
     noResultsTitle: string;
     noResultsDescription: string;
     clearSearch: string;
+    allStatuses: string;
+    allMonths: string;
+    allYears: string;
+    selectAll: string;
+    selectRow: string;
   };
   sidebar: {
     brand: string;
@@ -147,8 +152,7 @@ export interface Translations {
     editTenant: string;
     addTenantDescription: string;
     editTenantDescription: string;
-    firstName: string;
-    lastName: string;
+    name: string;
     identificationNumber: string;
     emergencyContactName: string;
     emergencyContactPhone: string;
@@ -213,19 +217,18 @@ export interface Translations {
     updatedToast: string;
     deletedToast: string;
     issuedToast: string;
+    bulkIssueSelected: string;
+    bulkIssuedToast: string;
     paidToast: string;
     deleteConfirmTitle: string;
     deleteConfirmDescription: string;
-    elecPrev: string;
-    elecCur: string;
-    elecUsage: string;
-    elecRate: string;
-    elecAmount: string;
-    waterPrev: string;
-    waterCur: string;
-    waterUsage: string;
-    waterRate: string;
-    waterAmount: string;
+    electricityGroup: string;
+    waterGroup: string;
+    meterPrev: string;
+    meterCur: string;
+    meterUsage: string;
+    meterRate: string;
+    meterAmount: string;
     rent: string;
     details: string;
     electricityDetailLine: string;
@@ -331,8 +334,7 @@ export interface Translations {
       waterRateNegative: string;
     };
     tenant: {
-      firstNameRequired: string;
-      lastNameRequired: string;
+      nameRequired: string;
     };
     billing: {
       roomRequired: string;
