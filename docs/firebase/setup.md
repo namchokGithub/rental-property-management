@@ -85,7 +85,7 @@ When both `import.meta.env.DEV` and this setting are true, `connectFirebaseEmula
 
 The emulator switch is ignored in production builds. A global connection marker prevents duplicate emulator connections during Vite hot-module replacement.
 
-Bootstrap a property/admin user against the emulators exactly the same way as a real project (README's [First-Time Setup](../../README.md#first-time-setup)), using the Emulator UI (`http://127.0.0.1:4001`) instead of the Firebase Console — create the Auth user under **Authentication**, then hand-write the `properties/{propertyId}/settings/general` and `users/{uid}` documents under **Firestore**. If Java isn't installed and the Firestore emulator won't start, see [emulator-troubleshooting.md](emulator-troubleshooting.md).
+Bootstrap a property/admin user against the emulators exactly the same way as a real project (README's [First-Time Setup](../../README.md#first-time-setup)), using the Emulator UI (`http://127.0.0.1:4001`) instead of the Firebase Console — create the Auth user under **Authentication**, then hand-write `properties/{propertyId}`, `properties/{propertyId}/settings/general`, and `users/{uid}` under **Firestore**. If Java isn't installed and the Firestore emulator won't start, see [emulator-troubleshooting.md](emulator-troubleshooting.md).
 
 ## Verification
 

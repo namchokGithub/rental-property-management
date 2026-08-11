@@ -1,8 +1,7 @@
 import { useCallback } from "react";
-import { useAuth } from "@/auth";
 import { useSettings } from "@/hooks/useSettings";
 import { otherChargeRepository } from "@/data/repositories/otherChargeRepository";
-import { getActivePropertyId } from "@/lib/activeProperty";
+import { useActivePropertyId } from "@/property";
 import type { CreateOtherChargeInput, UpdateOtherChargeInput } from "@/types/otherCharge";
 
 /**
@@ -12,8 +11,7 @@ import type { CreateOtherChargeInput, UpdateOtherChargeInput } from "@/types/oth
  * document listener already covers both.
  */
 export function useOtherCharges() {
-  const { user } = useAuth();
-  const propertyId = getActivePropertyId(user?.propertyIds ?? []);
+  const propertyId = useActivePropertyId();
   const { settings, isLoading } = useSettings();
   const otherCharges = settings?.otherChargeMasters ?? [];
 

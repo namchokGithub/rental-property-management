@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { useAuth } from "@/auth";
 import { settingsRepository } from "@/data/repositories/settingsRepository";
-import { getActivePropertyId } from "@/lib/activeProperty";
+import { useActivePropertyId } from "@/property";
 import type { PropertySettings } from "@/types/settings";
 
 export function useSettings() {
-  const { user } = useAuth();
-  const propertyId = getActivePropertyId(user?.propertyIds ?? []);
+  const propertyId = useActivePropertyId();
   const [settings, setSettings] = useState<PropertySettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 

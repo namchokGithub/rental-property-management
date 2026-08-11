@@ -76,6 +76,11 @@ export interface Translations {
   header: {
     openNavigation: string;
   };
+  property: {
+    select: string;
+    noneTitle: string;
+    noneDescription: string;
+  };
   status: {
     available: string;
     occupied: string;

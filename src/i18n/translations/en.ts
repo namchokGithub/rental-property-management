@@ -76,6 +76,11 @@ const en: Translations = {
   header: {
     openNavigation: "Open navigation",
   },
+  property: {
+    select: "Select property",
+    noneTitle: "No property available",
+    noneDescription: "Create a property document or add a property ID to this user's profile.",
+  },
   status: {
     available: "Available",
     occupied: "Occupied",

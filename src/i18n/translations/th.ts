@@ -76,6 +76,11 @@ const th: Translations = {
   header: {
     openNavigation: "เปิดเมนูนำทาง",
   },
+  property: {
+    select: "เลือกทรัพย์สิน",
+    noneTitle: "ไม่พบทรัพย์สินที่ใช้งานได้",
+    noneDescription: "สร้างข้อมูลทรัพย์สิน หรือเพิ่มรหัสทรัพย์สินในโปรไฟล์ผู้ใช้นี้",
+  },
   status: {
     available: "ว่าง",
     occupied: "มีผู้เช่า",

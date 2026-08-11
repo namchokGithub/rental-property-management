@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { useAuth } from "@/auth";
 import { roomRepository } from "@/data/repositories/roomRepository";
-import { getActivePropertyId } from "@/lib/activeProperty";
+import { useActivePropertyId } from "@/property";
 import type { Room, CreateRoomInput, UpdateRoomInput } from "@/types/room";
 
 export function useRooms() {
-  const { user } = useAuth();
-  const propertyId = getActivePropertyId(user?.propertyIds ?? []);
+  const propertyId = useActivePropertyId();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 

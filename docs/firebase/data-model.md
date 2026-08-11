@@ -8,6 +8,7 @@ This describes the Firestore schema actually implemented and shipped by the dire
 
 ```text
 users/{uid}
+properties/{propertyId}
 properties/{propertyId}/settings/general
 properties/{propertyId}/rooms/{roomId}
 properties/{propertyId}/tenants/{tenantId}
@@ -19,7 +20,7 @@ properties/{propertyId}/billing/{roomId_billingMonth}
 
 There is no `invoices` collection and no `counters` collection. The Invoices page is a filtered view over `billing` records that have `invoiceNumber` set — this preserves the original pre-migration design decision (documented in [context.md](../../context.md)'s Domain Model section) that a separate Invoice entity is an unnecessary second source of truth for data `BillingRecord` already owns. Invoice numbering (`INV-YYYY-MM-NNN`) is computed inside the same transaction that issues a bill, by scanning that property/month's existing `billing` documents — see [Business rules](#business-rules) below.
 
-There is also no standalone `properties/{propertyId}` document with its own `name`/`address`/`phone` fields — nothing in the app reads or writes one. `propertyId` is purely a path segment; Firestore does not require an intermediate path segment to have its own document for a nested document (`properties/{propertyId}/settings/general`, etc.) to exist. Property identity fields (`propertyName`, `propertyAddress`, `phone`) live directly on `settings/general` instead, alongside the billing defaults — see below. (`firestore.rules` still has a `match /properties/{propertyId}` rule block for forward compatibility, in case a future feature reads/writes that path directly; it is simply never exercised by the current app.)
+Each `properties/{propertyId}` document is a property registry record used by the header's property selector. Its subcollections hold the business data. `admin` users can list and select every registered property; `staff` users can read only the individual property IDs in their profile's `propertyIds` array.
 
 ## Document models
 
@@ -30,14 +31,24 @@ There is also no standalone `properties/{propertyId}` document with its own `nam
 | `name` | `string` | |
 | `email` | `string` | Mirrors the Firebase Auth email; Firestore is still the profile source of truth for role/property access. |
 | `role` | `"admin" \| "staff"` | Only `admin` can write anywhere; `staff` can read everywhere they have property access. |
-| `propertyIds` | `string[]` | Properties this user may access. The UI has no property switcher yet, so it always uses `propertyIds[0]` (`src/lib/activeProperty.ts`). |
+| `propertyIds` | `string[]` | Staff may access only these properties. Admins may access every registered property; the array remains a default/fallback list for bootstrapping older properties. |
 | `isActive` | `boolean` | `false` disables access without deleting the Auth account — `AuthContext` treats an inactive or missing profile the same as "not authorized," leaving the user on the login screen even with a valid Firebase credential. |
 
 Written only by hand — see the README's [First-Time Setup](../../README.md#first-time-setup). No client code ever writes to `users/{uid}`; `firestore.rules` forbids it outright (`allow list, write: if false`) so a signed-in user can never grant themselves a role or property access.
 
+### `properties/{propertyId}`
+
+Registry document used by the property selector (`src/data/repositories/propertyRepository.ts`).
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `name` | `string` | Displayed in the selector. |
+| `address`, `phone` | `string?` | Mirrored from Settings when an admin saves property information. |
+| `createdAt`, `updatedAt` | `Timestamp` | |
+
 ### `properties/{propertyId}/settings/general`
 
-Single document per property, holding both property identity and billing defaults (`src/types/settings.ts`'s `PropertySettings`, `src/data/repositories/settingsRepository.ts`):
+Single document per property, holding the editable property details and billing defaults (`src/types/settings.ts`'s `PropertySettings`, `src/data/repositories/settingsRepository.ts`). Saving Settings mirrors the name, address, and phone into the parent registry document.
 
 | Field | Type | Notes |
 | --- | --- | --- |

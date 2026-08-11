@@ -89,7 +89,7 @@ See [context.md](context.md) for the full architecture, domain model, business r
 
 The app is gated behind a login screen backed by real Firebase Authentication. There is no backend server: `AuthContext` subscribes to Firebase's `onAuthStateChanged()` and, on every signed-in transition, reads the user's application profile directly from Firestore at `users/{uid}` (`role`, `propertyIds`, `isActive`, `name`, `email`). A missing or inactive profile is treated as "not authorized" — the user stays on the login screen even though their Firebase credential is valid.
 
-`role: "admin"` may create/edit/delete every business record; `role: "staff"` may only read. The UI hides write affordances (Add/Edit/Delete/Issue/Mark Paid/etc.) for `staff` users, but that is a UX convenience only — the actual enforcement is [Firestore Security Rules](firestore.rules), since there is no server to trust. A `staff` user who somehow triggers a write anyway (e.g. via devtools) gets a rejected Firestore write, not a security hole.
+`role: "admin"` may read and write every registered property; `role: "staff"` may only read the properties in their `propertyIds` list. The header selector chooses the property the UI is currently managing. The UI hides write affordances (Add/Edit/Delete/Issue/Mark Paid/etc.) for `staff` users, but that is a UX convenience only — the actual enforcement is [Firestore Security Rules](firestore.rules), since there is no server to trust. A `staff` user who somehow triggers a write anyway (e.g. via devtools) gets a rejected Firestore write, not a security hole.
 
 The UI only ever talks to an `AuthProvider` interface (`src/auth/auth.types.ts`) through `useAuth()` — see [context.md](context.md#authentication) for the full architecture.
 
@@ -98,11 +98,12 @@ The UI only ever talks to an `AuthProvider` interface (`src/auth/auth.types.ts`)
 There is no sign-up flow and, since there's no backend, no server-side script that can safely create a `users/{uid}` profile (Firestore rules deliberately forbid a user from writing their own profile/role — otherwise anyone could grant themselves `admin`). The very first property and admin user must be created by hand, once, via the [Firebase Console](https://console.firebase.google.com/) (or the Emulator UI for local development — see [Firebase Setup](docs/firebase/setup.md#emulator-suite)):
 
 1. **Authentication → Users → Add user.** Create the admin's email/password account. Note the generated UID.
-2. **Firestore Database → Start collection.** Create the document `properties/{propertyId}/settings/general` (pick any ID for `propertyId`, e.g. `demo-property`; Firestore lets you create a nested document path directly without first creating the parent `properties/{propertyId}` document itself) with fields `propertyName` (string), `propertyAddress` (string), `phone` (string), `defaultElectricityRate` (number), `defaultWaterRate` (number), `defaultInvoiceNote` (string). `otherChargeMasters` can be left unset — the app treats a missing array as empty.
-3. Create `users/{uid}` (document ID = the Auth UID from step 1) with fields `name` (string), `email` (string, matching the Auth account), `role` (string, `"admin"`), `propertyIds` (array of strings, e.g. `["demo-property"]`), `isActive` (boolean, `true`).
-4. Sign in with that email/password. You should land on the Dashboard with the property from step 2 selected automatically (the UI is single-property today — it always uses the first entry in `propertyIds`).
+2. **Firestore Database → Start collection.** Create `properties/{propertyId}` (pick an ID such as `demo-property`) with `name` (string), `address` (string), and `phone` (string). This registry document makes the property available in the in-app property selector.
+3. Create `properties/{propertyId}/settings/general` with `propertyName` (string), `propertyAddress` (string), `phone` (string), `defaultElectricityRate` (number), `defaultWaterRate` (number), and `defaultInvoiceNote` (string). `otherChargeMasters` can be left unset — the app treats a missing array as empty.
+4. Create `users/{uid}` (document ID = the Auth UID from step 1) with fields `name` (string), `email` (string, matching the Auth account), `role` (string, `"admin"`), `propertyIds` (array of strings, e.g. `["demo-property"]`), `isActive` (boolean, `true`). Admins can access every registered property; `propertyIds` is retained as their default/fallback list and defines staff access.
+5. Sign in with that email/password and choose the active property from the selector in the header.
 
-To create a `staff` user later, repeat steps 1 and 3 with `role: "staff"` — no new property/settings documents are needed, just add the same `propertyId` to their `propertyIds` array. A `staff` user can read everything but never sees create/edit/delete buttons, and any write they attempt directly against Firestore is rejected by [firestore.rules](firestore.rules).
+To create a `staff` user later, repeat steps 1 and 4 with `role: "staff"` — no new property/settings documents are needed, just add the allowed property IDs to their `propertyIds` array. A `staff` user can switch only among those properties, can read their data, and never sees create/edit/delete buttons.
 
 ## Localization
 
@@ -140,7 +141,6 @@ with `VITE_USE_FIREBASE_EMULATOR=true` in `.env.local` so the running `pnpm dev`
 
 ## Current Limitations
 
-- Single property only (no multi-property switcher in the UI — the schema supports multiple properties per user via `users/{uid}.propertyIds`, but the app always uses the first one).
 - No real PDF generation service — invoice export relies on the browser's native print / "Save as PDF".
 - No automated recurring billing generation or notifications.
 - No automated test suite — verification is `pnpm build` (typecheck + production build), `pnpm lint`, and manual smoke testing against the Firebase Emulator Suite.

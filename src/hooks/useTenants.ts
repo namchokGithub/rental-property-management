@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { useAuth } from "@/auth";
 import { tenantRepository } from "@/data/repositories/tenantRepository";
-import { getActivePropertyId } from "@/lib/activeProperty";
+import { useActivePropertyId } from "@/property";
 import type { Tenant, CreateTenantInput, UpdateTenantInput } from "@/types/tenant";
 
 export function useTenants() {
-  const { user } = useAuth();
-  const propertyId = getActivePropertyId(user?.propertyIds ?? []);
+  const propertyId = useActivePropertyId();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 

@@ -4,7 +4,9 @@ import { LanguageProvider } from "@/i18n";
 import { ThemeProvider } from "@/theme";
 import { AuthProvider } from "@/auth";
 import { ProtectedApp } from "@/components/auth/ProtectedApp";
+import { PropertyGate } from "@/components/auth/PropertyGate";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { PropertyProvider } from "@/property";
 
 export default function App() {
   return (
@@ -13,7 +15,11 @@ export default function App() {
         <AuthProvider>
           <TooltipProvider>
             <ProtectedApp>
-              <RouterProvider router={router} />
+              <PropertyProvider>
+                <PropertyGate>
+                  <RouterProvider router={router} />
+                </PropertyGate>
+              </PropertyProvider>
             </ProtectedApp>
           </TooltipProvider>
         </AuthProvider>

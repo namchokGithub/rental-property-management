@@ -18,7 +18,9 @@ service cloud.firestore {
     }
 
     function hasPropertyAccess(propertyId) {
-      return isActiveUser() && propertyId in userProfile().propertyIds;
+      return isActiveUser()
+        && (userProfile().role == 'admin'
+            || propertyId in userProfile().propertyIds);
     }
 
     function isAdminForProperty(propertyId) {

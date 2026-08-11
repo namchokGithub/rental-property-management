@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { useAuth } from "@/auth";
 import { billingRepository } from "@/data/repositories/billingRepository";
-import { getActivePropertyId } from "@/lib/activeProperty";
+import { useActivePropertyId } from "@/property";
 import type { BillingRecord, CreateBillingInput, UpdateBillingInput } from "@/types/billing";
 
 export function useBillingRecords() {
-  const { user } = useAuth();
-  const propertyId = getActivePropertyId(user?.propertyIds ?? []);
+  const propertyId = useActivePropertyId();
   const [records, setRecords] = useState<BillingRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 

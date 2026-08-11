@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { useAuth } from "@/auth";
 import { assignmentRepository } from "@/data/repositories/assignmentRepository";
-import { getActivePropertyId } from "@/lib/activeProperty";
+import { useActivePropertyId } from "@/property";
 import type { RoomTenantAssignment, CreateAssignmentInput } from "@/types/assignment";
 
 export function useAssignments() {
-  const { user } = useAuth();
-  const propertyId = getActivePropertyId(user?.propertyIds ?? []);
+  const propertyId = useActivePropertyId();
   const [assignments, setAssignments] = useState<RoomTenantAssignment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
