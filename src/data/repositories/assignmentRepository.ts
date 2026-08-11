@@ -1,5 +1,4 @@
 import { readCollection, writeCollection, STORAGE_KEYS } from "@/data/storage/storage";
-import { roomRepository } from "@/data/repositories/roomRepository";
 import type { RoomTenantAssignment, CreateAssignmentInput } from "@/types/assignment";
 
 function all(): RoomTenantAssignment[] {
@@ -25,7 +24,13 @@ export const assignmentRepository = {
   getByRoomId(roomId: string): RoomTenantAssignment[] {
     return all().filter((a) => a.roomId === roomId);
   },
-  /** Ends any existing active assignment for the room, creates a new active one, sets room status to occupied. */
+  /**
+   * Ends any existing active assignment for the room, creates a new active
+   * one. Does NOT touch room status itself (rooms live in Firestore now,
+   * assignments are still local-storage-only pending Task 4) — callers with
+   * access to `roomRepository`/`propertyId` are responsible for that side
+   * effect (see `useAssignments`).
+   */
   assign(input: CreateAssignmentInput): RoomTenantAssignment {
     const assignments = all();
     const now = new Date().toISOString();
@@ -43,20 +48,15 @@ export const assignmentRepository = {
       createdAt: now,
     };
     writeCollection(STORAGE_KEYS.assignments, [...ended, created]);
-    roomRepository.update(input.roomId, { status: "occupied" });
     return created;
   },
-  /** Ends the active assignment for a room; sets room status to available unless it's maintenance/inactive. */
+  /** Ends the active assignment for a room. Room-status side effect: see `assign` above. */
   endByRoomId(roomId: string, endDate: string): void {
     const assignments = all();
     const updated = assignments.map((a) =>
       a.roomId === roomId && a.status === "active" ? { ...a, status: "ended" as const, endDate } : a
     );
     writeCollection(STORAGE_KEYS.assignments, updated);
-    const room = roomRepository.getById(roomId);
-    if (room && room.status === "occupied") {
-      roomRepository.update(roomId, { status: "available" });
-    }
   },
   delete(id: string): void {
     writeCollection(STORAGE_KEYS.assignments, all().filter((a) => a.id !== id));

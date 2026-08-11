@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { SearchInput } from "@/components/common/SearchInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageSpinner } from "@/components/common/PageSpinner";
 import { RoomTable } from "@/features/rooms/RoomTable";
 import { RoomFormDialog } from "@/features/rooms/RoomFormDialog";
 import { RoomDetailSheet } from "@/features/rooms/RoomDetailSheet";
@@ -27,7 +28,7 @@ function today(): string {
 
 export function RoomsPage() {
   const { t } = useLanguage();
-  const { rooms, createRoom, updateRoom, deleteRoom } = useRooms();
+  const { rooms, isLoading, createRoom, updateRoom, deleteRoom } = useRooms();
   const { tenants } = useTenants();
   const { assignments, assignTenant, endTenancyByRoomId, getActiveByTenantId } = useAssignments();
 
@@ -72,6 +73,8 @@ export function RoomsPage() {
         ),
     [rooms, searchQuery, statusFilter, tenantNameByRoomId]
   );
+
+  if (isLoading) return <PageSpinner />;
 
   return (
     <div className="space-y-6">
@@ -199,11 +202,15 @@ export function RoomsPage() {
         }
         confirmLabel={t("common.delete")}
         destructive
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!deletingRoom) return;
-          deleteRoom(deletingRoom.id);
-          toast.success(t("room.deletedToast"));
-          setDeletingRoom(undefined);
+          try {
+            await deleteRoom(deletingRoom.id);
+            toast.success(t("room.deletedToast"));
+            setDeletingRoom(undefined);
+          } catch (error) {
+            toast.error(error instanceof Error ? error.message : String(error));
+          }
         }}
       />
 

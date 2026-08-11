@@ -1,37 +1,35 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "@/auth";
 import { roomRepository } from "@/data/repositories/roomRepository";
+import { getActivePropertyId } from "@/lib/activeProperty";
 import type { Room, CreateRoomInput, UpdateRoomInput } from "@/types/room";
 
 export function useRooms() {
-  const [rooms, setRooms] = useState<Room[]>(() => roomRepository.getAll());
+  const { user } = useAuth();
+  const propertyId = getActivePropertyId(user?.propertyIds ?? []);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const refresh = useCallback(() => setRooms(roomRepository.getAll()), []);
+  useEffect(() => {
+    setIsLoading(true);
+    const unsubscribe = roomRepository.subscribe(propertyId, (next) => {
+      setRooms(next);
+      setIsLoading(false);
+    });
+    return unsubscribe;
+  }, [propertyId]);
 
   const createRoom = useCallback(
-    (input: CreateRoomInput) => {
-      const room = roomRepository.create(input);
-      refresh();
-      return room;
-    },
-    [refresh]
+    (input: CreateRoomInput) => roomRepository.create(propertyId, input),
+    [propertyId],
   );
 
   const updateRoom = useCallback(
-    (id: string, input: UpdateRoomInput) => {
-      const room = roomRepository.update(id, input);
-      refresh();
-      return room;
-    },
-    [refresh]
+    (id: string, input: UpdateRoomInput) => roomRepository.update(propertyId, id, input),
+    [propertyId],
   );
 
-  const deleteRoom = useCallback(
-    (id: string) => {
-      roomRepository.delete(id);
-      refresh();
-    },
-    [refresh]
-  );
+  const deleteRoom = useCallback((id: string) => roomRepository.delete(propertyId, id), [propertyId]);
 
-  return { rooms, refresh, createRoom, updateRoom, deleteRoom };
+  return { rooms, isLoading, createRoom, updateRoom, deleteRoom };
 }

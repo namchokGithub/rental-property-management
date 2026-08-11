@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { SearchInput } from "@/components/common/SearchInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PageSpinner } from "@/components/common/PageSpinner";
 import { TenantTable } from "@/features/tenants/TenantTable";
 import { TenantFormDialog } from "@/features/tenants/TenantFormDialog";
 import { TenantDetailSheet } from "@/features/tenants/TenantDetailSheet";
@@ -23,7 +24,7 @@ const TENANT_STATUSES: TenantStatus[] = ["active", "inactive"];
 
 export function TenantsPage() {
   const { t } = useLanguage();
-  const { tenants, createTenant, updateTenant, deleteTenant } = useTenants();
+  const { tenants, isLoading, createTenant, updateTenant, deleteTenant } = useTenants();
   const { rooms } = useRooms();
   const { assignments, assignTenant, endTenancyByRoomId, getActiveByTenantId } = useAssignments();
 
@@ -65,6 +66,8 @@ export function TenantsPage() {
         }),
     [tenants, searchQuery, statusFilter, activeAssignmentByTenantId, roomById]
   );
+
+  if (isLoading) return <PageSpinner />;
 
   return (
     <div className="space-y-6">
@@ -193,11 +196,15 @@ export function TenantsPage() {
         description={t("tenant.deleteConfirmDescription")}
         confirmLabel={t("common.delete")}
         destructive
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!deletingTenant) return;
-          deleteTenant(deletingTenant.id);
-          toast.success(t("tenant.deletedToast"));
-          setDeletingTenant(undefined);
+          try {
+            await deleteTenant(deletingTenant.id);
+            toast.success(t("tenant.deletedToast"));
+            setDeletingTenant(undefined);
+          } catch (error) {
+            toast.error(error instanceof Error ? error.message : String(error));
+          }
         }}
       />
     </div>
