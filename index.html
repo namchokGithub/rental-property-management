@@ -2,19 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/x-icon" href="/src/assets/branding/renthouse.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Rental Property Management</title>
+    <title>Respect Property</title>
     <script>
       (function () {
         try {
           var appearance = localStorage.getItem("app.appearance");
           var accent = localStorage.getItem("app.accentTheme");
-          if (["light", "dark", "system"].indexOf(appearance) === -1) appearance = "system";
-          if (["sky-purple", "ocean", "emerald", "rose"].indexOf(accent) === -1) accent = "sky-purple";
+          if (["light", "dark", "system"].indexOf(appearance) === -1)
+            appearance = "system";
+          if (["sky-purple", "ocean", "emerald", "rose"].indexOf(accent) === -1)
+            accent = "sky-purple";
           var isDark =
             appearance === "dark" ||
-            (appearance === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+            (appearance === "system" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
           document.documentElement.classList.toggle("dark", isDark);
           document.documentElement.setAttribute("data-theme", accent);
         } catch (e) {

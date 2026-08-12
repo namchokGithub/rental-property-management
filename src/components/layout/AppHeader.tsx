@@ -3,7 +3,12 @@ import { useLocation } from "react-router";
 import { toast } from "sonner";
 import { Menu, Building2, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +23,13 @@ import { ThemeMenu } from "@/components/common/ThemeMenu";
 import { useLanguage } from "@/i18n";
 import { useAuth } from "@/auth";
 import { useProperty } from "@/property";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 const PAGE_TITLE_KEYS: Record<string, string> = {
@@ -44,7 +55,10 @@ function AccountMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full bg-accent text-accent-foreground hover:bg-accent/80">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 rounded-full bg-accent text-accent-foreground hover:bg-accent/80">
           <User className="h-4 w-4" />
           <span className="sr-only">{user.name}</span>
         </Button>
@@ -52,7 +66,9 @@ function AccountMenu() {
       <DropdownMenuContent align="end">
         <DropdownMenuLabel className="flex flex-col">
           <span className="font-medium">{user.name}</span>
-          <span className="text-xs font-normal text-muted-foreground">{user.email}</span>
+          <span className="text-xs font-normal text-muted-foreground">
+            {user.email}
+          </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>
@@ -73,7 +89,10 @@ export function AppHeader() {
   const title = titleKey ? t(titleKey) : t("sidebar.brand");
 
   return (
-    <header className={cn("flex items-center gap-3 border-b bg-card px-4 py-4 md:px-6")}>
+    <header
+      className={cn(
+        "flex items-center gap-3 border-b bg-card px-4 py-4 md:px-6",
+      )}>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="left" className="w-64 p-4">
           <SheetHeader className="p-0">
@@ -88,14 +107,22 @@ export function AppHeader() {
             <NavItems onNavigate={() => setOpen(false)} />
           </div>
         </SheetContent>
-        <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setOpen(true)}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
+          onClick={() => setOpen(true)}>
           <Menu className="h-5 w-5" />
           <span className="sr-only">{t("header.openNavigation")}</span>
         </Button>
       </Sheet>
       <h1 className="flex-1 text-lg font-semibold tracking-tight">{title}</h1>
-      <Select value={activePropertyId ?? undefined} onValueChange={setActivePropertyId}>
-        <SelectTrigger className="flex w-32 sm:w-48" aria-label={t("property.select")}>
+      <Select
+        value={activePropertyId ?? undefined}
+        onValueChange={setActivePropertyId}>
+        <SelectTrigger
+          className="flex w-32 sm:w-48"
+          aria-label={t("property.select")}>
           <SelectValue placeholder={t("property.select")} />
         </SelectTrigger>
         <SelectContent>

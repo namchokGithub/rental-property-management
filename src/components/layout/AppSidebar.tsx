@@ -38,10 +38,9 @@ export function NavItems({ onNavigate }: NavItemsProps) {
               "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
               isActive
                 ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
             )
-          }
-        >
+          }>
           <item.icon className="h-4 w-4" />
           {t(item.labelKey)}
         </NavLink>
@@ -58,7 +57,9 @@ export function AppSidebar() {
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <Building2 className="h-4 w-4" />
         </span>
-        <span className="font-semibold tracking-tight">{t("sidebar.brand")}</span>
+        <span className="font-semibold tracking-tight">
+          {t("sidebar.brand")}
+        </span>
       </div>
       <div className="flex-1 space-y-1 px-3">
         <NavItems />

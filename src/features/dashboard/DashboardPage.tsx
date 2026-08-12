@@ -1,9 +1,27 @@
 import { useNavigate } from "react-router";
 import type { LucideIcon } from "lucide-react";
-import { DoorOpen, CheckCircle2, Users, Wallet, AlertCircle, Building2, Receipt, Plus, UserPlus, FileText } from "lucide-react";
+import {
+  DoorOpen,
+  CheckCircle2,
+  Users,
+  Wallet,
+  AlertCircle,
+  Building2,
+  Receipt,
+  Plus,
+  UserPlus,
+  FileText,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -18,7 +36,12 @@ import { resolveBillingStatus } from "@/lib/invoice";
 import { cn } from "@/lib/utils";
 import type { RoomStatus } from "@/types/room";
 
-const ROOM_STATUS_ORDER: RoomStatus[] = ["occupied", "available", "maintenance", "inactive"];
+const ROOM_STATUS_ORDER: RoomStatus[] = [
+  "occupied",
+  "available",
+  "maintenance",
+  "inactive",
+];
 
 type SummaryVariant = "primary" | "blue" | "purple" | "coral" | "plain";
 
@@ -50,20 +73,54 @@ export function DashboardPage() {
 
   const occupied = rooms.filter((r) => r.status === "occupied").length;
   const available = rooms.filter((r) => r.status === "available").length;
-  const activeTenants = tenants.filter((tenant) => tenant.status === "active").length;
-  const estimatedIncome = rooms.filter((r) => r.status === "occupied").reduce((sum, r) => sum + r.monthlyRent, 0);
+  const activeTenants = tenants.filter(
+    (tenant) => tenant.status === "active",
+  ).length;
+  const estimatedIncome = rooms
+    .filter((r) => r.status === "occupied")
+    .reduce((sum, r) => sum + r.monthlyRent, 0);
   const outstandingInvoices = records.filter((r) => {
     const status = resolveBillingStatus(r);
     return status === "issued" || status === "overdue";
   }).length;
 
   const summaryCards: SummaryCard[] = [
-    { label: t("dashboard.totalRooms"), value: rooms.length, icon: Building2, variant: "primary" },
-    { label: t("dashboard.occupied"), value: occupied, icon: DoorOpen, variant: "blue" },
-    { label: t("dashboard.available"), value: available, icon: CheckCircle2, variant: "purple" },
-    { label: t("dashboard.totalTenants"), value: activeTenants, icon: Users, variant: "plain" },
-    { label: t("dashboard.estMonthlyIncome"), value: formatCurrency(estimatedIncome, language), icon: Wallet, variant: "plain" },
-    { label: t("dashboard.outstandingInvoices"), value: outstandingInvoices, icon: AlertCircle, variant: "coral" },
+    {
+      label: t("dashboard.totalRooms"),
+      value: rooms.length,
+      icon: Building2,
+      variant: "primary",
+    },
+    {
+      label: t("dashboard.occupied"),
+      value: occupied,
+      icon: DoorOpen,
+      variant: "blue",
+    },
+    {
+      label: t("dashboard.available"),
+      value: available,
+      icon: CheckCircle2,
+      variant: "purple",
+    },
+    {
+      label: t("dashboard.totalTenants"),
+      value: activeTenants,
+      icon: Users,
+      variant: "plain",
+    },
+    {
+      label: t("dashboard.estMonthlyIncome"),
+      value: formatCurrency(estimatedIncome, language),
+      icon: Wallet,
+      variant: "plain",
+    },
+    {
+      label: t("dashboard.outstandingInvoices"),
+      value: outstandingInvoices,
+      icon: AlertCircle,
+      variant: "coral",
+    },
   ];
 
   const recentRecords = [...records]
@@ -77,22 +134,33 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t("dashboard.title")} description={t("dashboard.description")} />
+      <PageHeader
+        title={t("dashboard.title")}
+        description={t("dashboard.description")}
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {summaryCards.map((card) => (
-          <Card key={card.label} className={cn("border-none shadow-sm", SUMMARY_VARIANT_STYLES[card.variant])}>
+          <Card
+            key={card.label}
+            className={cn(
+              "border-none shadow-sm",
+              SUMMARY_VARIANT_STYLES[card.variant],
+            )}>
             <CardContent className="flex items-center gap-3 p-4">
               <span
                 className={cn(
                   "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                  card.variant === "plain" ? "bg-accent text-primary" : "bg-black/10"
-                )}
-              >
+                  card.variant === "plain"
+                    ? "bg-accent text-primary"
+                    : "bg-black/10",
+                )}>
                 <card.icon className="h-5 w-5" />
               </span>
               <div className="min-w-0">
-                <p className="truncate text-xs font-medium opacity-80">{card.label}</p>
+                <p className="truncate text-xs font-medium opacity-80">
+                  {card.label}
+                </p>
                 <p className="truncate text-xl font-semibold">{card.value}</p>
               </div>
             </CardContent>
@@ -103,11 +171,14 @@ export function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle className="text-base">{t("dashboard.roomStatusOverview")}</CardTitle>
+            <CardTitle className="text-base">
+              {t("dashboard.roomStatusOverview")}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {roomsByStatus.map(({ status, count }) => {
-              const pct = rooms.length > 0 ? Math.round((count / rooms.length) * 100) : 0;
+              const pct =
+                rooms.length > 0 ? Math.round((count / rooms.length) * 100) : 0;
               return (
                 <div key={status} className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
@@ -115,7 +186,10 @@ export function DashboardPage() {
                     <span className="text-muted-foreground">{count}</span>
                   </div>
                   <div className="h-2 rounded bg-muted">
-                    <div className="h-2 rounded bg-primary" style={{ width: `${pct}%` }} />
+                    <div
+                      className="h-2 rounded bg-primary"
+                      style={{ width: `${pct}%` }}
+                    />
                   </div>
                 </div>
               );
@@ -125,7 +199,9 @@ export function DashboardPage() {
 
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">{t("dashboard.recentBilling")}</CardTitle>
+            <CardTitle className="text-base">
+              {t("dashboard.recentBilling")}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {recentRecords.length === 0 ? (
@@ -150,13 +226,19 @@ export function DashboardPage() {
                 <TableBody>
                   {recentRecords.map((record) => {
                     const room = rooms.find((r) => r.id === record.roomId);
-                    const tenant = tenants.find((tenantItem) => tenantItem.id === record.tenantId);
+                    const tenant = tenants.find(
+                      (tenantItem) => tenantItem.id === record.tenantId,
+                    );
                     return (
                       <TableRow key={record.id}>
                         <TableCell>{room?.roomNumber ?? "—"}</TableCell>
                         <TableCell>{tenant ? tenant.name : "—"}</TableCell>
-                        <TableCell>{formatBillingMonth(record.billingMonth, language)}</TableCell>
-                        <TableCell>{formatCurrency(record.total, language)}</TableCell>
+                        <TableCell>
+                          {formatBillingMonth(record.billingMonth, language)}
+                        </TableCell>
+                        <TableCell>
+                          {formatCurrency(record.total, language)}
+                        </TableCell>
                         <TableCell>
                           <StatusBadge status={resolveBillingStatus(record)} />
                         </TableCell>
@@ -172,7 +254,9 @@ export function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">{t("dashboard.quickActions")}</CardTitle>
+          <CardTitle className="text-base">
+            {t("dashboard.quickActions")}
+          </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           {isAdmin && (
