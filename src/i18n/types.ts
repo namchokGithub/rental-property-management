@@ -152,6 +152,22 @@ export interface Translations {
     leaseStart: string;
     leaseEnd: string;
     perUnit: string;
+    importRooms: string;
+    importDescription: string;
+    downloadTemplate: string;
+    uploadFile: string;
+    dragFileHere: string;
+    chooseFileHint: string;
+    chooseFile: string;
+    supportedExcel: string;
+    importTip: string;
+    importSummary: string;
+    importConfirm: string;
+    missingColumnsError: string;
+    importParseError: string;
+    importResultSucceeded: string;
+    importResultFailed: string;
+    importErrorColumn: string;
   };
   tenant: {
     title: string;
@@ -344,6 +360,9 @@ export interface Translations {
       monthlyRentNegative: string;
       electricityRateNegative: string;
       waterRateNegative: string;
+      monthlyRentRequired: string;
+      roomNumberDuplicate: string;
+      invalidStatus: string;
     };
     tenant: {
       nameRequired: string;
