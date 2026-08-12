@@ -32,7 +32,7 @@ import { useBillingRecords } from "@/hooks/useBillingRecords";
 import { useLanguage } from "@/i18n";
 import { formatCurrency } from "@/lib/currency";
 import { formatBillingMonth } from "@/lib/date";
-import { resolveBillingStatus } from "@/lib/invoice";
+import { latestInvoiceFromBilling, resolveBillingStatus } from "@/lib/invoice";
 import { cn } from "@/lib/utils";
 import type { RoomStatus } from "@/types/room";
 
@@ -124,7 +124,13 @@ export function DashboardPage() {
   ];
 
   const recentRecords = [...records]
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .sort(
+      (a, b) =>
+        b.billingMonth.localeCompare(a.billingMonth) ||
+        (latestInvoiceFromBilling(b)?.issuedAt ?? b.createdAt).localeCompare(
+          latestInvoiceFromBilling(a)?.issuedAt ?? a.createdAt,
+        ),
+    )
     .slice(0, 5);
 
   const roomsByStatus = ROOM_STATUS_ORDER.map((status) => ({
@@ -229,6 +235,7 @@ export function DashboardPage() {
                     const tenant = tenants.find(
                       (tenantItem) => tenantItem.id === record.tenantId,
                     );
+                    const latestInvoice = latestInvoiceFromBilling(record);
                     return (
                       <TableRow key={record.id}>
                         <TableCell>{room?.roomNumber ?? "—"}</TableCell>
@@ -237,7 +244,10 @@ export function DashboardPage() {
                           {formatBillingMonth(record.billingMonth, language)}
                         </TableCell>
                         <TableCell>
-                          {formatCurrency(record.total, language)}
+                          {formatCurrency(
+                            latestInvoice?.total ?? record.total,
+                            language,
+                          )}
                         </TableCell>
                         <TableCell>
                           <StatusBadge status={resolveBillingStatus(record)} />

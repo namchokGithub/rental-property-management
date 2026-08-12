@@ -20,8 +20,8 @@ import { useOtherCharges } from "@/hooks/useOtherCharges";
 import { useLanguage } from "@/i18n";
 import { matchesSearch } from "@/lib/search";
 import { formatBillingMonth, monthName, yearLabel } from "@/lib/date";
-import { resolveBillingStatus } from "@/lib/invoice";
-import { invoiceRecordsFromBilling, type BillingRecord, type BillingStatus } from "@/types/billing";
+import { latestInvoiceFromBilling, resolveBillingStatus } from "@/lib/invoice";
+import { type BillingRecord, type BillingStatus } from "@/types/billing";
 import type { Room } from "@/types/room";
 import type { Tenant } from "@/types/tenant";
 
@@ -87,7 +87,7 @@ export function BillingPage() {
             searchQuery,
             room?.roomNumber,
             tenant ? tenant.name : undefined,
-            record.invoiceNumber,
+            latestInvoiceFromBilling(record)?.invoiceNumber ?? record.invoiceNumber,
             record.billingMonth,
             formatBillingMonth(record.billingMonth, language)
           );
@@ -101,7 +101,10 @@ export function BillingPage() {
       .sort((a, b) => b.billingMonth.localeCompare(a.billingMonth))[0];
   }
 
-  const draftIds = useMemo(() => new Set(records.filter((r) => r.status === "draft").map((r) => r.id)), [records]);
+  const draftIds = useMemo(
+    () => new Set(records.filter((record) => resolveBillingStatus(record) === "draft").map((record) => record.id)),
+    [records],
+  );
   const effectiveSelectedIds = useMemo(
     () => new Set([...selectedIds].filter((id) => draftIds.has(id))),
     [selectedIds, draftIds]
@@ -287,8 +290,8 @@ export function BillingPage() {
               }}
               onMarkPaid={async (record) => {
                 try {
-                  const invoice = invoiceRecordsFromBilling(record).find((candidate) => candidate.status === "issued");
-                  if (!invoice) return;
+                  const invoice = latestInvoiceFromBilling(record);
+                  if (invoice?.status !== "issued") return;
                   await markInvoicePaid(record.id, invoice.id);
                   toast.success(t("billing.paidToast"));
                 } catch {

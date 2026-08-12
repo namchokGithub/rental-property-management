@@ -5,7 +5,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { useLanguage } from "@/i18n";
 import { formatCurrency } from "@/lib/currency";
 import { formatDate, formatBillingMonth } from "@/lib/date";
-import { resolveBillingStatus } from "@/lib/invoice";
+import { latestInvoiceFromBilling, resolveBillingStatus } from "@/lib/invoice";
 import type { Room } from "@/types/room";
 import type { Tenant } from "@/types/tenant";
 import type { RoomTenantAssignment } from "@/types/assignment";
@@ -98,15 +98,18 @@ export function RoomDetailSheet({ open, onOpenChange, room, tenant, assignment, 
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {billingHistory.map((record) => (
-                      <TableRow key={record.id}>
-                        <TableCell>{formatBillingMonth(record.billingMonth, language)}</TableCell>
-                        <TableCell>{formatCurrency(record.total, language)}</TableCell>
-                        <TableCell>
-                          <StatusBadge status={resolveBillingStatus(record)} />
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {billingHistory.map((record) => {
+                      const latestInvoice = latestInvoiceFromBilling(record);
+                      return (
+                        <TableRow key={record.id}>
+                          <TableCell>{formatBillingMonth(record.billingMonth, language)}</TableCell>
+                          <TableCell>{formatCurrency(latestInvoice?.total ?? record.total, language)}</TableCell>
+                          <TableCell>
+                            <StatusBadge status={resolveBillingStatus(record)} />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
