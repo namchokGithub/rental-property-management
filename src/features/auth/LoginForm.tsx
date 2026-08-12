@@ -4,7 +4,11 @@ import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAuth } from "@/auth";
 import { FirebaseError } from "firebase/app";
 import { useLanguage } from "@/i18n";
@@ -44,10 +48,11 @@ export function LoginForm() {
       await login(email, password);
     } catch (error) {
       setFormError(
-        error instanceof FirebaseError && error.code === "auth/network-request-failed"
+        error instanceof FirebaseError &&
+          error.code === "auth/network-request-failed"
           ? t("auth.error.network")
-          // Never reveal whether the email or password specifically was wrong.
-          : t("auth.error.invalidCredentials")
+          : // Never reveal whether the email or password specifically was wrong.
+            t("auth.error.invalidCredentials"),
       );
     } finally {
       setIsSubmitting(false);
@@ -71,7 +76,9 @@ export function LoginForm() {
           aria-invalid={Boolean(errors.email)}
           disabled={isSubmitting}
         />
-        {errors.email && <p className="text-sm text-destructive">{t(errors.email)}</p>}
+        {errors.email && (
+          <p className="text-sm text-destructive">{t(errors.email)}</p>
+        )}
       </div>
 
       <div className="space-y-1.5">
@@ -99,19 +106,30 @@ export function LoginForm() {
                 size="icon"
                 className="absolute right-0 top-0 h-9 w-9 text-muted-foreground hover:text-foreground"
                 onClick={() => setShowPassword((prev) => !prev)}
-                aria-label={showPassword ? t("auth.hidePassword") : t("auth.showPassword")}
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                aria-label={
+                  showPassword ? t("auth.hidePassword") : t("auth.showPassword")
+                }>
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{showPassword ? t("auth.hidePassword") : t("auth.showPassword")}</TooltipContent>
+            <TooltipContent>
+              {showPassword ? t("auth.hidePassword") : t("auth.showPassword")}
+            </TooltipContent>
           </Tooltip>
         </div>
-        {errors.password && <p className="text-sm text-destructive">{t(errors.password)}</p>}
+        {errors.password && (
+          <p className="text-sm text-destructive">{t(errors.password)}</p>
+        )}
       </div>
 
       {formError && (
-        <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <p
+          role="alert"
+          className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {formError}
         </p>
       )}

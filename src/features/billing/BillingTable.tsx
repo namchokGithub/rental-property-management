@@ -10,7 +10,7 @@ import { useAuth } from "@/auth";
 import { useLanguage } from "@/i18n";
 import { formatAmount, formatCurrency } from "@/lib/currency";
 import { formatBillingMonth } from "@/lib/date";
-import { resolveBillingStatus } from "@/lib/invoice";
+import { latestInvoiceFromBilling, resolveBillingStatus } from "@/lib/invoice";
 import type { BillingRecord } from "@/types/billing";
 import type { Room } from "@/types/room";
 import type { Tenant } from "@/types/tenant";
@@ -57,7 +57,7 @@ function ActionsMenu({
         </TooltipTrigger>
         <TooltipContent>{t("common.edit")}</TooltipContent>
       </Tooltip>
-      {record.status === "draft" && (
+      {status === "draft" && (
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onIssue(record)}>
@@ -138,7 +138,7 @@ function BillingCard({
                 className="mt-1"
                 checked={selectedIds.has(record.id)}
                 onCheckedChange={() => onToggleRecord(record.id)}
-                disabled={record.status !== "draft"}
+                disabled={resolveBillingStatus(record) !== "draft"}
                 aria-label={t("common.selectRow")}
               />
             )}
@@ -208,7 +208,7 @@ export function BillingTable({
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const selectableIds = records.filter((r) => r.status === "draft").map((r) => r.id);
+  const selectableIds = records.filter((record) => resolveBillingStatus(record) === "draft").map((record) => record.id);
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id));
   const someSelected = !allSelected && selectableIds.some((id) => selectedIds.has(id));
   const roomStickyClass = isAdmin ? "left-10" : "left-0";
@@ -275,7 +275,7 @@ export function BillingTable({
                       <Checkbox
                         checked={selectedIds.has(record.id)}
                         onCheckedChange={() => onToggleRecord(record.id)}
-                        disabled={record.status !== "draft"}
+                        disabled={resolveBillingStatus(record) !== "draft"}
                         aria-label={t("common.selectRow")}
                       />
                     </TableCell>
@@ -286,7 +286,7 @@ export function BillingTable({
                   <TableCell className={`sticky ${tenantStickyClass} z-10 w-36 min-w-36 bg-card`}>
                     {tenant ? tenant.name : "—"}
                   </TableCell>
-                  <TableCell>{record.invoiceNumber ?? "—"}</TableCell>
+                  <TableCell>{latestInvoiceFromBilling(record)?.invoiceNumber ?? record.invoiceNumber ?? "—"}</TableCell>
                   <TableCell>{formatBillingMonth(record.billingMonth, language)}</TableCell>
                   <TableCell>{record.electricity.previousMeter}</TableCell>
                   <TableCell>{record.electricity.currentMeter}</TableCell>

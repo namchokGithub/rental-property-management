@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { DoorOpen, Plus, Search } from "lucide-react";
+import { DoorOpen, Plus, Search, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PageSpinner } from "@/components/common/PageSpinner";
 import { RoomTable } from "@/features/rooms/RoomTable";
 import { RoomFormDialog } from "@/features/rooms/RoomFormDialog";
+import { RoomImportDialog } from "@/features/rooms/RoomImportDialog";
 import { RoomDetailSheet } from "@/features/rooms/RoomDetailSheet";
 import { AssignTenantDialog } from "@/features/assignments/AssignTenantDialog";
 import { useAuth } from "@/auth";
@@ -38,6 +39,7 @@ export function RoomsPage() {
   const { records: billingRecords } = useBillingRecords();
 
   const [formOpen, setFormOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | undefined>(undefined);
   const [detailRoom, setDetailRoom] = useState<Room | undefined>(undefined);
   const [deletingRoom, setDeletingRoom] = useState<Room | undefined>(undefined);
@@ -88,14 +90,19 @@ export function RoomsPage() {
         description={t("room.description")}
         actions={
           isAdmin && (
-            <Button
-              onClick={() => {
-                setEditingRoom(undefined);
-                setFormOpen(true);
-              }}
-            >
-              <Plus /> {t("room.addRoom")}
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setImportOpen(true)}>
+                <Upload /> {t("room.importRooms")}
+              </Button>
+              <Button
+                onClick={() => {
+                  setEditingRoom(undefined);
+                  setFormOpen(true);
+                }}
+              >
+                <Plus /> {t("room.addRoom")}
+              </Button>
+            </div>
           )
         }
       />
@@ -173,6 +180,8 @@ export function RoomsPage() {
         room={editingRoom}
         onSubmit={(input) => (editingRoom ? updateRoom(editingRoom.id, input) : createRoom(input))}
       />
+
+      <RoomImportDialog open={importOpen} onOpenChange={setImportOpen} rooms={rooms} createRoom={createRoom} />
 
       <RoomDetailSheet
         open={detailRoom !== undefined}

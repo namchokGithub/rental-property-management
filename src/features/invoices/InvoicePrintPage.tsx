@@ -13,7 +13,7 @@ import { useRooms } from "@/hooks/useRooms";
 import { useTenants } from "@/hooks/useTenants";
 import { useLanguage } from "@/i18n";
 import { invoiceRecordsFromBilling } from "@/types/billing";
-import { resolveInvoiceStatus } from "@/lib/invoice";
+import { latestInvoiceFromBilling, resolveInvoiceStatus } from "@/lib/invoice";
 
 export function InvoicePrintPage() {
   const { id } = useParams<{ id: string }>();
@@ -34,7 +34,7 @@ export function InvoicePrintPage() {
   const requestedInvoiceId = searchParams.get("invoice");
   const record = billing
     ? invoiceRecordsFromBilling(billing).find((invoice) => invoice.id === requestedInvoiceId)
-      ?? invoiceRecordsFromBilling(billing).find((invoice) => invoice.status === "issued")
+      ?? latestInvoiceFromBilling(billing)
     : undefined;
 
   if (!record) {
