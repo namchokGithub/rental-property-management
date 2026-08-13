@@ -52,7 +52,7 @@ export function RoomDetailSheet({ open, onOpenChange, room, tenant, assignment, 
               </dd>
               {room.description && (
                 <>
-                  <dt className="text-muted-foreground">{t("common.notes")}</dt>
+                  <dt className="text-muted-foreground">{t("room.descriptionLabel")}</dt>
                   <dd>{room.description}</dd>
                 </>
               )}

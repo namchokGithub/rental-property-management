@@ -299,9 +299,12 @@ export interface Translations {
     mobileCardSubtitle: string;
     documentTitle: string;
     date: string;
+    billingPeriodLabel: string;
     invoiceNo: string;
     tenantLabel: string;
     roomLabel: string;
+    propertyAddressLabel: string;
+    phoneLabel: string;
     statusLabel: string;
     phonePrefix: string;
     itemColumn: string;
@@ -315,7 +318,14 @@ export interface Translations {
     rentItem: string;
     otherChargeItem: string;
     totalLine: string;
+    totalLabel: string;
+    currencyUnit: string;
     remark: string;
+    paymentInfoTitle: string;
+    paidDateLabel: string;
+    paymentMethodLabel: string;
+    paidAmountLabel: string;
+    transactionIdLabel: string;
   };
   settings: {
     title: string;
