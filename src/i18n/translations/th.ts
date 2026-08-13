@@ -67,6 +67,9 @@ const th: Translations = {
     paginationRange: "{{from}}-{{to}} จาก {{total}} รายการ",
     previousPage: "หน้าก่อนหน้า",
     nextPage: "หน้าถัดไป",
+    filter: "ตัวกรอง",
+    clearFilters: "ล้างค่า",
+    year: "ปี",
   },
   sidebar: {
     brand: "Rental Manager",

@@ -67,6 +67,9 @@ export interface Translations {
     paginationRange: string;
     previousPage: string;
     nextPage: string;
+    filter: string;
+    clearFilters: string;
+    year: string;
   };
   sidebar: {
     brand: string;

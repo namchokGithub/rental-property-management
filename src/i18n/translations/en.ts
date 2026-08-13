@@ -67,6 +67,9 @@ const en: Translations = {
     paginationRange: "{{from}}-{{to}} of {{total}}",
     previousPage: "Previous page",
     nextPage: "Next page",
+    filter: "Filter",
+    clearFilters: "Clear",
+    year: "Year",
   },
   sidebar: {
     brand: "Rental Manager",
