@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { SearchInput } from "@/components/common/SearchInput";
 import { Pagination } from "@/components/common/Pagination";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FilterButton } from "@/components/common/FilterButton";
 import { BillingTable } from "@/features/billing/BillingTable";
 import { BillingFormDialog } from "@/features/billing/BillingFormDialog";
 import { useAuth } from "@/auth";
@@ -216,63 +216,41 @@ export function BillingPage() {
               placeholder={t("common.search")}
               className="w-full sm:max-w-sm"
             />
-            <Select
-              value={statusFilter}
-              onValueChange={(value) => {
-                setStatusFilter(value as BillingStatus | "all");
+            <FilterButton
+              fields={[
+                {
+                  key: "status",
+                  label: t("common.status"),
+                  options: [
+                    { value: "all", label: t("common.allStatuses") },
+                    ...BILLING_STATUSES.map((status) => ({ value: status, label: t(`status.${status}`) })),
+                  ],
+                },
+                {
+                  key: "month",
+                  label: t("common.month"),
+                  options: [
+                    { value: "all", label: t("common.allMonths") },
+                    ...MONTHS.map((month) => ({ value: month, label: monthName(Number(month), language) })),
+                  ],
+                },
+                {
+                  key: "year",
+                  label: t("common.year"),
+                  options: [
+                    { value: "all", label: t("common.allYears") },
+                    ...availableYears.map((year) => ({ value: year, label: yearLabel(Number(year), language) })),
+                  ],
+                },
+              ]}
+              values={{ status: statusFilter, month: monthFilter, year: yearFilter }}
+              onApply={(values) => {
+                setStatusFilter((values.status as BillingStatus | "all") ?? "all");
+                setMonthFilter(values.month ?? "all");
+                setYearFilter(values.year ?? "all");
                 setPage(1);
               }}
-            >
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("common.allStatuses")}</SelectItem>
-                {BILLING_STATUSES.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {t(`status.${status}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={monthFilter}
-              onValueChange={(value) => {
-                setMonthFilter(value);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("common.allMonths")}</SelectItem>
-                {MONTHS.map((month) => (
-                  <SelectItem key={month} value={month}>
-                    {monthName(Number(month), language)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={yearFilter}
-              onValueChange={(value) => {
-                setYearFilter(value);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("common.allYears")}</SelectItem>
-                {availableYears.map((year) => (
-                  <SelectItem key={year} value={year}>
-                    {yearLabel(Number(year), language)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           </div>
           {filteredRecords.length === 0 ? (
             <EmptyState
