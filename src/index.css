@@ -338,10 +338,6 @@
     }
 }
 
-.no-print {
-  display: block;
-}
-
 @media print {
   .no-print {
     display: none !important;

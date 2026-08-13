@@ -21,7 +21,7 @@ import { useRooms } from "@/hooks/useRooms";
 import { useTenants } from "@/hooks/useTenants";
 import { useSettings } from "@/hooks/useSettings";
 import { useLanguage } from "@/i18n";
-import { formatCurrency } from "@/lib/currency";
+import { formatAmount, formatCurrency } from "@/lib/currency";
 import { formatBillingMonth, formatDate, monthName, yearLabel } from "@/lib/date";
 import { resolveInvoiceStatus } from "@/lib/invoice";
 import { matchesSearch } from "@/lib/search";
@@ -182,7 +182,7 @@ export function InvoicesPage() {
                   <TableHead>{t("invoice.billingMonth")}</TableHead>
                   <TableHead>{t("invoice.issueDate")}</TableHead>
                   <TableHead>{t("common.dueDate")}</TableHead>
-                  <TableHead>{t("common.amount")}</TableHead>
+                  <TableHead>{t("invoice.amountColumn")}</TableHead>
                   <TableHead>{t("common.status")}</TableHead>
                   <TableHead className="text-right">{t("common.actions")}</TableHead>
                 </TableRow>
@@ -199,7 +199,7 @@ export function InvoicesPage() {
                       <TableCell>{formatBillingMonth(record.billingMonth, language)}</TableCell>
                       <TableCell>{record.issuedAt ? formatDate(record.issuedAt, language) : "—"}</TableCell>
                       <TableCell>{record.dueDate ? formatDate(record.dueDate, language) : "—"}</TableCell>
-                      <TableCell>{formatCurrency(record.total, language)}</TableCell>
+                      <TableCell>{formatAmount(record.total, language)}</TableCell>
                       <TableCell>
                         <StatusBadge status={resolveInvoiceStatus(record)} />
                       </TableCell>

@@ -74,50 +74,50 @@ export function InvoicePrintView({ record, room, settings }: InvoicePrintViewPro
         </table>
       </div>
 
-      <table className="w-full border-collapse text-sm">
+      <table className="w-full border-collapse border border-blue-900 text-sm">
         <thead>
           <tr className="bg-blue-900 text-white">
-            <th className="px-2 py-2 text-left font-medium">{t("invoice.itemColumn")}</th>
-            <th className="px-2 py-2 text-right font-medium">{t("invoice.previousReadingColumn")}</th>
-            <th className="px-2 py-2 text-right font-medium">{t("invoice.currentReadingColumn")}</th>
-            <th className="px-2 py-2 text-right font-medium">{t("invoice.unitsColumn")}</th>
-            <th className="px-2 py-2 text-right font-medium">{t("invoice.rateColumn")}</th>
-            <th className="px-2 py-2 text-right font-medium">{t("invoice.amountColumn")}</th>
+            <th className="border border-blue-900 px-2 py-2 text-left font-medium">{t("invoice.itemColumn")}</th>
+            <th className="border border-blue-900 px-2 py-2 text-right font-medium">{t("invoice.previousReadingColumn")}</th>
+            <th className="border border-blue-900 px-2 py-2 text-right font-medium">{t("invoice.currentReadingColumn")}</th>
+            <th className="border border-blue-900 px-2 py-2 text-right font-medium">{t("invoice.unitsColumn")}</th>
+            <th className="border border-blue-900 px-2 py-2 text-right font-medium">{t("invoice.rateColumn")}</th>
+            <th className="border border-blue-900 px-2 py-2 text-right font-medium">{t("invoice.amountColumn")}</th>
           </tr>
         </thead>
         <tbody>
           <tr className="border-b">
-            <td className="py-1.5 px-2">{t("invoice.rentItem")}</td>
-            <td className="py-1.5 px-2 text-right">—</td>
-            <td className="py-1.5 px-2 text-right">—</td>
-            <td className="py-1.5 px-2 text-right">—</td>
-            <td className="py-1.5 px-2 text-right">—</td>
-            <td className="py-1.5 px-2 text-right">{record.rentAmount.toFixed(2)}</td>
+            <td className="border border-blue-900 py-1.5 px-2">{t("invoice.rentItem")}</td>
+            <td className="border border-blue-900 py-1.5 px-2 text-right">—</td>
+            <td className="border border-blue-900 py-1.5 px-2 text-right">—</td>
+            <td className="border border-blue-900 py-1.5 px-2 text-right">—</td>
+            <td className="border border-blue-900 py-1.5 px-2 text-right">—</td>
+            <td className="border border-blue-900 py-1.5 px-2 text-right">{record.rentAmount.toFixed(2)}</td>
           </tr>
           <tr className="border-b">
-            <td className="py-1.5 px-2">{t("invoice.electricityItem")}</td>
-            <td className="py-1.5 px-2 text-right">{record.electricity.previousMeter}</td>
-            <td className="py-1.5 px-2 text-right">{record.electricity.currentMeter}</td>
-            <td className="py-1.5 px-2 text-right">{record.electricity.usage}</td>
-            <td className="py-1.5 px-2 text-right">{record.electricity.rate.toFixed(2)}</td>
-            <td className="py-1.5 px-2 text-right">{record.electricity.amount.toFixed(2)}</td>
+            <td className="border border-blue-900 py-1.5 px-2">{t("invoice.electricityItem")}</td>
+            <td className="border border-blue-900 py-1.5 px-2 text-right">{record.electricity.previousMeter}</td>
+            <td className="border border-blue-900 py-1.5 px-2 text-right">{record.electricity.currentMeter}</td>
+            <td className="border border-blue-900 py-1.5 px-2 text-right">{record.electricity.usage}</td>
+            <td className="border border-blue-900 py-1.5 px-2 text-right">{record.electricity.rate.toFixed(2)}</td>
+            <td className="border border-blue-900 py-1.5 px-2 text-right">{record.electricity.amount.toFixed(2)}</td>
           </tr>
           <tr className="border-b">
-            <td className="py-1.5 px-2">{t("invoice.waterItem")}</td>
-            <td className="py-1.5 px-2 text-right">{record.water.previousMeter}</td>
-            <td className="py-1.5 px-2 text-right">{record.water.currentMeter}</td>
-            <td className="py-1.5 px-2 text-right">{record.water.usage}</td>
-            <td className="py-1.5 px-2 text-right">{record.water.rate.toFixed(2)}</td>
-            <td className="py-1.5 px-2 text-right">{record.water.amount.toFixed(2)}</td>
+            <td className="border border-blue-900 py-1.5 px-2">{t("invoice.waterItem")}</td>
+            <td className="border border-blue-900 py-1.5 px-2 text-right">{record.water.previousMeter}</td>
+            <td className="border border-blue-900 py-1.5 px-2 text-right">{record.water.currentMeter}</td>
+            <td className="border border-blue-900 py-1.5 px-2 text-right">{record.water.usage}</td>
+            <td className="border border-blue-900 py-1.5 px-2 text-right">{record.water.rate.toFixed(2)}</td>
+            <td className="border border-blue-900 py-1.5 px-2 text-right">{record.water.amount.toFixed(2)}</td>
           </tr>
           {record.otherCharges.map((charge) => (
             <tr key={charge.id} className="border-b">
-              <td className="py-1.5 px-2">{charge.name}</td>
-              <td className="py-1.5 px-2 text-right">—</td>
-              <td className="py-1.5 px-2 text-right">—</td>
-              <td className="py-1.5 px-2 text-right">—</td>
-              <td className="py-1.5 px-2 text-right">—</td>
-              <td className="py-1.5 px-2 text-right">{charge.amount.toFixed(2)}</td>
+              <td className="border border-blue-900 py-1.5 px-2">{charge.name}</td>
+              <td className="border border-blue-900 py-1.5 px-2 text-right">—</td>
+              <td className="border border-blue-900 py-1.5 px-2 text-right">—</td>
+              <td className="border border-blue-900 py-1.5 px-2 text-right">—</td>
+              <td className="border border-blue-900 py-1.5 px-2 text-right">—</td>
+              <td className="border border-blue-900 py-1.5 px-2 text-right">{charge.amount.toFixed(2)}</td>
             </tr>
           ))}
         </tbody>

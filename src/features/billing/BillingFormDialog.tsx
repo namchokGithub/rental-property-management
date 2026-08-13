@@ -314,7 +314,7 @@ export function BillingFormDialog({
       otherCharges: form.otherCharges
         .filter((c) => c.name.trim() !== "")
         .map((c) => ({
-          masterId: c.masterId,
+          ...(c.masterId ? { masterId: c.masterId } : {}),
           name: c.name.trim(),
           amount: Number(c.amount) || 0,
         })),
