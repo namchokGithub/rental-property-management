@@ -298,7 +298,7 @@ const th: Translations = {
     print: "พิมพ์",
     paidToast: "บันทึกว่าชำระแล้ว",
     mobileCardSubtitle: "ห้อง {{roomNumber}} · {{tenant}}",
-    documentTitle: "ใบแจ้งค่าเช่า",
+    documentTitle: "ใบแจ้งค่าเช่า / ใบเสร็จรับเงิน",
     date: "วันที่ออกเอกสาร",
     billingPeriodLabel: "รอบค่าเช่า (เดือน)",
     invoiceNo: "เลขที่เอกสาร",

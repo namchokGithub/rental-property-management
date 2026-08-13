@@ -347,10 +347,36 @@
     display: none !important;
   }
   @page {
-    size: A4;
+    size: A5;
     margin: 10mm;
   }
   body {
     background: white;
+  }
+  #invoice-print-area {
+    padding: 12px !important;
+    font-size: 10px !important;
+  }
+  #invoice-print-area h1 {
+    font-size: 1.1rem !important;
+  }
+  #invoice-print-area .text-lg {
+    font-size: 0.85rem !important;
+  }
+  #invoice-print-area .text-sm {
+    font-size: 10px !important;
+  }
+  #invoice-print-area .text-xs {
+    font-size: 9px !important;
+  }
+  #invoice-print-area td,
+  #invoice-print-area th {
+    padding: 4px 6px !important;
+  }
+  #invoice-print-area td.w-40 {
+    width: 90px !important;
+  }
+  #invoice-print-area .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
