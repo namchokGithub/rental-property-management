@@ -127,7 +127,7 @@ export function AppHeader() {
         value={activePropertyId ?? undefined}
         onValueChange={setActivePropertyId}>
         <SelectTrigger
-          className="flex w-24 shrink-0 sm:w-48"
+          className="flex w-32 shrink-0 md:w-36 lg:w-48"
           aria-label={t("property.select")}>
           <SelectValue placeholder={t("property.select")} />
         </SelectTrigger>
