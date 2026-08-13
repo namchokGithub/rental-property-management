@@ -219,44 +219,48 @@ export function DashboardPage() {
                 onAction={isAdmin ? () => navigate("/billing") : undefined}
               />
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("common.room")}</TableHead>
-                    <TableHead>{t("common.tenant")}</TableHead>
-                    <TableHead>{t("common.month")}</TableHead>
-                    <TableHead>{t("common.amount")}</TableHead>
-                    <TableHead>{t("common.status")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentRecords.map((record) => {
-                    const room = rooms.find((r) => r.id === record.roomId);
-                    const tenant = tenants.find(
-                      (tenantItem) => tenantItem.id === record.tenantId,
-                    );
-                    const latestInvoice = latestInvoiceFromBilling(record);
-                    return (
-                      <TableRow key={record.id}>
-                        <TableCell>{room?.roomNumber ?? "—"}</TableCell>
-                        <TableCell>{tenant ? tenant.name : "—"}</TableCell>
-                        <TableCell>
-                          {formatBillingMonth(record.billingMonth, language)}
-                        </TableCell>
-                        <TableCell>
-                          {formatCurrency(
-                            latestInvoice?.total ?? record.total,
-                            language,
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge status={resolveBillingStatus(record)} />
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("common.room")}</TableHead>
+                      <TableHead>{t("common.tenant")}</TableHead>
+                      <TableHead>{t("common.month")}</TableHead>
+                      <TableHead>{t("common.amount")}</TableHead>
+                      <TableHead>{t("common.status")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {recentRecords.map((record) => {
+                      const room = rooms.find((r) => r.id === record.roomId);
+                      const tenant = tenants.find(
+                        (tenantItem) => tenantItem.id === record.tenantId,
+                      );
+                      const latestInvoice = latestInvoiceFromBilling(record);
+                      return (
+                        <TableRow key={record.id}>
+                          <TableCell>{room?.roomNumber ?? "—"}</TableCell>
+                          <TableCell>{tenant ? tenant.name : "—"}</TableCell>
+                          <TableCell>
+                            {formatBillingMonth(record.billingMonth, language)}
+                          </TableCell>
+                          <TableCell>
+                            {formatCurrency(
+                              latestInvoice?.total ?? record.total,
+                              language,
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge
+                              status={resolveBillingStatus(record)}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
