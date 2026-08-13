@@ -33,6 +33,7 @@ export interface BillingRecord {
   invoices?: InvoiceSnapshot[];
   dueDate?: string;
   paidAt?: string;
+  deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

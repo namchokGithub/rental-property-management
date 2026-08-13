@@ -89,6 +89,7 @@ Writes go through `src/data/repositories/otherChargeRepository.ts`'s `runTransac
 | `description` | `string?` | |
 | `electricityRate` | `number` | |
 | `waterRate` | `number` | |
+| `deletedAt` | `Timestamp \| null` | Soft-delete marker — see Business rules. Absent on any document created before this field existed; treated as "not deleted" either way. |
 | `createdAt`, `updatedAt` | `Timestamp` | Set via `serverTimestamp()`; converted to ISO strings at read time. |
 
 ### `properties/{propertyId}/tenants/{tenantId}`
@@ -98,6 +99,7 @@ Writes go through `src/data/repositories/otherChargeRepository.ts`'s `runTransac
 | `name` | `string` | Single free-text field, not split first/last (the pre-Firebase `fullName`/`.name` mismatch was fixed before this migration started). |
 | `phone`, `email`, `identificationNumber`, `address`, `emergencyContactName`, `emergencyContactPhone`, `notes` | `string?` | |
 | `status` | `"active" \| "inactive"` | Describes the tenant record, not occupancy. |
+| `deletedAt` | `Timestamp \| null` | Soft-delete marker — see Business rules. |
 | `createdAt`, `updatedAt` | `Timestamp` | |
 
 ### `properties/{propertyId}/assignments/{assignmentId}`
@@ -128,6 +130,7 @@ Document ID is deterministic: `` `${roomId}_${billingMonth}` `` — this is what
 | `subtotal`, `total` | `number` | |
 | `status` | `"draft" \| "issued" \| "paid" \| "overdue"` | `"overdue"` is never persisted — see Business rules. |
 | `issuedAt`, `dueDate`, `paidAt` | `Timestamp \| null` | |
+| `deletedAt` | `Timestamp \| null` | Soft-delete marker — see Business rules. `nextInvoiceNumber()`'s month scan deliberately ignores this field, since a deleted bill's invoice number must never be reused. |
 | `createdAt`, `updatedAt` | `Timestamp` | |
 
 ## Business rules
@@ -136,6 +139,7 @@ Document ID is deterministic: `` `${roomId}_${billingMonth}` `` — this is what
 - **Ending a tenancy.** `assignmentRepository.endByRoomId()` (also transactional) marks the assignment `ended`, records `endDate`, and flips the room back to `available` — but only if the room's current status is still `occupied`; an explicit `maintenance`/`inactive` status is left alone, since ending occupancy shouldn't silently clear a maintenance flag.
 - **Moving a tenant to a different room** calls `endTenancyByRoomId()` then `assignTenant()` sequentially (two separate transactions, not one) — matching the pre-Firestore behavior exactly; a crash between the two calls could leave a tenant unassigned, which is a pre-existing, documented, non-regressed limitation.
 - **Deleting a room or tenant with an active assignment is rejected** (`RoomHasActiveAssignmentError`/`TenantHasActiveAssignmentError`, thrown by `roomRepository.delete()`/`tenantRepository.delete()` after an `assignments` query) — ended assignment history never blocks deletion and is never cascade-deleted.
+- **Delete is soft, for rooms, tenants, and billing.** `delete()` on all three repositories sets `deletedAt: serverTimestamp()` (plus `updatedAt`) instead of calling `deleteDoc` — the document is retained, just filtered out client-side by `getAll()`/`subscribe()` before it reaches any hook/page. Deliberately **not** a Firestore `where("deletedAt", "==", null)` query: `==` never matches a document where the field is absent entirely, and every document that existed before this field was added has no `deletedAt` at all — a query-level filter would hide all of it with no backfill mechanism available (no backend, no migration scripts). `billingRepository`'s invoice-number sequencing (`nextInvoiceNumber()`) and one-bill-per-room-per-month guard (`create()`'s deterministic-ID collision check) both deliberately ignore `deletedAt` — see the field notes above. `firestore.rules` was tightened alongside this: `rooms`/`tenants` grant `create, update` only (no `delete`), and `billing` dropped its `delete` permission and added `deletedAt` to its `update` allowlist — since rules are the only real enforcement here, removing the client's soft-delete call without also removing the raw-delete grant would leave hard delete one direct-SDK-call away. No restore/trash UI and no `deletedBy` audit field exist yet (see [the soft-delete design doc](../superpowers/specs/2026-08-13-soft-delete-design.md)).
 - **Invoice numbering.** `billingRepository.update()` assigns `invoiceNumber` inside a `runTransaction()` only on the transition into `status: "issued"`: it queries existing `billing` documents for the same `billingMonth`, filters to ones that already have an `invoiceNumber`, and calls the unchanged pure `generateInvoiceNumber()` (`src/lib/invoice.ts`) to compute `INV-YYYY-MM-NNN`. Bulk-issuing must `await` each record sequentially (never `Promise.all`) so each transaction's write commits before the next one reads — see `BillingPage.tsx`'s `handleBulkIssue()`.
 - **Billing status lifecycle.** Stored `status` changes only via explicit user actions (issue, mark paid); `"overdue"` is never persisted — `resolveBillingStatus()` (`src/lib/invoice.ts`, unchanged) computes it at read time from `dueDate`.
 - **Firestore rules also enforce billing immutability after issuance**: once `invoiceNumber` is set, an `update` that changes `invoiceNumber` or `issuedAt` is rejected outright (see [firestore.rules](../../firestore.rules)'s `billing` match block) — the closest a client-only rule can get to the immutability guarantee a real backend's separate `invoices` collection would have given for free.

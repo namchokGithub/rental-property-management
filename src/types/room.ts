@@ -8,11 +8,12 @@ export interface Room {
   monthlyRent: number;
   status: RoomStatus;
   description?: string;
+  deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export type CreateRoomInput = Omit<Room, "id" | "createdAt" | "updatedAt" | "status"> & {
+export type CreateRoomInput = Omit<Room, "id" | "createdAt" | "updatedAt" | "deletedAt" | "status"> & {
   status?: RoomStatus;
 };
-export type UpdateRoomInput = Partial<Omit<Room, "id" | "createdAt" | "updatedAt">>;
+export type UpdateRoomInput = Partial<Omit<Room, "id" | "createdAt" | "updatedAt" | "deletedAt">>;

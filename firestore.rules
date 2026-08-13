@@ -43,14 +43,18 @@ service cloud.firestore {
         allow write: if isAdminForProperty(propertyId);
       }
 
+      // Delete is soft (a `deletedAt` update, see `roomRepository.ts`) — raw
+      // `delete` is intentionally not granted, so a client can't bypass that
+      // and hard-erase a document even via the SDK directly.
       match /rooms/{roomId} {
         allow read: if hasPropertyAccess(propertyId);
-        allow write: if isAdminForProperty(propertyId);
+        allow create, update: if isAdminForProperty(propertyId);
       }
 
+      // Same soft-delete-only policy as `rooms` above.
       match /tenants/{tenantId} {
         allow read: if hasPropertyAccess(propertyId);
-        allow write: if isAdminForProperty(propertyId);
+        allow create, update: if isAdminForProperty(propertyId);
       }
 
       match /assignments/{assignmentId} {
@@ -62,13 +66,15 @@ service cloud.firestore {
         allow read: if hasPropertyAccess(propertyId);
         // Issuance snapshots are retained in `invoices`, allowing a bill to be
         // reissued while preserving every prior invoice as `superseded`.
-        allow create, delete: if isAdminForProperty(propertyId);
+        // Delete is soft (`deletedAt`, via `update` below) — raw `delete` is
+        // intentionally not granted, same policy as `rooms`/`tenants` above.
+        allow create: if isAdminForProperty(propertyId);
         allow update: if isAdminForProperty(propertyId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'tenantId', 'electricity', 'water', 'rentAmount', 'otherCharges',
             'subtotal', 'total', 'status',
             'invoiceNumber', 'invoices', 'dueDate', 'issuedAt', 'paidAt',
-            'updatedAt'
+            'deletedAt', 'updatedAt'
           ]);
       }
     }

@@ -1,4 +1,4 @@
-import { collection, deleteDoc, doc, getDocs, query, where } from "firebase/firestore";
+import { collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { createFirestoreCrudRepository } from "@/data/repositories/firestoreCrud";
 import type { CreateRoomInput, Room, UpdateRoomInput } from "@/types/room";
@@ -40,6 +40,9 @@ export const roomRepository = {
   ...createFirestoreCrudRepository<Room, CreateRoomInput, UpdateRoomInput>("rooms"),
   async delete(propertyId: string, id: string): Promise<void> {
     await assertNoActiveAssignment(propertyId, id);
-    await deleteDoc(doc(db, "properties", propertyId, "rooms", id));
+    await updateDoc(doc(db, "properties", propertyId, "rooms", id), {
+      deletedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
   },
 };

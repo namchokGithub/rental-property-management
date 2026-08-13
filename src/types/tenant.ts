@@ -11,16 +11,17 @@ export interface Tenant {
   emergencyContactPhone?: string;
   status: TenantStatus;
   notes?: string;
+  deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export type CreateTenantInput = Omit<
   Tenant,
-  "id" | "createdAt" | "updatedAt" | "status"
+  "id" | "createdAt" | "updatedAt" | "deletedAt" | "status"
 > & {
   status?: TenantStatus;
 };
 export type UpdateTenantInput = Partial<
-  Omit<Tenant, "id" | "createdAt" | "updatedAt">
+  Omit<Tenant, "id" | "createdAt" | "updatedAt" | "deletedAt">
 >;

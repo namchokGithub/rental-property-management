@@ -1,7 +1,6 @@
 import {
   addDoc,
   collection,
-  deleteDoc,
   doc,
   getDocs,
   onSnapshot,
@@ -46,20 +45,31 @@ export function createFirestoreCrudRepository<TDoc extends { id: string }, TCrea
     return {
       id,
       ...data,
+      deletedAt: timestampToIso(data.deletedAt as Timestamp | null | undefined) ?? null,
       createdAt: timestampToIso(data.createdAt as Timestamp | null | undefined) ?? new Date().toISOString(),
       updatedAt: timestampToIso(data.updatedAt as Timestamp | null | undefined) ?? new Date().toISOString(),
     } as unknown as TDoc;
   }
 
+  // Soft-deleted docs (`deletedAt` set) are filtered out here, client-side,
+  // rather than via a Firestore `where("deletedAt", "==", null)` query —
+  // Firestore's `==` never matches a document where the field is absent
+  // entirely, which every pre-existing document is. A query-level filter
+  // would silently hide all data created before soft delete existed, with no
+  // backfill mechanism available (no backend, no migration scripts).
+  function isNotDeleted(data: Record<string, unknown>): boolean {
+    return !data.deletedAt;
+  }
+
   return {
     async getAll(propertyId: string): Promise<TDoc[]> {
       const snapshot = await getDocs(collectionRef(propertyId));
-      return snapshot.docs.map((d) => toDoc(d.id, d.data()));
+      return snapshot.docs.filter((d) => isNotDeleted(d.data())).map((d) => toDoc(d.id, d.data()));
     },
 
     subscribe(propertyId: string, callback: (items: TDoc[]) => void): Unsubscribe {
       return onSnapshot(collectionRef(propertyId), (snapshot) => {
-        callback(snapshot.docs.map((d) => toDoc(d.id, d.data())));
+        callback(snapshot.docs.filter((d) => isNotDeleted(d.data())).map((d) => toDoc(d.id, d.data())));
       });
     },
 
@@ -80,7 +90,7 @@ export function createFirestoreCrudRepository<TDoc extends { id: string }, TCrea
     },
 
     async delete(propertyId: string, id: string): Promise<void> {
-      await deleteDoc(doc(collectionRef(propertyId), id));
+      await updateDoc(doc(collectionRef(propertyId), id), { deletedAt: serverTimestamp(), updatedAt: serverTimestamp() });
     },
   };
 }

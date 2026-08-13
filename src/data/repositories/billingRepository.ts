@@ -1,12 +1,12 @@
 import {
   collection,
-  deleteDoc,
   doc,
   getDocs,
   onSnapshot,
   query,
   runTransaction,
   serverTimestamp,
+  updateDoc,
   where,
   type Timestamp,
   type Transaction,
@@ -63,9 +63,20 @@ function toBillingRecord(id: string, data: Record<string, unknown>): BillingReco
     issuedAt: timestampToIso(data.issuedAt as Timestamp | null | undefined),
     dueDate: timestampToIso(data.dueDate as Timestamp | null | undefined),
     paidAt: timestampToIso(data.paidAt as Timestamp | null | undefined),
+    deletedAt: timestampToIso(data.deletedAt as Timestamp | null | undefined) ?? null,
     createdAt: timestampToIso(data.createdAt as Timestamp | null | undefined) ?? new Date().toISOString(),
     updatedAt: timestampToIso(data.updatedAt as Timestamp | null | undefined) ?? new Date().toISOString(),
   } as BillingRecord;
+}
+
+// Soft-deleted docs (`deletedAt` set) are filtered out client-side, not via a
+// Firestore `where("deletedAt", "==", null)` query — see the identical
+// comment in `firestoreCrud.ts` for why (missing-field `==` semantics + no
+// backfill mechanism). `nextInvoiceNumber()` deliberately does NOT use this —
+// a soft-deleted bill's invoice number must still count so it's never
+// reissued to a different bill.
+function isNotDeleted(data: Record<string, unknown>): boolean {
+  return !data.deletedAt;
 }
 
 // Every form submission sends `otherCharges` without ids (`Omit<BillingCharge,
@@ -179,7 +190,11 @@ function invoiceHistory(record: RawBillingDoc, legacyInvoiceId: string = crypto.
 export const billingRepository = {
   subscribe(propertyId: string, callback: (records: BillingRecord[]) => void): Unsubscribe {
     return onSnapshot(billingCollectionRef(propertyId), (snapshot) => {
-      callback(snapshot.docs.map((document) => toBillingRecord(document.id, document.data())));
+      callback(
+        snapshot.docs
+          .filter((document) => isNotDeleted(document.data()))
+          .map((document) => toBillingRecord(document.id, document.data())),
+      );
     });
   },
 
@@ -379,6 +394,9 @@ export const billingRepository = {
   },
 
   async delete(propertyId: string, id: string): Promise<void> {
-    await deleteDoc(doc(billingCollectionRef(propertyId), id));
+    await updateDoc(doc(billingCollectionRef(propertyId), id), {
+      deletedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
   },
 };
