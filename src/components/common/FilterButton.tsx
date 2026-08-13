@@ -76,12 +76,12 @@ export function FilterButton({ fields, values, onApply }: FilterButtonProps) {
         <div className="space-y-4 py-2">
           {fields.map((field) => (
             <div key={field.key} className="space-y-1.5">
-              <Label>{field.label}</Label>
+              <Label htmlFor={`filter-${field.key}`}>{field.label}</Label>
               <Select
                 value={draft[field.key] ?? "all"}
                 onValueChange={(value) => setDraft((prev) => ({ ...prev, [field.key]: value }))}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger id={`filter-${field.key}`} className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
