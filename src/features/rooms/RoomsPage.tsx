@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { SearchInput } from "@/components/common/SearchInput";
 import { Pagination } from "@/components/common/Pagination";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FilterButton } from "@/components/common/FilterButton";
 import { PageSpinner } from "@/components/common/PageSpinner";
 import { usePagination } from "@/hooks/usePagination";
 import { RoomTable } from "@/features/rooms/RoomTable";
@@ -138,25 +138,23 @@ export function RoomsPage() {
               placeholder={t("common.search")}
               className="w-full sm:max-w-sm"
             />
-            <Select
-              value={statusFilter}
-              onValueChange={(value) => {
-                setStatusFilter(value as RoomStatus | "all");
+            <FilterButton
+              fields={[
+                {
+                  key: "status",
+                  label: t("common.status"),
+                  options: [
+                    { value: "all", label: t("common.allStatuses") },
+                    ...ROOM_STATUSES.map((status) => ({ value: status, label: t(`status.${status}`) })),
+                  ],
+                },
+              ]}
+              values={{ status: statusFilter }}
+              onApply={(values) => {
+                setStatusFilter((values.status as RoomStatus | "all") ?? "all");
                 setPage(1);
               }}
-            >
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("common.allStatuses")}</SelectItem>
-                {ROOM_STATUSES.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {t(`status.${status}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           </div>
           {filteredRooms.length === 0 ? (
             <EmptyState
