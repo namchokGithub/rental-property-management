@@ -4,9 +4,17 @@ import type { CreateBillingInput } from "@/types/billing";
 
 export type ValidationErrors = Record<string, string>;
 
-export function validateRoom(input: Partial<CreateRoomInput & UpdateRoomInput>): ValidationErrors {
+export function validateRoom(
+  input: Partial<CreateRoomInput & UpdateRoomInput>,
+  existingRoomNumbers?: Set<string>
+): ValidationErrors {
   const errors: ValidationErrors = {};
-  if (!input.roomNumber || input.roomNumber.trim() === "") errors.roomNumber = "validation.room.roomNumberRequired";
+  const roomNumber = input.roomNumber?.trim() ?? "";
+  if (!roomNumber) {
+    errors.roomNumber = "validation.room.roomNumberRequired";
+  } else if (existingRoomNumbers?.has(roomNumber.toLowerCase())) {
+    errors.roomNumber = "validation.room.roomNumberDuplicate";
+  }
   if (input.monthlyRent !== undefined && input.monthlyRent < 0) errors.monthlyRent = "validation.room.monthlyRentNegative";
   return errors;
 }

@@ -21,6 +21,7 @@ interface RoomFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   room?: Room;
+  rooms: Room[];
   onSubmit: (input: CreateRoomInput) => Promise<unknown>;
 }
 
@@ -46,7 +47,7 @@ function toFormState(room: Room | undefined): FormState {
 
 const STATUS_OPTIONS: RoomStatus[] = ["available", "occupied", "maintenance", "inactive"];
 
-export function RoomFormDialog({ open, onOpenChange, room, onSubmit }: RoomFormDialogProps) {
+export function RoomFormDialog({ open, onOpenChange, room, rooms, onSubmit }: RoomFormDialogProps) {
   const { t } = useLanguage();
   const [form, setForm] = useState<FormState>(() => toFormState(room));
   const [errors, setErrors] = useState<ValidationErrors>({});
@@ -80,7 +81,10 @@ export function RoomFormDialog({ open, onOpenChange, room, onSubmit }: RoomFormD
       status: form.status,
       description: form.description.trim() || undefined,
     };
-    const validationErrors = validateRoom(input);
+    const existingRoomNumbers = new Set(
+      rooms.filter((r) => r.id !== room?.id).map((r) => r.roomNumber.trim().toLowerCase())
+    );
+    const validationErrors = validateRoom(input, existingRoomNumbers);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;

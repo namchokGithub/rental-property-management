@@ -178,6 +178,7 @@ export function RoomsPage() {
         open={formOpen}
         onOpenChange={setFormOpen}
         room={editingRoom}
+        rooms={rooms}
         onSubmit={(input) => (editingRoom ? updateRoom(editingRoom.id, input) : createRoom(input))}
       />
 
