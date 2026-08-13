@@ -91,7 +91,7 @@ export function AppHeader() {
   return (
     <header
       className={cn(
-        "flex items-center gap-3 border-b bg-card px-4 py-4 md:px-6",
+        "flex flex-wrap items-center gap-3 border-b bg-card px-4 py-3 md:flex-nowrap md:py-4 md:px-6",
       )}>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="left" className="w-64 p-4">
@@ -110,18 +110,24 @@ export function AppHeader() {
         <Button
           variant="ghost"
           size="icon"
-          className="md:hidden"
+          className="shrink-0 md:hidden"
           onClick={() => setOpen(true)}>
           <Menu className="h-5 w-5" />
           <span className="sr-only">{t("header.openNavigation")}</span>
         </Button>
       </Sheet>
-      <h1 className="flex-1 text-lg font-semibold tracking-tight">{title}</h1>
+      <h1 className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight">
+        {title}
+      </h1>
+      {/* Forces the controls below onto their own row on narrow screens so
+          the title always keeps enough width to render on one line without
+          wrapping; collapses away at md+ where everything fits on one row. */}
+      <div className="basis-full md:hidden" aria-hidden="true" />
       <Select
         value={activePropertyId ?? undefined}
         onValueChange={setActivePropertyId}>
         <SelectTrigger
-          className="flex w-32 sm:w-48"
+          className="flex w-24 shrink-0 sm:w-48"
           aria-label={t("property.select")}>
           <SelectValue placeholder={t("property.select")} />
         </SelectTrigger>
@@ -133,9 +139,15 @@ export function AppHeader() {
           ))}
         </SelectContent>
       </Select>
-      <LanguageSwitch />
-      <ThemeMenu />
-      <AccountMenu />
+      <div className="shrink-0">
+        <LanguageSwitch />
+      </div>
+      <div className="shrink-0">
+        <ThemeMenu />
+      </div>
+      <div className="shrink-0">
+        <AccountMenu />
+      </div>
     </header>
   );
 }
