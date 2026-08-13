@@ -71,9 +71,13 @@ export function OtherChargeSection() {
                 setFormOpen(true);
               }}
               onDelete={setDeletingCharge}
-              onToggleActive={(charge) => {
-                updateOtherCharge(charge.id, { isActive: !charge.isActive });
-                toast.success(charge.isActive ? t("settings.otherChargesDeactivatedToast") : t("settings.otherChargesActivatedToast"));
+              onToggleActive={async (charge) => {
+                try {
+                  await updateOtherCharge(charge.id, { isActive: !charge.isActive });
+                  toast.success(charge.isActive ? t("settings.otherChargesDeactivatedToast") : t("settings.otherChargesActivatedToast"));
+                } catch {
+                  toast.error(t("common.actionFailed"));
+                }
               }}
             />
             <Pagination
@@ -94,15 +98,9 @@ export function OtherChargeSection() {
         open={formOpen}
         onOpenChange={setFormOpen}
         charge={editingCharge}
-        onSubmit={(input) => {
-          if (editingCharge) {
-            updateOtherCharge(editingCharge.id, input);
-            toast.success(t("settings.otherChargesUpdatedToast"));
-          } else {
-            createOtherCharge(input);
-            toast.success(t("settings.otherChargesSavedToast"));
-          }
-        }}
+        onSubmit={(input) =>
+          editingCharge ? updateOtherCharge(editingCharge.id, input) : createOtherCharge(input)
+        }
       />
 
       <ConfirmDialog
@@ -112,11 +110,15 @@ export function OtherChargeSection() {
         description={t("settings.otherChargesDeleteConfirmDescription")}
         confirmLabel={t("common.delete")}
         destructive
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!deletingCharge) return;
-          deleteOtherCharge(deletingCharge.id);
-          toast.success(t("settings.otherChargesDeletedToast"));
-          setDeletingCharge(undefined);
+          try {
+            await deleteOtherCharge(deletingCharge.id);
+            toast.success(t("settings.otherChargesDeletedToast"));
+            setDeletingCharge(undefined);
+          } catch {
+            toast.error(t("common.actionFailed"));
+          }
         }}
       />
     </Card>

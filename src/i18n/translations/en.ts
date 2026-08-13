@@ -337,7 +337,7 @@ const en: Translations = {
     otherChargesNameEn: "Name (English)",
     otherChargesDefaultAmount: "Default Amount",
     otherChargesNamePlaceholder: "e.g. Parking Fee",
-    otherChargesNameEnPlaceholder: "e.g. Parking Fee (optional)",
+    otherChargesNameEnPlaceholder: "e.g. Parking Fee",
     otherChargesAmountPlaceholder: "0",
     otherChargesNoChargesTitle: "No other charges yet",
     otherChargesNoChargesDescription: "Add your first charge to make it available when creating a monthly bill.",
@@ -385,6 +385,7 @@ const en: Translations = {
     },
     otherCharge: {
       nameThRequired: "Thai name is required",
+      nameEnRequired: "English name is required",
       defaultAmountNegative: "Default amount cannot be negative",
     },
   },

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +19,7 @@ interface OtherChargeFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   charge?: OtherChargeMaster;
-  onSubmit: (input: CreateOtherChargeInput) => void;
+  onSubmit: (input: CreateOtherChargeInput) => Promise<unknown>;
 }
 
 interface FormState {
@@ -39,6 +40,7 @@ export function OtherChargeFormDialog({ open, onOpenChange, charge, onSubmit }: 
   const { t } = useLanguage();
   const [form, setForm] = useState<FormState>(() => buildFormState(charge));
   const [errors, setErrors] = useState<ValidationErrors>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -56,10 +58,12 @@ export function OtherChargeFormDialog({ open, onOpenChange, charge, onSubmit }: 
     });
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
+    if (isSubmitting) return;
+
     const input: CreateOtherChargeInput = {
       nameTh: form.nameTh.trim(),
-      nameEn: form.nameEn.trim() || undefined,
+      nameEn: form.nameEn.trim(),
       defaultAmount: Number(form.defaultAmount) || 0,
       isActive: charge?.isActive ?? true,
     };
@@ -68,8 +72,16 @@ export function OtherChargeFormDialog({ open, onOpenChange, charge, onSubmit }: 
       setErrors(validationErrors);
       return;
     }
-    onSubmit(input);
-    onOpenChange(false);
+    setIsSubmitting(true);
+    try {
+      await onSubmit(input);
+      toast.success(charge ? t("settings.otherChargesUpdatedToast") : t("settings.otherChargesSavedToast"));
+      onOpenChange(false);
+    } catch {
+      toast.error(t("common.actionFailed"));
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -100,8 +112,12 @@ export function OtherChargeFormDialog({ open, onOpenChange, charge, onSubmit }: 
               id="charge-name-en"
               placeholder={t("settings.otherChargesNameEnPlaceholder")}
               value={form.nameEn}
-              onChange={(e) => setForm({ ...form, nameEn: e.target.value })}
+              onChange={(e) => {
+                setForm({ ...form, nameEn: e.target.value });
+                clearError("nameEn");
+              }}
             />
+            {errors.nameEn && <p className="text-xs text-destructive">{t(errors.nameEn)}</p>}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="charge-amount">{t("settings.otherChargesDefaultAmount")}</Label>
@@ -121,10 +137,12 @@ export function OtherChargeFormDialog({ open, onOpenChange, charge, onSubmit }: 
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             {t("common.cancel")}
           </Button>
-          <Button onClick={handleSubmit}>{charge ? t("common.saveChanges") : t("settings.otherChargesAdd")}</Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting}>
+            {charge ? t("common.saveChanges") : t("settings.otherChargesAdd")}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -383,6 +383,7 @@ export interface Translations {
     };
     otherCharge: {
       nameThRequired: string;
+      nameEnRequired: string;
       defaultAmountNegative: string;
     };
   };

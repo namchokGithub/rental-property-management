@@ -25,9 +25,10 @@ export function validateTenant(input: Partial<CreateTenantInput & UpdateTenantIn
   return errors;
 }
 
-export function validateOtherCharge(input: { nameTh?: string; defaultAmount?: number }): ValidationErrors {
+export function validateOtherCharge(input: { nameTh?: string; nameEn?: string; defaultAmount?: number }): ValidationErrors {
   const errors: ValidationErrors = {};
   if (!input.nameTh || input.nameTh.trim() === "") errors.nameTh = "validation.otherCharge.nameThRequired";
+  if (!input.nameEn || input.nameEn.trim() === "") errors.nameEn = "validation.otherCharge.nameEnRequired";
   if (input.defaultAmount !== undefined && input.defaultAmount < 0) errors.defaultAmount = "validation.otherCharge.defaultAmountNegative";
   return errors;
 }

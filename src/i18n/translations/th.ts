@@ -336,7 +336,7 @@ const th: Translations = {
     otherChargesNameEn: "ชื่อรายการ (อังกฤษ)",
     otherChargesDefaultAmount: "จำนวนเงินเริ่มต้น",
     otherChargesNamePlaceholder: "เช่น ค่าที่จอดรถ",
-    otherChargesNameEnPlaceholder: "เช่น Parking Fee (ไม่บังคับ)",
+    otherChargesNameEnPlaceholder: "เช่น Parking Fee",
     otherChargesAmountPlaceholder: "0",
     otherChargesNoChargesTitle: "ยังไม่มีรายการค่าใช้จ่ายอื่น",
     otherChargesNoChargesDescription: "เพิ่มรายการค่าใช้จ่ายแรกของคุณเพื่อเลือกใช้ในบิลรายเดือน",
@@ -384,6 +384,7 @@ const th: Translations = {
     },
     otherCharge: {
       nameThRequired: "กรุณากรอกชื่อรายการ (ไทย)",
+      nameEnRequired: "กรุณากรอกชื่อรายการ (อังกฤษ)",
       defaultAmountNegative: "จำนวนเงินเริ่มต้นต้องไม่ติดลบ",
     },
   },
