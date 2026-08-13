@@ -12,7 +12,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { SearchInput } from "@/components/common/SearchInput";
 import { Pagination } from "@/components/common/Pagination";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FilterButton } from "@/components/common/FilterButton";
 import { InvoicePreviewDialog } from "@/features/invoices/InvoicePreviewDialog";
 import { useAuth } from "@/auth";
 import { usePagination } from "@/hooks/usePagination";
@@ -130,44 +130,32 @@ export function InvoicesPage() {
               placeholder={t("common.search")}
               className="w-full sm:max-w-sm"
             />
-            <Select
-              value={monthFilter}
-              onValueChange={(value) => {
-                setMonthFilter(value);
+            <FilterButton
+              fields={[
+                {
+                  key: "month",
+                  label: t("common.month"),
+                  options: [
+                    { value: "all", label: t("common.allMonths") },
+                    ...MONTHS.map((month) => ({ value: month, label: monthName(Number(month), language) })),
+                  ],
+                },
+                {
+                  key: "year",
+                  label: t("common.year"),
+                  options: [
+                    { value: "all", label: t("common.allYears") },
+                    ...availableYears.map((year) => ({ value: year, label: yearLabel(Number(year), language) })),
+                  ],
+                },
+              ]}
+              values={{ month: monthFilter, year: yearFilter }}
+              onApply={(values) => {
+                setMonthFilter(values.month ?? "all");
+                setYearFilter(values.year ?? "all");
                 setPage(1);
               }}
-            >
-              <SelectTrigger className="w-full sm:w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("common.allMonths")}</SelectItem>
-                {MONTHS.map((month) => (
-                  <SelectItem key={month} value={month}>
-                    {monthName(Number(month), language)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={yearFilter}
-              onValueChange={(value) => {
-                setYearFilter(value);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("common.allYears")}</SelectItem>
-                {availableYears.map((year) => (
-                  <SelectItem key={year} value={year}>
-                    {yearLabel(Number(year), language)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           </div>
           {filteredInvoices.length === 0 ? (
             <EmptyState
