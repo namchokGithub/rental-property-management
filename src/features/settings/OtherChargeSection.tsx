@@ -5,10 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { Pagination } from "@/components/common/Pagination";
 import { OtherChargeTable } from "@/features/settings/OtherChargeTable";
 import { OtherChargeFormDialog } from "@/features/settings/OtherChargeFormDialog";
 import { useAuth } from "@/auth";
 import { useOtherCharges } from "@/hooks/useOtherCharges";
+import { usePagination } from "@/hooks/usePagination";
 import { useLanguage } from "@/i18n";
 import type { OtherChargeMaster } from "@/types/otherCharge";
 
@@ -21,6 +23,8 @@ export function OtherChargeSection() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingCharge, setEditingCharge] = useState<OtherChargeMaster | undefined>(undefined);
   const [deletingCharge, setDeletingCharge] = useState<OtherChargeMaster | undefined>(undefined);
+
+  const { page, setPage, pageSize, setPageSize, totalPages, totalItems, pageItems } = usePagination(otherCharges);
 
   function displayName(charge: OtherChargeMaster): string {
     return language === "en" && charge.nameEn ? charge.nameEn : charge.nameTh;
@@ -59,18 +63,29 @@ export function OtherChargeSection() {
             }
           />
         ) : (
-          <OtherChargeTable
-            charges={otherCharges}
-            onEdit={(charge) => {
-              setEditingCharge(charge);
-              setFormOpen(true);
-            }}
-            onDelete={setDeletingCharge}
-            onToggleActive={(charge) => {
-              updateOtherCharge(charge.id, { isActive: !charge.isActive });
-              toast.success(charge.isActive ? t("settings.otherChargesDeactivatedToast") : t("settings.otherChargesActivatedToast"));
-            }}
-          />
+          <div className="space-y-3">
+            <OtherChargeTable
+              charges={pageItems}
+              onEdit={(charge) => {
+                setEditingCharge(charge);
+                setFormOpen(true);
+              }}
+              onDelete={setDeletingCharge}
+              onToggleActive={(charge) => {
+                updateOtherCharge(charge.id, { isActive: !charge.isActive });
+                toast.success(charge.isActive ? t("settings.otherChargesDeactivatedToast") : t("settings.otherChargesActivatedToast"));
+              }}
+            />
+            <Pagination
+              variant="bare"
+              page={page}
+              pageSize={pageSize}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
+          </div>
         )}
       </CardContent>
 

@@ -63,6 +63,10 @@ export interface Translations {
     allYears: string;
     selectAll: string;
     selectRow: string;
+    rowsPerPage: string;
+    paginationRange: string;
+    previousPage: string;
+    nextPage: string;
   };
   sidebar: {
     brand: string;

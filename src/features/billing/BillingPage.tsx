@@ -7,10 +7,12 @@ import { PageSpinner } from "@/components/common/PageSpinner";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { SearchInput } from "@/components/common/SearchInput";
+import { Pagination } from "@/components/common/Pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BillingTable } from "@/features/billing/BillingTable";
 import { BillingFormDialog } from "@/features/billing/BillingFormDialog";
 import { useAuth } from "@/auth";
+import { usePagination } from "@/hooks/usePagination";
 import { useBillingRecords } from "@/hooks/useBillingRecords";
 import { useRooms } from "@/hooks/useRooms";
 import { useTenants } from "@/hooks/useTenants";
@@ -94,6 +96,8 @@ export function BillingPage() {
         }),
     [sortedRecords, searchQuery, statusFilter, monthFilter, yearFilter, roomById, tenantById, language]
   );
+
+  const { page, setPage, pageSize, setPageSize, totalPages, totalItems, pageItems } = usePagination(filteredRecords);
 
   function getLatestByRoomId(roomId: string): BillingRecord | undefined {
     return records
@@ -205,11 +209,20 @@ export function BillingPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <SearchInput
               value={searchQuery}
-              onChange={setSearchQuery}
+              onChange={(value) => {
+                setSearchQuery(value);
+                setPage(1);
+              }}
               placeholder={t("common.search")}
               className="w-full sm:max-w-sm"
             />
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as BillingStatus | "all")}>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => {
+                setStatusFilter(value as BillingStatus | "all");
+                setPage(1);
+              }}
+            >
               <SelectTrigger className="w-full sm:w-48">
                 <SelectValue />
               </SelectTrigger>
@@ -222,7 +235,13 @@ export function BillingPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={monthFilter} onValueChange={setMonthFilter}>
+            <Select
+              value={monthFilter}
+              onValueChange={(value) => {
+                setMonthFilter(value);
+                setPage(1);
+              }}
+            >
               <SelectTrigger className="w-full sm:w-40">
                 <SelectValue />
               </SelectTrigger>
@@ -235,7 +254,13 @@ export function BillingPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={yearFilter} onValueChange={setYearFilter}>
+            <Select
+              value={yearFilter}
+              onValueChange={(value) => {
+                setYearFilter(value);
+                setPage(1);
+              }}
+            >
               <SelectTrigger className="w-full sm:w-32">
                 <SelectValue />
               </SelectTrigger>
@@ -260,48 +285,59 @@ export function BillingPage() {
                 setStatusFilter("all");
                 setMonthFilter("all");
                 setYearFilter("all");
+                setPage(1);
               }}
             />
           ) : (
-            <BillingTable
-              records={filteredRecords}
-              roomById={roomById}
-              tenantById={tenantById}
-              onEdit={(record) => {
-                setEditingRecord(record);
-                setFormOpen(true);
-              }}
-              onDelete={setDeletingRecord}
-              onIssue={async (record) => {
-                try {
-                  const { invoiceNumber } = await updateBilling(record.id, { status: "issued" });
-                  toast.success(t("billing.issuedToast", { invoiceNumber: invoiceNumber ?? "" }));
-                } catch {
-                  toast.error(t("common.actionFailed"));
-                }
-              }}
-              onReissue={async (record) => {
-                try {
-                  const invoiceNumber = await reissueBilling(record.id);
-                  toast.success(t("billing.reissuedToast", { invoiceNumber }));
-                } catch {
-                  toast.error(t("common.actionFailed"));
-                }
-              }}
-              onMarkPaid={async (record) => {
-                try {
-                  const invoice = latestInvoiceFromBilling(record);
-                  if (invoice?.status !== "issued") return;
-                  await markInvoicePaid(record.id, invoice.id);
-                  toast.success(t("billing.paidToast"));
-                } catch {
-                  toast.error(t("common.actionFailed"));
-                }
-              }}
-              selectedIds={effectiveSelectedIds}
-              onToggleRecord={toggleRecord}
-              onToggleAll={toggleAll}
-            />
+            <>
+              <BillingTable
+                records={pageItems}
+                roomById={roomById}
+                tenantById={tenantById}
+                onEdit={(record) => {
+                  setEditingRecord(record);
+                  setFormOpen(true);
+                }}
+                onDelete={setDeletingRecord}
+                onIssue={async (record) => {
+                  try {
+                    const { invoiceNumber } = await updateBilling(record.id, { status: "issued" });
+                    toast.success(t("billing.issuedToast", { invoiceNumber: invoiceNumber ?? "" }));
+                  } catch {
+                    toast.error(t("common.actionFailed"));
+                  }
+                }}
+                onReissue={async (record) => {
+                  try {
+                    const invoiceNumber = await reissueBilling(record.id);
+                    toast.success(t("billing.reissuedToast", { invoiceNumber }));
+                  } catch {
+                    toast.error(t("common.actionFailed"));
+                  }
+                }}
+                onMarkPaid={async (record) => {
+                  try {
+                    const invoice = latestInvoiceFromBilling(record);
+                    if (invoice?.status !== "issued") return;
+                    await markInvoicePaid(record.id, invoice.id);
+                    toast.success(t("billing.paidToast"));
+                  } catch {
+                    toast.error(t("common.actionFailed"));
+                  }
+                }}
+                selectedIds={effectiveSelectedIds}
+                onToggleRecord={toggleRecord}
+                onToggleAll={toggleAll}
+              />
+              <Pagination
+                page={page}
+                pageSize={pageSize}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                onPageChange={setPage}
+                onPageSizeChange={setPageSize}
+              />
+            </>
           )}
         </>
       )}

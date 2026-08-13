@@ -6,8 +6,10 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { SearchInput } from "@/components/common/SearchInput";
+import { Pagination } from "@/components/common/Pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageSpinner } from "@/components/common/PageSpinner";
+import { usePagination } from "@/hooks/usePagination";
 import { RoomTable } from "@/features/rooms/RoomTable";
 import { RoomFormDialog } from "@/features/rooms/RoomFormDialog";
 import { RoomImportDialog } from "@/features/rooms/RoomImportDialog";
@@ -81,6 +83,8 @@ export function RoomsPage() {
     [rooms, searchQuery, statusFilter, tenantNameByRoomId]
   );
 
+  const { page, setPage, pageSize, setPageSize, totalPages, totalItems, pageItems } = usePagination(filteredRooms);
+
   if (isLoading) return <PageSpinner />;
 
   return (
@@ -127,11 +131,20 @@ export function RoomsPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <SearchInput
               value={searchQuery}
-              onChange={setSearchQuery}
+              onChange={(value) => {
+                setSearchQuery(value);
+                setPage(1);
+              }}
               placeholder={t("common.search")}
               className="w-full sm:max-w-sm"
             />
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as RoomStatus | "all")}>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => {
+                setStatusFilter(value as RoomStatus | "all");
+                setPage(1);
+              }}
+            >
               <SelectTrigger className="w-full sm:w-48">
                 <SelectValue />
               </SelectTrigger>
@@ -154,21 +167,32 @@ export function RoomsPage() {
               onAction={() => {
                 setSearchQuery("");
                 setStatusFilter("all");
+                setPage(1);
               }}
             />
           ) : (
-            <RoomTable
-              rooms={filteredRooms}
-              tenantNameByRoomId={tenantNameByRoomId}
-              onView={setDetailRoom}
-              onEdit={(room) => {
-                setEditingRoom(room);
-                setFormOpen(true);
-              }}
-              onDelete={setDeletingRoom}
-              onAssign={setAssigningRoom}
-              onEndTenancy={setEndingTenancyRoom}
-            />
+            <>
+              <RoomTable
+                rooms={pageItems}
+                tenantNameByRoomId={tenantNameByRoomId}
+                onView={setDetailRoom}
+                onEdit={(room) => {
+                  setEditingRoom(room);
+                  setFormOpen(true);
+                }}
+                onDelete={setDeletingRoom}
+                onAssign={setAssigningRoom}
+                onEndTenancy={setEndingTenancyRoom}
+              />
+              <Pagination
+                page={page}
+                pageSize={pageSize}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                onPageChange={setPage}
+                onPageSizeChange={setPageSize}
+              />
+            </>
           )}
         </>
       )}

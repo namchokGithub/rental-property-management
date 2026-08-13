@@ -63,6 +63,10 @@ const en: Translations = {
     allYears: "All years",
     selectAll: "Select all",
     selectRow: "Select row",
+    rowsPerPage: "Rows per page",
+    paginationRange: "{{from}}-{{to}} of {{total}}",
+    previousPage: "Previous page",
+    nextPage: "Next page",
   },
   sidebar: {
     brand: "Rental Manager",

@@ -11,9 +11,11 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { SearchInput } from "@/components/common/SearchInput";
+import { Pagination } from "@/components/common/Pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InvoicePreviewDialog } from "@/features/invoices/InvoicePreviewDialog";
 import { useAuth } from "@/auth";
+import { usePagination } from "@/hooks/usePagination";
 import { useBillingRecords } from "@/hooks/useBillingRecords";
 import { useRooms } from "@/hooks/useRooms";
 import { useTenants } from "@/hooks/useTenants";
@@ -90,6 +92,8 @@ export function InvoicesPage() {
     [invoices, searchQuery, monthFilter, yearFilter, roomById, tenantById, language]
   );
 
+  const { page, setPage, pageSize, setPageSize, totalPages, totalItems, pageItems } = usePagination(filteredInvoices);
+
   async function markPaid(record: InvoiceRecord) {
     try {
       await markInvoicePaid(record.billingId, record.id);
@@ -119,11 +123,20 @@ export function InvoicesPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <SearchInput
               value={searchQuery}
-              onChange={setSearchQuery}
+              onChange={(value) => {
+                setSearchQuery(value);
+                setPage(1);
+              }}
               placeholder={t("common.search")}
               className="w-full sm:max-w-sm"
             />
-            <Select value={monthFilter} onValueChange={setMonthFilter}>
+            <Select
+              value={monthFilter}
+              onValueChange={(value) => {
+                setMonthFilter(value);
+                setPage(1);
+              }}
+            >
               <SelectTrigger className="w-full sm:w-40">
                 <SelectValue />
               </SelectTrigger>
@@ -136,7 +149,13 @@ export function InvoicesPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={yearFilter} onValueChange={setYearFilter}>
+            <Select
+              value={yearFilter}
+              onValueChange={(value) => {
+                setYearFilter(value);
+                setPage(1);
+              }}
+            >
               <SelectTrigger className="w-full sm:w-32">
                 <SelectValue />
               </SelectTrigger>
@@ -160,6 +179,7 @@ export function InvoicesPage() {
                 setSearchQuery("");
                 setMonthFilter("all");
                 setYearFilter("all");
+                setPage(1);
               }}
             />
           ) : (
@@ -180,7 +200,7 @@ export function InvoicesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredInvoices.map((record) => {
+                {pageItems.map((record) => {
                   const room = roomById[record.roomId];
                   const tenant = record.tenantId ? tenantById[record.tenantId] : undefined;
                   return (
@@ -241,7 +261,7 @@ export function InvoicesPage() {
           </div>
 
           <div className="space-y-3 md:hidden">
-            {filteredInvoices.map((record) => {
+            {pageItems.map((record) => {
               const room = roomById[record.roomId];
               const tenant = record.tenantId ? tenantById[record.tenantId] : undefined;
               return (
@@ -279,6 +299,14 @@ export function InvoicesPage() {
               );
             })}
           </div>
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
             </>
           )}
         </>

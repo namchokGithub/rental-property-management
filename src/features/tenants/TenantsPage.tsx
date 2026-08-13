@@ -6,8 +6,10 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { SearchInput } from "@/components/common/SearchInput";
+import { Pagination } from "@/components/common/Pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageSpinner } from "@/components/common/PageSpinner";
+import { usePagination } from "@/hooks/usePagination";
 import { TenantTable } from "@/features/tenants/TenantTable";
 import { TenantFormDialog } from "@/features/tenants/TenantFormDialog";
 import { TenantDetailSheet } from "@/features/tenants/TenantDetailSheet";
@@ -71,6 +73,8 @@ export function TenantsPage() {
     [tenants, searchQuery, statusFilter, activeAssignmentByTenantId, roomById]
   );
 
+  const { page, setPage, pageSize, setPageSize, totalPages, totalItems, pageItems } = usePagination(filteredTenants);
+
   if (isLoading) return <PageSpinner />;
 
   return (
@@ -112,11 +116,20 @@ export function TenantsPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <SearchInput
               value={searchQuery}
-              onChange={setSearchQuery}
+              onChange={(value) => {
+                setSearchQuery(value);
+                setPage(1);
+              }}
               placeholder={t("common.search")}
               className="w-full sm:max-w-sm"
             />
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as TenantStatus | "all")}>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => {
+                setStatusFilter(value as TenantStatus | "all");
+                setPage(1);
+              }}
+            >
               <SelectTrigger className="w-full sm:w-48">
                 <SelectValue />
               </SelectTrigger>
@@ -139,21 +152,32 @@ export function TenantsPage() {
               onAction={() => {
                 setSearchQuery("");
                 setStatusFilter("all");
+                setPage(1);
               }}
             />
           ) : (
-            <TenantTable
-              tenants={filteredTenants}
-              activeAssignmentByTenantId={activeAssignmentByTenantId}
-              roomById={roomById}
-              onView={setDetailTenant}
-              onEdit={(tenant) => {
-                setEditingTenant(tenant);
-                setFormOpen(true);
-              }}
-              onDelete={setDeletingTenant}
-              onAssign={setAssigningTenant}
-            />
+            <>
+              <TenantTable
+                tenants={pageItems}
+                activeAssignmentByTenantId={activeAssignmentByTenantId}
+                roomById={roomById}
+                onView={setDetailTenant}
+                onEdit={(tenant) => {
+                  setEditingTenant(tenant);
+                  setFormOpen(true);
+                }}
+                onDelete={setDeletingTenant}
+                onAssign={setAssigningTenant}
+              />
+              <Pagination
+                page={page}
+                pageSize={pageSize}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                onPageChange={setPage}
+                onPageSizeChange={setPageSize}
+              />
+            </>
           )}
         </>
       )}

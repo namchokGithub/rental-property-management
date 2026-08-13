@@ -63,6 +63,10 @@ const th: Translations = {
     allYears: "ทุกปี",
     selectAll: "เลือกทั้งหมด",
     selectRow: "เลือกรายการ",
+    rowsPerPage: "แถวต่อหน้า",
+    paginationRange: "{{from}}-{{to}} จาก {{total}} รายการ",
+    previousPage: "หน้าก่อนหน้า",
+    nextPage: "หน้าถัดไป",
   },
   sidebar: {
     brand: "Rental Manager",
