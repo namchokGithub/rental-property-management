@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { CheckCircle2, Eye, FileText, Printer, Search } from "lucide-react";
+import { CheckCircle2, Download, Eye, FileText, Printer, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
@@ -131,6 +131,40 @@ export function InvoicesPage() {
     navigate(`/invoices/print?${params.toString()}`);
   }
 
+  async function exportSelected() {
+    const { downloadInvoiceExcelExport } = await import("@/lib/excel");
+    const selected = invoices.filter((record) => selectedIds.has(record.id));
+    const rows = selected.map((record) => {
+      const room = roomById[record.roomId];
+      return {
+        billingMonth: formatBillingMonth(record.billingMonth, language),
+        roomLabel: `${t("invoice.room")} ${room?.roomNumber ?? "—"}`,
+        rent: record.rentAmount,
+        water: record.water.amount,
+        electricity: record.electricity.amount,
+        otherCharges: record.otherCharges.reduce((sum, charge) => sum + charge.amount, 0),
+        total: record.total,
+      };
+    });
+    const now = new Date();
+    const exportedAt = `${formatDate(now.toISOString(), language)} ${now.toLocaleTimeString(language === "th" ? "th-TH" : "en-US", { hour: "2-digit", minute: "2-digit" })}`;
+    await downloadInvoiceExcelExport(
+      rows,
+      { exportedAt, exportedBy: user?.name ?? user?.email ?? "-" },
+      {
+        exportDateLabel: t("invoice.exportDateLabel"),
+        exportByLabel: t("invoice.exportByLabel"),
+        billingMonth: t("invoice.billingMonth"),
+        item: t("invoice.itemColumn"),
+        rent: t("invoice.rentItem"),
+        water: t("invoice.waterItem"),
+        electricity: t("invoice.electricityItem"),
+        other: t("invoice.otherChargesColumn"),
+        total: t("invoice.totalLabel"),
+      }
+    );
+  }
+
   async function markPaid(record: InvoiceRecord) {
     try {
       await markInvoicePaid(record.billingId, record.id);
@@ -150,9 +184,14 @@ export function InvoicesPage() {
         description={t("invoice.description")}
         actions={
           selectedIds.size > 0 ? (
-            <Button onClick={printSelected}>
-              <Printer className="h-4 w-4" /> {t("invoice.bulkPrintSelected", { count: selectedIds.size })}
-            </Button>
+            <>
+              <Button variant="outline" onClick={exportSelected}>
+                <Download className="h-4 w-4" /> {t("invoice.bulkExportSelected", { count: selectedIds.size })}
+              </Button>
+              <Button onClick={printSelected}>
+                <Printer className="h-4 w-4" /> {t("invoice.bulkPrintSelected", { count: selectedIds.size })}
+              </Button>
+            </>
           ) : undefined
         }
       />

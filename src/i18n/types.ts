@@ -279,6 +279,10 @@ export interface Translations {
     noInvoicesDescription: string;
     goToBilling: string;
     bulkPrintSelected: string;
+    bulkExportSelected: string;
+    exportDateLabel: string;
+    exportByLabel: string;
+    otherChargesColumn: string;
     invoiceNumber: string;
     room: string;
     tenant: string;

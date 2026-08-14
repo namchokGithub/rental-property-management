@@ -79,6 +79,21 @@ export async function parseRoomImportFile(file: File): Promise<ParsedRoomRow[]> 
   return rows;
 }
 
+async function downloadWorkbook(workbook: ExcelJS.Workbook, filename: string): Promise<void> {
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 export async function downloadRoomImportTemplate(): Promise<void> {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet("Rooms");
@@ -92,16 +107,79 @@ export async function downloadRoomImportTemplate(): Promise<void> {
     description: "",
   });
 
-  const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  await downloadWorkbook(workbook, "room-import-template.xlsx");
+}
+
+export interface InvoiceExportRow {
+  billingMonth: string;
+  roomLabel: string;
+  rent: number;
+  water: number;
+  electricity: number;
+  otherCharges: number;
+  total: number;
+}
+
+export interface InvoiceExportLabels {
+  exportDateLabel: string;
+  exportByLabel: string;
+  billingMonth: string;
+  item: string;
+  rent: string;
+  water: string;
+  electricity: string;
+  other: string;
+  total: string;
+}
+
+const EXPORT_LABEL_FILL: ExcelJS.Fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8CBAD" } };
+const EXPORT_HEADER_FILL: ExcelJS.Fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4472C4" } };
+
+export async function downloadInvoiceExcelExport(
+  rows: InvoiceExportRow[],
+  meta: { exportedAt: string; exportedBy: string },
+  labels: InvoiceExportLabels,
+): Promise<void> {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Invoices");
+  worksheet.columns = [{ width: 18 }, { width: 30 }, { width: 16 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 16 }];
+
+  const labelCell = (address: string, text: string) => {
+    const cell = worksheet.getCell(address);
+    cell.value = text;
+    cell.font = { bold: true };
+    cell.fill = EXPORT_LABEL_FILL;
+  };
+  labelCell("A1", labels.exportDateLabel);
+  worksheet.getCell("B1").value = meta.exportedAt;
+  labelCell("A2", labels.exportByLabel);
+  worksheet.getCell("B2").value = meta.exportedBy;
+
+  const headerRow = worksheet.getRow(4);
+  [labels.billingMonth, labels.item, labels.rent, labels.water, labels.electricity, labels.other, labels.total].forEach(
+    (text, index) => {
+      const cell = headerRow.getCell(index + 1);
+      cell.value = text;
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      cell.fill = EXPORT_HEADER_FILL;
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+    },
+  );
+
+  rows.forEach((row, index) => {
+    const dataRow = worksheet.getRow(5 + index);
+    dataRow.getCell(1).value = row.billingMonth;
+    dataRow.getCell(2).value = row.roomLabel;
+    dataRow.getCell(3).value = row.rent;
+    dataRow.getCell(4).value = row.water;
+    dataRow.getCell(5).value = row.electricity;
+    dataRow.getCell(6).value = row.otherCharges;
+    dataRow.getCell(7).value = row.total;
+    for (let col = 3; col <= 7; col++) {
+      dataRow.getCell(col).numFmt = "#,##0.00";
+    }
   });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "room-import-template.xlsx";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+
+  const timestamp = meta.exportedAt.replace(/[^0-9]/g, "-");
+  await downloadWorkbook(workbook, `invoices-export-${timestamp}.xlsx`);
 }
