@@ -6,6 +6,7 @@ import { TenantsPage } from "@/features/tenants/TenantsPage";
 import { BillingPage } from "@/features/billing/BillingPage";
 import { InvoicesPage } from "@/features/invoices/InvoicesPage";
 import { InvoicePrintPage } from "@/features/invoices/InvoicePrintPage";
+import { InvoiceBulkPrintPage } from "@/features/invoices/InvoiceBulkPrintPage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 
 export const router = createHashRouter(
@@ -23,6 +24,7 @@ export const router = createHashRouter(
         { path: "settings", element: <SettingsPage /> },
       ],
     },
+    { path: "/invoices/print", element: <InvoiceBulkPrintPage /> },
     { path: "/invoices/:id", element: <InvoicePrintPage /> },
   ],
 );

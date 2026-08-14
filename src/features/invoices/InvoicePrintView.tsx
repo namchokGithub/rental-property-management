@@ -28,7 +28,7 @@ export function InvoicePrintView({ record, room, settings }: InvoicePrintViewPro
     .filter(Boolean);
 
   return (
-    <div id="invoice-print-area" className="bg-white p-8 text-black">
+    <div className="invoice-print-area bg-white p-8 text-black">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <h1 className="text-2xl font-bold text-blue-900 sm:text-3xl">{t("invoice.documentTitle")}</h1>
         <div className="rounded-xl border-2 border-blue-900 px-6 py-3 text-center">

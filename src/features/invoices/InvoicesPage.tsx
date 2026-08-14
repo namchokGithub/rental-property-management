@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { CheckCircle2, Eye, FileText, Printer, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageSpinner } from "@/components/common/PageSpinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -45,6 +46,7 @@ export function InvoicesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [monthFilter, setMonthFilter] = useState<string>("all");
   const [yearFilter, setYearFilter] = useState<string>("all");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const roomById = useMemo(() => {
     const map: Record<string, Room> = {};
@@ -94,6 +96,36 @@ export function InvoicesPage() {
 
   const { page, setPage, pageSize, setPageSize, totalPages, totalItems, pageItems } = usePagination(filteredInvoices);
 
+  const pageIds = pageItems.map((record) => record.id);
+  const allSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
+  const someSelected = !allSelected && pageIds.some((id) => selectedIds.has(id));
+
+  function toggleRecord(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll(ids: string[]) {
+    setSelectedIds((prev) => {
+      const shouldSelectAll = !(ids.length > 0 && ids.every((id) => prev.has(id)));
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (shouldSelectAll) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  }
+
+  function printSelected() {
+    const params = new URLSearchParams({ ids: Array.from(selectedIds).join(",") });
+    navigate(`/invoices/print?${params.toString()}`);
+  }
+
   async function markPaid(record: InvoiceRecord) {
     try {
       await markInvoicePaid(record.billingId, record.id);
@@ -108,7 +140,17 @@ export function InvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t("invoice.title")} description={t("invoice.description")} />
+      <PageHeader
+        title={t("invoice.title")}
+        description={t("invoice.description")}
+        actions={
+          selectedIds.size > 0 ? (
+            <Button onClick={printSelected}>
+              <Printer className="h-4 w-4" /> {t("invoice.bulkPrintSelected", { count: selectedIds.size })}
+            </Button>
+          ) : undefined
+        }
+      />
 
       {invoices.length === 0 ? (
         <EmptyState
@@ -176,6 +218,14 @@ export function InvoicesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={someSelected ? "indeterminate" : allSelected}
+                      onCheckedChange={() => toggleAll(pageIds)}
+                      disabled={pageIds.length === 0}
+                      aria-label={t("common.selectAll")}
+                    />
+                  </TableHead>
                   <TableHead>{t("invoice.invoiceNumber")}</TableHead>
                   <TableHead>{t("common.room")}</TableHead>
                   <TableHead>{t("common.tenant")}</TableHead>
@@ -192,7 +242,14 @@ export function InvoicesPage() {
                   const room = roomById[record.roomId];
                   const tenant = record.tenantId ? tenantById[record.tenantId] : undefined;
                   return (
-                    <TableRow key={record.id}>
+                    <TableRow key={record.id} data-state={selectedIds.has(record.id) ? "selected" : undefined}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(record.id)}
+                          onCheckedChange={() => toggleRecord(record.id)}
+                          aria-label={t("common.selectRow")}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{record.invoiceNumber}</TableCell>
                       <TableCell>{room?.roomNumber ?? "—"}</TableCell>
                       <TableCell>{tenant ? tenant.name : "—"}</TableCell>
@@ -256,14 +313,22 @@ export function InvoicesPage() {
                 <Card key={record.id}>
                   <CardContent className="space-y-2 p-4">
                     <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-medium">{record.invoiceNumber}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {t("invoice.mobileCardSubtitle", {
-                            roomNumber: room?.roomNumber ?? "—",
-                            tenant: tenant ? tenant.name : t("common.noTenant"),
-                          })}
-                        </p>
+                      <div className="flex items-start gap-2">
+                        <Checkbox
+                          className="mt-1"
+                          checked={selectedIds.has(record.id)}
+                          onCheckedChange={() => toggleRecord(record.id)}
+                          aria-label={t("common.selectRow")}
+                        />
+                        <div>
+                          <p className="font-medium">{record.invoiceNumber}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {t("invoice.mobileCardSubtitle", {
+                              roomNumber: room?.roomNumber ?? "—",
+                              tenant: tenant ? tenant.name : t("common.noTenant"),
+                            })}
+                          </p>
+                        </div>
                       </div>
                       <StatusBadge status={resolveInvoiceStatus(record)} />
                     </div>

@@ -280,6 +280,7 @@ const en: Translations = {
     noInvoicesTitle: "No invoices yet",
     noInvoicesDescription: "Issue a billing record to generate its first invoice.",
     goToBilling: "Go to Billing",
+    bulkPrintSelected: "Print Selected ({{count}})",
     invoiceNumber: "Invoice #",
     room: "Room",
     tenant: "Tenant",

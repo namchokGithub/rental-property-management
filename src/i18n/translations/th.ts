@@ -279,6 +279,7 @@ const th: Translations = {
     noInvoicesTitle: "ยังไม่มีใบแจ้งหนี้",
     noInvoicesDescription: "ออกใบแจ้งหนี้จากรายการบิลเพื่อสร้างใบแจ้งหนี้แรก",
     goToBilling: "ไปที่หน้าบิล",
+    bulkPrintSelected: "พิมพ์รายการที่เลือก ({{count}})",
     invoiceNumber: "เลขที่ใบแจ้งหนี้",
     room: "ห้อง",
     tenant: "ผู้เช่า",
