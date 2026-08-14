@@ -5,6 +5,7 @@ import { CheckCircle2, Eye, FileText, Printer, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageSpinner } from "@/components/common/PageSpinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -32,6 +33,8 @@ import type { Tenant } from "@/types/tenant";
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
 
+type InvoiceStatusTab = "all" | "issued" | "overdue" | "superseded" | "paid";
+
 export function InvoicesPage() {
   const { t, language } = useLanguage();
   const { user } = useAuth();
@@ -46,6 +49,7 @@ export function InvoicesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [monthFilter, setMonthFilter] = useState<string>("all");
   const [yearFilter, setYearFilter] = useState<string>("all");
+  const [statusTab, setStatusTab] = useState<InvoiceStatusTab>("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const roomById = useMemo(() => {
@@ -76,6 +80,7 @@ export function InvoicesPage() {
   const filteredInvoices = useMemo(
     () =>
       invoices
+        .filter((record) => statusTab === "all" || resolveInvoiceStatus(record) === statusTab)
         .filter((record) => {
           const [year, month] = record.billingMonth.split("-");
           return (yearFilter === "all" || year === yearFilter) && (monthFilter === "all" || month === monthFilter);
@@ -91,7 +96,7 @@ export function InvoicesPage() {
             formatBillingMonth(record.billingMonth, language)
           );
         }),
-    [invoices, searchQuery, monthFilter, yearFilter, roomById, tenantById, language]
+    [invoices, searchQuery, monthFilter, yearFilter, statusTab, roomById, tenantById, language]
   );
 
   const { page, setPage, pageSize, setPageSize, totalPages, totalItems, pageItems } = usePagination(filteredInvoices);
@@ -162,6 +167,22 @@ export function InvoicesPage() {
         />
       ) : (
         <>
+          <Tabs
+            value={statusTab}
+            onValueChange={(value) => {
+              setStatusTab(value as InvoiceStatusTab);
+              setPage(1);
+            }}
+          >
+            <TabsList className="h-auto flex-wrap">
+              <TabsTrigger value="all">{t("common.allStatuses")}</TabsTrigger>
+              <TabsTrigger value="issued">{t("status.issued")}</TabsTrigger>
+              <TabsTrigger value="overdue">{t("status.overdue")}</TabsTrigger>
+              <TabsTrigger value="superseded">{t("status.superseded")}</TabsTrigger>
+              <TabsTrigger value="paid">{t("status.paid")}</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <SearchInput
               value={searchQuery}
@@ -209,6 +230,7 @@ export function InvoicesPage() {
                 setSearchQuery("");
                 setMonthFilter("all");
                 setYearFilter("all");
+                setStatusTab("all");
                 setPage(1);
               }}
             />
