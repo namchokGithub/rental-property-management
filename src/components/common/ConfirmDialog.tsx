@@ -1,3 +1,4 @@
+import { useState, type MouseEvent } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,7 +18,7 @@ interface ConfirmDialogProps {
   description: string;
   confirmLabel?: string;
   destructive?: boolean;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
 }
 
 export function ConfirmDialog({
@@ -30,6 +31,20 @@ export function ConfirmDialog({
   onConfirm,
 }: ConfirmDialogProps) {
   const { t } = useLanguage();
+  const [isPending, setIsPending] = useState(false);
+
+  async function handleConfirm(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    if (isPending) return;
+
+    setIsPending(true);
+    try {
+      await onConfirm();
+    } finally {
+      setIsPending(false);
+    }
+  }
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -38,9 +53,10 @@ export function ConfirmDialog({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+          <AlertDialogCancel disabled={isPending}>{t("common.cancel")}</AlertDialogCancel>
           <AlertDialogAction
-            onClick={onConfirm}
+            onClick={handleConfirm}
+            disabled={isPending}
             className={destructive ? "bg-destructive text-white hover:bg-destructive/90" : undefined}
           >
             {confirmLabel ?? t("common.confirm")}

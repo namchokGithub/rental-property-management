@@ -52,6 +52,7 @@ export function BillingPage() {
   const [monthFilter, setMonthFilter] = useState<string>("all");
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isIssuing, setIsIssuing] = useState(false);
   const [sort, setSort] = useState<{ key: BillingSortKey; direction: SortDirection }>({ key: "billingMonth", direction: "desc" });
 
   const roomById = useMemo(() => {
@@ -163,8 +164,10 @@ export function BillingPage() {
   }
 
   async function handleBulkIssue() {
+    if (isIssuing) return;
     const ids = [...effectiveSelectedIds];
     if (ids.length === 0) return;
+    setIsIssuing(true);
     // MUST stay sequential (for...of + await, not Promise.all): each
     // transactional issuance reads the freshest "existing records for this
     // month" state, so one issuance's write must commit before the next one
@@ -182,6 +185,7 @@ export function BillingPage() {
     } catch {
       toast.error(t("common.actionFailed"));
     } finally {
+      setIsIssuing(false);
       setSelectedIds((prev) => {
         const next = new Set(prev);
         issuedIds.forEach((id) => next.delete(id));
@@ -201,7 +205,7 @@ export function BillingPage() {
           isAdmin && (
             <div className="flex items-center gap-2">
               {effectiveSelectedIds.size > 0 && (
-                <Button variant="secondary" onClick={handleBulkIssue}>
+                <Button variant="secondary" onClick={handleBulkIssue} disabled={isIssuing}>
                   <Send /> {t("billing.bulkIssueSelected", { count: effectiveSelectedIds.size })}
                 </Button>
               )}
