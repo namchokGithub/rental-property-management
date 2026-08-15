@@ -4,6 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { SortableTableHead } from "@/components/common/SortableTableHead";
+import type { SortDirection } from "@/lib/sort";
 import { useAuth } from "@/auth";
 import { useLanguage } from "@/i18n";
 import { formatDate } from "@/lib/date";
@@ -19,7 +21,11 @@ interface TenantTableProps {
   onEdit: (tenant: Tenant) => void;
   onDelete: (tenant: Tenant) => void;
   onAssign: (tenant: Tenant) => void;
+  sort: { key: TenantSortKey; direction: SortDirection };
+  onSort: (key: TenantSortKey) => void;
 }
+
+export type TenantSortKey = "name" | "room" | "leaseStart" | "status";
 
 function TenantCard({
   tenant,
@@ -127,6 +133,8 @@ export function TenantTable({
   onEdit,
   onDelete,
   onAssign,
+  sort,
+  onSort,
 }: TenantTableProps) {
   const { t, language } = useLanguage();
   const { user } = useAuth();
@@ -137,12 +145,12 @@ export function TenantTable({
         <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>{t("common.name")}</TableHead>
+            <SortableTableHead label={t("common.name")} active={sort.key === "name"} direction={sort.direction} onSort={() => onSort("name")} />
             <TableHead>{t("common.phone")}</TableHead>
-            <TableHead>{t("tenant.currentRoom")}</TableHead>
-            <TableHead>{t("room.leaseStart")}</TableHead>
+            <SortableTableHead label={t("tenant.currentRoom")} active={sort.key === "room"} direction={sort.direction} onSort={() => onSort("room")} />
+            <SortableTableHead label={t("room.leaseStart")} active={sort.key === "leaseStart"} direction={sort.direction} onSort={() => onSort("leaseStart")} />
             <TableHead>{t("room.leaseEnd")}</TableHead>
-            <TableHead>{t("common.status")}</TableHead>
+            <SortableTableHead label={t("common.status")} active={sort.key === "status"} direction={sort.direction} onSort={() => onSort("status")} />
             <TableHead className="text-right">{t("common.actions")}</TableHead>
           </TableRow>
         </TableHeader>

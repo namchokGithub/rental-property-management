@@ -6,6 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { SortableTableHead } from "@/components/common/SortableTableHead";
+import type { SortDirection } from "@/lib/sort";
 import { useAuth } from "@/auth";
 import { useLanguage } from "@/i18n";
 import { formatAmount, formatCurrency } from "@/lib/currency";
@@ -28,7 +30,11 @@ interface BillingTableProps {
   selectedIds: Set<string>;
   onToggleRecord: (id: string) => void;
   onToggleAll: (ids: string[]) => void;
+  sort: { key: BillingSortKey; direction: SortDirection };
+  onSort: (key: BillingSortKey) => void;
 }
+
+export type BillingSortKey = "room" | "tenant" | "invoiceNumber" | "billingMonth" | "total" | "status";
 
 function ActionsMenu({
   record,
@@ -121,7 +127,7 @@ function BillingCard({
   onToggleRecord,
   t,
   language,
-}: BillingTableProps & { record: BillingRecord; t: (key: string, params?: Record<string, string | number>) => string; language: Language }) {
+}: Omit<BillingTableProps, "sort" | "onSort"> & { record: BillingRecord; t: (key: string, params?: Record<string, string | number>) => string; language: Language }) {
   const [expanded, setExpanded] = useState(false);
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -204,6 +210,8 @@ export function BillingTable({
   selectedIds,
   onToggleRecord,
   onToggleAll,
+  sort,
+  onSort,
 }: BillingTableProps) {
   const { t, language } = useLanguage();
   const { user } = useAuth();
@@ -230,14 +238,10 @@ export function BillingTable({
                   />
                 </TableHead>
               )}
-              <TableHead rowSpan={2} className={`sticky ${roomStickyClass} z-10 w-24 min-w-24 bg-muted align-middle`}>
-                {t("common.room")}
-              </TableHead>
-              <TableHead rowSpan={2} className={`sticky ${tenantStickyClass} z-10 w-36 min-w-36 bg-muted align-middle`}>
-                {t("common.tenant")}
-              </TableHead>
-              <TableHead rowSpan={2} className="align-middle">{t("billing.invoiceNumber")}</TableHead>
-              <TableHead rowSpan={2} className="align-middle">{t("common.month")}</TableHead>
+              <SortableTableHead rowSpan={2} className={`sticky ${roomStickyClass} z-10 w-24 min-w-24 bg-muted align-middle`} label={t("common.room")} active={sort.key === "room"} direction={sort.direction} onSort={() => onSort("room")} />
+              <SortableTableHead rowSpan={2} className={`sticky ${tenantStickyClass} z-10 w-36 min-w-36 bg-muted align-middle`} label={t("common.tenant")} active={sort.key === "tenant"} direction={sort.direction} onSort={() => onSort("tenant")} />
+              <SortableTableHead rowSpan={2} className="align-middle" label={t("billing.invoiceNumber")} active={sort.key === "invoiceNumber"} direction={sort.direction} onSort={() => onSort("invoiceNumber")} />
+              <SortableTableHead rowSpan={2} className="align-middle" label={t("common.month")} active={sort.key === "billingMonth"} direction={sort.direction} onSort={() => onSort("billingMonth")} />
               <TableHead colSpan={5} className="border-l text-center">
                 {t("billing.electricityGroup")}
               </TableHead>
@@ -245,8 +249,8 @@ export function BillingTable({
                 {t("billing.waterGroup")}
               </TableHead>
               <TableHead rowSpan={2} className="align-middle">{t("billing.rent")}</TableHead>
-              <TableHead rowSpan={2} className="align-middle">{t("common.total")}</TableHead>
-              <TableHead rowSpan={2} className="align-middle">{t("common.status")}</TableHead>
+              <SortableTableHead rowSpan={2} className="align-middle" label={t("common.total")} active={sort.key === "total"} direction={sort.direction} onSort={() => onSort("total")} />
+              <SortableTableHead rowSpan={2} className="align-middle" label={t("common.status")} active={sort.key === "status"} direction={sort.direction} onSort={() => onSort("status")} />
               <TableHead rowSpan={2} className="sticky right-0 z-10 w-40 min-w-40 bg-muted text-right align-middle">
                 {t("common.actions")}
               </TableHead>

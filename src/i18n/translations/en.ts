@@ -69,6 +69,11 @@ const en: Translations = {
     nextPage: "Next page",
     filter: "Filter",
     clearFilters: "Clear",
+    sort: "Sort",
+    sortBy: "Sort by",
+    sortDirection: "Direction",
+    ascending: "Ascending",
+    descending: "Descending",
     year: "Year",
   },
   sidebar: {

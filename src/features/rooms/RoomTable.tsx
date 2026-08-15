@@ -4,6 +4,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { SortableTableHead } from "@/components/common/SortableTableHead";
+import type { SortDirection } from "@/lib/sort";
 import { useAuth } from "@/auth";
 import { useLanguage } from "@/i18n";
 import { formatCurrency } from "@/lib/currency";
@@ -17,7 +19,11 @@ interface RoomTableProps {
   onDelete: (room: Room) => void;
   onAssign: (room: Room) => void;
   onEndTenancy: (room: Room) => void;
+  sort: { key: RoomSortKey; direction: SortDirection };
+  onSort: (key: RoomSortKey) => void;
 }
+
+export type RoomSortKey = "roomNumber" | "floor" | "tenant" | "monthlyRent" | "status";
 
 function RoomCard({
   room,
@@ -128,7 +134,7 @@ function RoomCard({
   );
 }
 
-export function RoomTable({ rooms, tenantNameByRoomId, onView, onEdit, onDelete, onAssign, onEndTenancy }: RoomTableProps) {
+export function RoomTable({ rooms, tenantNameByRoomId, onView, onEdit, onDelete, onAssign, onEndTenancy, sort, onSort }: RoomTableProps) {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -138,12 +144,12 @@ export function RoomTable({ rooms, tenantNameByRoomId, onView, onEdit, onDelete,
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("room.roomNumber")}</TableHead>
-              <TableHead>{t("room.floor")}</TableHead>
+              <SortableTableHead label={t("room.roomNumber")} active={sort.key === "roomNumber"} direction={sort.direction} onSort={() => onSort("roomNumber")} />
+              <SortableTableHead label={t("room.floor")} active={sort.key === "floor"} direction={sort.direction} onSort={() => onSort("floor")} />
               <TableHead>{t("room.type")}</TableHead>
-              <TableHead>{t("common.tenant")}</TableHead>
-              <TableHead>{t("room.monthlyRent")}</TableHead>
-              <TableHead>{t("common.status")}</TableHead>
+              <SortableTableHead label={t("common.tenant")} active={sort.key === "tenant"} direction={sort.direction} onSort={() => onSort("tenant")} />
+              <SortableTableHead label={t("room.monthlyRent")} active={sort.key === "monthlyRent"} direction={sort.direction} onSort={() => onSort("monthlyRent")} />
+              <SortableTableHead label={t("common.status")} active={sort.key === "status"} direction={sort.direction} onSort={() => onSort("status")} />
               <TableHead className="text-right">{t("common.actions")}</TableHead>
             </TableRow>
           </TableHeader>

@@ -15,6 +15,8 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { SearchInput } from "@/components/common/SearchInput";
 import { Pagination } from "@/components/common/Pagination";
 import { FilterButton } from "@/components/common/FilterButton";
+import { SortButton } from "@/components/common/SortButton";
+import { SortableTableHead } from "@/components/common/SortableTableHead";
 import { InvoicePreviewDialog } from "@/features/invoices/InvoicePreviewDialog";
 import { useAuth } from "@/auth";
 import { usePagination } from "@/hooks/usePagination";
@@ -27,6 +29,7 @@ import { formatAmount, formatCurrency } from "@/lib/currency";
 import { formatBillingMonth, formatDate, monthName, yearLabel } from "@/lib/date";
 import { resolveInvoiceStatus } from "@/lib/invoice";
 import { matchesSearch } from "@/lib/search";
+import { compareSortValues, type SortDirection } from "@/lib/sort";
 import { invoiceRecordsFromBilling, type InvoiceRecord } from "@/types/billing";
 import type { Room } from "@/types/room";
 import type { Tenant } from "@/types/tenant";
@@ -34,6 +37,7 @@ import type { Tenant } from "@/types/tenant";
 const MONTHS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
 
 type InvoiceStatusTab = "all" | "issued" | "overdue" | "superseded" | "paid";
+type InvoiceSortKey = "invoiceNumber" | "room" | "tenant" | "billingMonth" | "issuedAt" | "dueDate" | "total" | "status";
 
 export function InvoicesPage() {
   const { t, language } = useLanguage();
@@ -51,6 +55,7 @@ export function InvoicesPage() {
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [statusTab, setStatusTab] = useState<InvoiceStatusTab>("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [sort, setSort] = useState<{ key: InvoiceSortKey; direction: SortDirection }>({ key: "issuedAt", direction: "desc" });
 
   const roomById = useMemo(() => {
     const map: Record<string, Room> = {};
@@ -99,7 +104,34 @@ export function InvoicesPage() {
     [invoices, searchQuery, monthFilter, yearFilter, statusTab, roomById, tenantById, language]
   );
 
-  const { page, setPage, pageSize, setPageSize, totalPages, totalItems, pageItems } = usePagination(filteredInvoices);
+  const sortedFilteredInvoices = useMemo(
+    () =>
+      [...filteredInvoices].sort((left, right) => {
+        const value = (record: InvoiceRecord) => {
+          const room = roomById[record.roomId];
+          const tenant = record.tenantId ? tenantById[record.tenantId] : undefined;
+          switch (sort.key) {
+            case "room": return room?.roomNumber;
+            case "tenant": return tenant?.name;
+            case "billingMonth": return record.billingMonth;
+            case "issuedAt": return record.issuedAt;
+            case "dueDate": return record.dueDate;
+            case "total": return record.total;
+            case "status": return t(`status.${resolveInvoiceStatus(record)}`);
+            default: return record.invoiceNumber;
+          }
+        };
+        return compareSortValues(value(left), value(right), sort.direction, language);
+      }),
+    [filteredInvoices, sort, roomById, tenantById, language, t]
+  );
+
+  const { page, setPage, pageSize, setPageSize, totalPages, totalItems, pageItems } = usePagination(sortedFilteredInvoices);
+
+  function handleSort(key: InvoiceSortKey) {
+    setSort((current) => ({ key, direction: current.key === key && current.direction === "asc" ? "desc" : "asc" }));
+    setPage(1);
+  }
 
   const pageIds = pageItems.map((record) => record.id);
   const allSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
@@ -232,8 +264,10 @@ export function InvoicesPage() {
               placeholder={t("common.search")}
               className="w-full sm:max-w-sm"
             />
-            <FilterButton
-              fields={[
+            <div className="grid grid-cols-2 gap-3 md:block">
+              <FilterButton
+                className="sm:w-full md:w-auto"
+                fields={[
                 {
                   key: "month",
                   label: t("common.month"),
@@ -251,13 +285,32 @@ export function InvoicesPage() {
                   ],
                 },
               ]}
-              values={{ month: monthFilter, year: yearFilter }}
-              onApply={(values) => {
-                setMonthFilter(values.month ?? "all");
-                setYearFilter(values.year ?? "all");
-                setPage(1);
-              }}
-            />
+                values={{ month: monthFilter, year: yearFilter }}
+                onApply={(values) => {
+                  setMonthFilter(values.month ?? "all");
+                  setYearFilter(values.year ?? "all");
+                  setPage(1);
+                }}
+              />
+              <SortButton
+                className="md:hidden"
+                fields={[
+                  { key: "invoiceNumber", label: t("invoice.invoiceNumber") },
+                  { key: "room", label: t("common.room") },
+                  { key: "tenant", label: t("common.tenant") },
+                  { key: "billingMonth", label: t("invoice.billingMonth") },
+                  { key: "issuedAt", label: t("invoice.issueDate") },
+                  { key: "dueDate", label: t("common.dueDate") },
+                  { key: "total", label: t("invoice.amountColumn") },
+                  { key: "status", label: t("common.status") },
+                ]}
+                value={sort}
+                onApply={(value) => {
+                  setSort({ key: value.key as InvoiceSortKey, direction: value.direction });
+                  setPage(1);
+                }}
+              />
+            </div>
           </div>
           {filteredInvoices.length === 0 ? (
             <EmptyState
@@ -287,14 +340,14 @@ export function InvoicesPage() {
                       aria-label={t("common.selectAll")}
                     />
                   </TableHead>
-                  <TableHead>{t("invoice.invoiceNumber")}</TableHead>
-                  <TableHead>{t("common.room")}</TableHead>
-                  <TableHead>{t("common.tenant")}</TableHead>
-                  <TableHead>{t("invoice.billingMonth")}</TableHead>
-                  <TableHead>{t("invoice.issueDate")}</TableHead>
-                  <TableHead>{t("common.dueDate")}</TableHead>
-                  <TableHead>{t("invoice.amountColumn")}</TableHead>
-                  <TableHead>{t("common.status")}</TableHead>
+                  <SortableTableHead label={t("invoice.invoiceNumber")} active={sort.key === "invoiceNumber"} direction={sort.direction} onSort={() => handleSort("invoiceNumber")} />
+                  <SortableTableHead label={t("common.room")} active={sort.key === "room"} direction={sort.direction} onSort={() => handleSort("room")} />
+                  <SortableTableHead label={t("common.tenant")} active={sort.key === "tenant"} direction={sort.direction} onSort={() => handleSort("tenant")} />
+                  <SortableTableHead label={t("invoice.billingMonth")} active={sort.key === "billingMonth"} direction={sort.direction} onSort={() => handleSort("billingMonth")} />
+                  <SortableTableHead label={t("invoice.issueDate")} active={sort.key === "issuedAt"} direction={sort.direction} onSort={() => handleSort("issuedAt")} />
+                  <SortableTableHead label={t("common.dueDate")} active={sort.key === "dueDate"} direction={sort.direction} onSort={() => handleSort("dueDate")} />
+                  <SortableTableHead label={t("invoice.amountColumn")} active={sort.key === "total"} direction={sort.direction} onSort={() => handleSort("total")} />
+                  <SortableTableHead label={t("common.status")} active={sort.key === "status"} direction={sort.direction} onSort={() => handleSort("status")} />
                   <TableHead className="text-right">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>

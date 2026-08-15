@@ -69,6 +69,11 @@ export interface Translations {
     nextPage: string;
     filter: string;
     clearFilters: string;
+    sort: string;
+    sortBy: string;
+    sortDirection: string;
+    ascending: string;
+    descending: string;
     year: string;
   };
   sidebar: {

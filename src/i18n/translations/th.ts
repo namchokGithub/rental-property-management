@@ -69,6 +69,11 @@ const th: Translations = {
     nextPage: "หน้าถัดไป",
     filter: "ตัวกรอง",
     clearFilters: "ล้างค่า",
+    sort: "เรียงลำดับ",
+    sortBy: "เรียงตาม",
+    sortDirection: "ทิศทางการเรียง",
+    ascending: "น้อยไปมาก",
+    descending: "มากไปน้อย",
     year: "ปี",
   },
   sidebar: {

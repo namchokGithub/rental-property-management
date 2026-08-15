@@ -17,7 +17,7 @@ export function SearchInput({ value, onChange, placeholder, className }: SearchI
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="pl-9"
+        className="bg-card pl-9"
       />
     </div>
   );
