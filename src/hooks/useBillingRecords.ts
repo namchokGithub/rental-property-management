@@ -37,7 +37,12 @@ export function useBillingRecords() {
     [propertyId],
   );
 
+  const deleteInvoice = useCallback(
+    (id: string, invoiceId: string) => billingRepository.deleteInvoice(propertyId, id, invoiceId),
+    [propertyId],
+  );
+
   const deleteBilling = useCallback((id: string) => billingRepository.delete(propertyId, id), [propertyId]);
 
-  return { records, isLoading, createBilling, updateBilling, reissueBilling, markInvoicePaid, deleteBilling };
+  return { records, isLoading, createBilling, updateBilling, reissueBilling, markInvoicePaid, deleteInvoice, deleteBilling };
 }

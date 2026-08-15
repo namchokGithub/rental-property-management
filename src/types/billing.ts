@@ -42,6 +42,7 @@ export interface InvoiceSnapshot {
   id: string;
   invoiceNumber: string;
   status: InvoiceStatus;
+  deletedAt?: string | null;
   issuedAt: string;
   roomId: string;
   tenantId?: string;
@@ -62,7 +63,9 @@ export interface InvoiceRecord extends InvoiceSnapshot {
 /** Makes pre-history invoices available alongside newly reissued invoices. */
 export function invoiceRecordsFromBilling(record: BillingRecord): InvoiceRecord[] {
   if (record.invoices?.length) {
-    return record.invoices.map((invoice) => ({ ...invoice, billingId: record.id }));
+    return record.invoices
+      .filter((invoice) => !invoice.deletedAt)
+      .map((invoice) => ({ ...invoice, billingId: record.id }));
   }
   if (!record.invoiceNumber || !record.issuedAt || record.status === "draft") return [];
   return [{

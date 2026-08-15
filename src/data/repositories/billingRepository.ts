@@ -393,6 +393,23 @@ export const billingRepository = {
     });
   },
 
+  async deleteInvoice(propertyId: string, id: string, invoiceId: string): Promise<void> {
+    const ref = doc(billingCollectionRef(propertyId), id);
+    await runTransaction(db, async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      if (!snapshot.exists()) throw new Error("Billing record not found");
+      const currentRaw = snapshot.data() as RawBillingDoc;
+      const target = currentRaw.invoices?.find((invoice) => invoice.id === invoiceId);
+      if (!target) throw new Error("Invoice not found");
+      if (target.status !== "superseded") throw new Error("Only a superseded invoice can be deleted");
+
+      const invoices = currentRaw.invoices!.map((invoice) =>
+        invoice.id === invoiceId ? { ...invoice, deletedAt: new Date().toISOString() } : invoice,
+      );
+      transaction.update(ref, { invoices, updatedAt: serverTimestamp() });
+    });
+  },
+
   async delete(propertyId: string, id: string): Promise<void> {
     await updateDoc(doc(billingCollectionRef(propertyId), id), {
       deletedAt: serverTimestamp(),

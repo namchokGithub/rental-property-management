@@ -47,6 +47,9 @@ export function BillingPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<BillingRecord | undefined>(undefined);
   const [deletingRecord, setDeletingRecord] = useState<BillingRecord | undefined>(undefined);
+  const [issuingRecord, setIssuingRecord] = useState<BillingRecord | undefined>(undefined);
+  const [confirmingBulkIssue, setConfirmingBulkIssue] = useState(false);
+  const [markingPaidRecord, setMarkingPaidRecord] = useState<BillingRecord | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<BillingStatus | "all">("all");
   const [monthFilter, setMonthFilter] = useState<string>("all");
@@ -182,6 +185,7 @@ export function BillingPage() {
         issuedIds.push(id);
       }
       toast.success(t("billing.bulkIssuedToast", { count: issuedIds.length }));
+      setConfirmingBulkIssue(false);
     } catch {
       toast.error(t("common.actionFailed"));
     } finally {
@@ -205,7 +209,7 @@ export function BillingPage() {
           isAdmin && (
             <div className="flex items-center gap-2">
               {effectiveSelectedIds.size > 0 && (
-                <Button variant="secondary" onClick={handleBulkIssue} disabled={isIssuing}>
+                <Button variant="secondary" onClick={() => setConfirmingBulkIssue(true)} disabled={isIssuing}>
                   <Send /> {t("billing.bulkIssueSelected", { count: effectiveSelectedIds.size })}
                 </Button>
               )}
@@ -329,14 +333,7 @@ export function BillingPage() {
                   setFormOpen(true);
                 }}
                 onDelete={setDeletingRecord}
-                onIssue={async (record) => {
-                  try {
-                    const { invoiceNumber } = await updateBilling(record.id, { status: "issued" });
-                    toast.success(t("billing.issuedToast", { invoiceNumber: invoiceNumber ?? "" }));
-                  } catch {
-                    toast.error(t("common.actionFailed"));
-                  }
-                }}
+                onIssue={setIssuingRecord}
                 onReissue={async (record) => {
                   try {
                     const invoiceNumber = await reissueBilling(record.id);
@@ -345,16 +342,7 @@ export function BillingPage() {
                     toast.error(t("common.actionFailed"));
                   }
                 }}
-                onMarkPaid={async (record) => {
-                  try {
-                    const invoice = latestInvoiceFromBilling(record);
-                    if (invoice?.status !== "issued") return;
-                    await markInvoicePaid(record.id, invoice.id);
-                    toast.success(t("billing.paidToast"));
-                  } catch {
-                    toast.error(t("common.actionFailed"));
-                  }
-                }}
+                onMarkPaid={setMarkingPaidRecord}
                 selectedIds={effectiveSelectedIds}
                 onToggleRecord={toggleRecord}
                 onToggleAll={toggleAll}
@@ -423,6 +411,57 @@ export function BillingPage() {
             await deleteBilling(deletingRecord.id);
             toast.success(t("billing.deletedToast"));
             setDeletingRecord(undefined);
+          } catch {
+            toast.error(t("common.actionFailed"));
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        open={issuingRecord !== undefined}
+        onOpenChange={(open) => !open && setIssuingRecord(undefined)}
+        title={t("billing.issueConfirmTitle")}
+        description={t("billing.issueConfirmDescription", {
+          roomNumber: issuingRecord ? roomById[issuingRecord.roomId]?.roomNumber ?? "" : "",
+        })}
+        confirmLabel={t("common.issue")}
+        onConfirm={async () => {
+          if (!issuingRecord) return;
+          try {
+            const { invoiceNumber } = await updateBilling(issuingRecord.id, { status: "issued" });
+            toast.success(t("billing.issuedToast", { invoiceNumber: invoiceNumber ?? "" }));
+            setIssuingRecord(undefined);
+          } catch {
+            toast.error(t("common.actionFailed"));
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmingBulkIssue}
+        onOpenChange={(open) => !open && setConfirmingBulkIssue(false)}
+        title={t("billing.bulkIssueConfirmTitle")}
+        description={t("billing.bulkIssueConfirmDescription", { count: effectiveSelectedIds.size })}
+        confirmLabel={t("common.issue")}
+        onConfirm={handleBulkIssue}
+      />
+
+      <ConfirmDialog
+        open={markingPaidRecord !== undefined}
+        onOpenChange={(open) => !open && setMarkingPaidRecord(undefined)}
+        title={t("billing.markPaidConfirmTitle")}
+        description={t("billing.markPaidConfirmDescription", {
+          invoiceNumber: markingPaidRecord ? latestInvoiceFromBilling(markingPaidRecord)?.invoiceNumber ?? "" : "",
+        })}
+        confirmLabel={t("common.markAsPaid")}
+        onConfirm={async () => {
+          if (!markingPaidRecord) return;
+          try {
+            const invoice = latestInvoiceFromBilling(markingPaidRecord);
+            if (invoice?.status !== "issued") return;
+            await markInvoicePaid(markingPaidRecord.id, invoice.id);
+            toast.success(t("billing.paidToast"));
+            setMarkingPaidRecord(undefined);
           } catch {
             toast.error(t("common.actionFailed"));
           }

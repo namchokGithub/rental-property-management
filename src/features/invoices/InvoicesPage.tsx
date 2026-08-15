@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { CheckCircle2, Download, Eye, FileText, Printer, Search } from "lucide-react";
+import { CheckCircle2, Download, Eye, FileText, Printer, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { SearchInput } from "@/components/common/SearchInput";
 import { Pagination } from "@/components/common/Pagination";
@@ -43,13 +44,14 @@ export function InvoicesPage() {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const { records, isLoading, markInvoicePaid } = useBillingRecords();
+  const { records, isLoading, markInvoicePaid, deleteInvoice } = useBillingRecords();
   const { rooms } = useRooms();
   const { tenants } = useTenants();
   const { settings } = useSettings();
   const navigate = useNavigate();
 
   const [previewRecord, setPreviewRecord] = useState<InvoiceRecord | undefined>(undefined);
+  const [deletingInvoices, setDeletingInvoices] = useState<InvoiceRecord[] | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState("");
   const [monthFilter, setMonthFilter] = useState<string>("all");
   const [yearFilter, setYearFilter] = useState<string>("all");
@@ -75,6 +77,11 @@ export function InvoicesPage() {
         .flatMap(invoiceRecordsFromBilling)
         .sort((a, b) => b.issuedAt.localeCompare(a.issuedAt)),
     [records]
+  );
+
+  const selectedDeletableInvoices = useMemo(
+    () => invoices.filter((record) => selectedIds.has(record.id) && record.status === "superseded"),
+    [invoices, selectedIds],
   );
 
   const availableYears = useMemo(
@@ -207,6 +214,24 @@ export function InvoicesPage() {
     }
   }
 
+  async function handleDeleteInvoices() {
+    if (!deletingInvoices?.length) return;
+    try {
+      for (const invoice of deletingInvoices) {
+        await deleteInvoice(invoice.billingId, invoice.id);
+      }
+      toast.success(t("invoice.deletedToast"));
+      setSelectedIds((previous) => {
+        const next = new Set(previous);
+        deletingInvoices.forEach((invoice) => next.delete(invoice.id));
+        return next;
+      });
+      setDeletingInvoices(undefined);
+    } catch {
+      toast.error(t("common.actionFailed"));
+    }
+  }
+
   if (isLoading || !settings) return <PageSpinner />;
 
   return (
@@ -223,6 +248,11 @@ export function InvoicesPage() {
               <Button onClick={printSelected}>
                 <Printer className="h-4 w-4" /> {t("invoice.bulkPrintSelected", { count: selectedIds.size })}
               </Button>
+              {isAdmin && selectedDeletableInvoices.length > 0 && (
+                <Button variant="destructive" onClick={() => setDeletingInvoices(selectedDeletableInvoices)}>
+                  <Trash2 className="h-4 w-4" /> {t("invoice.deleteSelected", { count: selectedDeletableInvoices.length })}
+                </Button>
+              )}
             </>
           ) : undefined
         }
@@ -410,6 +440,22 @@ export function InvoicesPage() {
                               <TooltipContent>{t("invoice.markAsPaid")}</TooltipContent>
                             </Tooltip>
                           )}
+                          {isAdmin && record.status === "superseded" && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  onClick={() => setDeletingInvoices([record])}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  <span className="sr-only">{t("invoice.deleteInvoice")}</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>{t("invoice.deleteInvoice")}</TooltipContent>
+                            </Tooltip>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -460,6 +506,11 @@ export function InvoicesPage() {
                           {t("invoice.markAsPaid")}
                         </Button>
                       )}
+                      {isAdmin && record.status === "superseded" && (
+                        <Button size="sm" variant="destructive" onClick={() => setDeletingInvoices([record])}>
+                          <Trash2 className="h-4 w-4" /> {t("invoice.deleteInvoice")}
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -487,6 +538,16 @@ export function InvoicesPage() {
         tenant={previewRecord?.tenantId ? tenantById[previewRecord.tenantId] : undefined}
         settings={settings}
         onMarkPaid={markPaid}
+      />
+
+      <ConfirmDialog
+        open={deletingInvoices !== undefined}
+        onOpenChange={(open) => !open && setDeletingInvoices(undefined)}
+        title={t("invoice.deleteConfirmTitle")}
+        description={t("invoice.deleteConfirmDescription", { count: deletingInvoices?.length ?? 0 })}
+        confirmLabel={t("common.delete")}
+        destructive
+        onConfirm={handleDeleteInvoices}
       />
     </div>
   );
