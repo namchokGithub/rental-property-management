@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLanguage } from "@/i18n";
+import { cn } from "@/lib/utils";
 
 export interface FilterFieldOption {
   value: string;
@@ -29,9 +30,10 @@ interface FilterButtonProps {
   fields: FilterField[];
   values: Record<string, string>;
   onApply: (values: Record<string, string>) => void;
+  className?: string;
 }
 
-export function FilterButton({ fields, values, onApply }: FilterButtonProps) {
+export function FilterButton({ fields, values, onApply, className }: FilterButtonProps) {
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>(values);
@@ -59,7 +61,7 @@ export function FilterButton({ fields, values, onApply }: FilterButtonProps) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="relative w-full shrink-0 sm:w-auto">
+        <Button variant="outline" className={cn("relative w-full shrink-0 bg-card sm:w-auto", className)}>
           <Filter />
           {t("common.filter")}
           {activeCount > 0 && (

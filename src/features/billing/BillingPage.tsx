@@ -9,6 +9,7 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { SearchInput } from "@/components/common/SearchInput";
 import { Pagination } from "@/components/common/Pagination";
 import { FilterButton } from "@/components/common/FilterButton";
+import { SortButton } from "@/components/common/SortButton";
 import { BillingTable } from "@/features/billing/BillingTable";
 import { BillingFormDialog } from "@/features/billing/BillingFormDialog";
 import { useAuth } from "@/auth";
@@ -21,11 +22,13 @@ import { useSettings } from "@/hooks/useSettings";
 import { useOtherCharges } from "@/hooks/useOtherCharges";
 import { useLanguage } from "@/i18n";
 import { matchesSearch } from "@/lib/search";
+import { compareSortValues, type SortDirection } from "@/lib/sort";
 import { formatBillingMonth, monthName, yearLabel } from "@/lib/date";
 import { latestInvoiceFromBilling, resolveBillingStatus } from "@/lib/invoice";
 import { type BillingRecord, type BillingStatus } from "@/types/billing";
 import type { Room } from "@/types/room";
 import type { Tenant } from "@/types/tenant";
+import type { BillingSortKey } from "@/features/billing/BillingTable";
 
 const BILLING_STATUSES: BillingStatus[] = ["draft", "issued", "paid", "overdue"];
 const MONTHS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
@@ -44,11 +47,16 @@ export function BillingPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<BillingRecord | undefined>(undefined);
   const [deletingRecord, setDeletingRecord] = useState<BillingRecord | undefined>(undefined);
+  const [issuingRecord, setIssuingRecord] = useState<BillingRecord | undefined>(undefined);
+  const [confirmingBulkIssue, setConfirmingBulkIssue] = useState(false);
+  const [markingPaidRecord, setMarkingPaidRecord] = useState<BillingRecord | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<BillingStatus | "all">("all");
   const [monthFilter, setMonthFilter] = useState<string>("all");
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isIssuing, setIsIssuing] = useState(false);
+  const [sort, setSort] = useState<{ key: BillingSortKey; direction: SortDirection }>({ key: "billingMonth", direction: "desc" });
 
   const roomById = useMemo(() => {
     const map: Record<string, Room> = {};
@@ -97,7 +105,32 @@ export function BillingPage() {
     [sortedRecords, searchQuery, statusFilter, monthFilter, yearFilter, roomById, tenantById, language]
   );
 
-  const { page, setPage, pageSize, setPageSize, totalPages, totalItems, pageItems } = usePagination(filteredRecords);
+  const sortedFilteredRecords = useMemo(
+    () =>
+      [...filteredRecords].sort((left, right) => {
+        const value = (record: BillingRecord) => {
+          const room = roomById[record.roomId];
+          const tenant = record.tenantId ? tenantById[record.tenantId] : undefined;
+          switch (sort.key) {
+            case "room": return room?.roomNumber;
+            case "tenant": return tenant?.name;
+            case "invoiceNumber": return latestInvoiceFromBilling(record)?.invoiceNumber ?? record.invoiceNumber;
+            case "total": return record.total;
+            case "status": return t(`status.${resolveBillingStatus(record)}`);
+            default: return record.billingMonth;
+          }
+        };
+        return compareSortValues(value(left), value(right), sort.direction, language);
+      }),
+    [filteredRecords, sort, roomById, tenantById, language, t]
+  );
+
+  const { page, setPage, pageSize, setPageSize, totalPages, totalItems, pageItems } = usePagination(sortedFilteredRecords);
+
+  function handleSort(key: BillingSortKey) {
+    setSort((current) => ({ key, direction: current.key === key && current.direction === "asc" ? "desc" : "asc" }));
+    setPage(1);
+  }
 
   function getLatestByRoomId(roomId: string): BillingRecord | undefined {
     return records
@@ -134,8 +167,10 @@ export function BillingPage() {
   }
 
   async function handleBulkIssue() {
+    if (isIssuing) return;
     const ids = [...effectiveSelectedIds];
     if (ids.length === 0) return;
+    setIsIssuing(true);
     // MUST stay sequential (for...of + await, not Promise.all): each
     // transactional issuance reads the freshest "existing records for this
     // month" state, so one issuance's write must commit before the next one
@@ -150,9 +185,11 @@ export function BillingPage() {
         issuedIds.push(id);
       }
       toast.success(t("billing.bulkIssuedToast", { count: issuedIds.length }));
+      setConfirmingBulkIssue(false);
     } catch {
       toast.error(t("common.actionFailed"));
     } finally {
+      setIsIssuing(false);
       setSelectedIds((prev) => {
         const next = new Set(prev);
         issuedIds.forEach((id) => next.delete(id));
@@ -172,7 +209,7 @@ export function BillingPage() {
           isAdmin && (
             <div className="flex items-center gap-2">
               {effectiveSelectedIds.size > 0 && (
-                <Button variant="secondary" onClick={handleBulkIssue}>
+                <Button variant="secondary" onClick={() => setConfirmingBulkIssue(true)} disabled={isIssuing}>
                   <Send /> {t("billing.bulkIssueSelected", { count: effectiveSelectedIds.size })}
                 </Button>
               )}
@@ -216,8 +253,10 @@ export function BillingPage() {
               placeholder={t("common.search")}
               className="w-full sm:max-w-sm"
             />
-            <FilterButton
-              fields={[
+            <div className="grid grid-cols-2 gap-3 md:block">
+              <FilterButton
+                className="sm:w-full md:w-auto"
+                fields={[
                 {
                   key: "status",
                   label: t("common.status"),
@@ -243,14 +282,31 @@ export function BillingPage() {
                   ],
                 },
               ]}
-              values={{ status: statusFilter, month: monthFilter, year: yearFilter }}
-              onApply={(values) => {
-                setStatusFilter((values.status as BillingStatus | "all") ?? "all");
-                setMonthFilter(values.month ?? "all");
-                setYearFilter(values.year ?? "all");
-                setPage(1);
-              }}
-            />
+                values={{ status: statusFilter, month: monthFilter, year: yearFilter }}
+                onApply={(values) => {
+                  setStatusFilter((values.status as BillingStatus | "all") ?? "all");
+                  setMonthFilter(values.month ?? "all");
+                  setYearFilter(values.year ?? "all");
+                  setPage(1);
+                }}
+              />
+              <SortButton
+                className="md:hidden"
+                fields={[
+                  { key: "room", label: t("common.room") },
+                  { key: "tenant", label: t("common.tenant") },
+                  { key: "invoiceNumber", label: t("billing.invoiceNumber") },
+                  { key: "billingMonth", label: t("common.month") },
+                  { key: "total", label: t("common.total") },
+                  { key: "status", label: t("common.status") },
+                ]}
+                value={sort}
+                onApply={(value) => {
+                  setSort({ key: value.key as BillingSortKey, direction: value.direction });
+                  setPage(1);
+                }}
+              />
+            </div>
           </div>
           {filteredRecords.length === 0 ? (
             <EmptyState
@@ -277,14 +333,7 @@ export function BillingPage() {
                   setFormOpen(true);
                 }}
                 onDelete={setDeletingRecord}
-                onIssue={async (record) => {
-                  try {
-                    const { invoiceNumber } = await updateBilling(record.id, { status: "issued" });
-                    toast.success(t("billing.issuedToast", { invoiceNumber: invoiceNumber ?? "" }));
-                  } catch {
-                    toast.error(t("common.actionFailed"));
-                  }
-                }}
+                onIssue={setIssuingRecord}
                 onReissue={async (record) => {
                   try {
                     const invoiceNumber = await reissueBilling(record.id);
@@ -293,19 +342,12 @@ export function BillingPage() {
                     toast.error(t("common.actionFailed"));
                   }
                 }}
-                onMarkPaid={async (record) => {
-                  try {
-                    const invoice = latestInvoiceFromBilling(record);
-                    if (invoice?.status !== "issued") return;
-                    await markInvoicePaid(record.id, invoice.id);
-                    toast.success(t("billing.paidToast"));
-                  } catch {
-                    toast.error(t("common.actionFailed"));
-                  }
-                }}
+                onMarkPaid={setMarkingPaidRecord}
                 selectedIds={effectiveSelectedIds}
                 onToggleRecord={toggleRecord}
                 onToggleAll={toggleAll}
+                sort={sort}
+                onSort={handleSort}
               />
               <Pagination
                 page={page}
@@ -369,6 +411,57 @@ export function BillingPage() {
             await deleteBilling(deletingRecord.id);
             toast.success(t("billing.deletedToast"));
             setDeletingRecord(undefined);
+          } catch {
+            toast.error(t("common.actionFailed"));
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        open={issuingRecord !== undefined}
+        onOpenChange={(open) => !open && setIssuingRecord(undefined)}
+        title={t("billing.issueConfirmTitle")}
+        description={t("billing.issueConfirmDescription", {
+          roomNumber: issuingRecord ? roomById[issuingRecord.roomId]?.roomNumber ?? "" : "",
+        })}
+        confirmLabel={t("common.issue")}
+        onConfirm={async () => {
+          if (!issuingRecord) return;
+          try {
+            const { invoiceNumber } = await updateBilling(issuingRecord.id, { status: "issued" });
+            toast.success(t("billing.issuedToast", { invoiceNumber: invoiceNumber ?? "" }));
+            setIssuingRecord(undefined);
+          } catch {
+            toast.error(t("common.actionFailed"));
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmingBulkIssue}
+        onOpenChange={(open) => !open && setConfirmingBulkIssue(false)}
+        title={t("billing.bulkIssueConfirmTitle")}
+        description={t("billing.bulkIssueConfirmDescription", { count: effectiveSelectedIds.size })}
+        confirmLabel={t("common.issue")}
+        onConfirm={handleBulkIssue}
+      />
+
+      <ConfirmDialog
+        open={markingPaidRecord !== undefined}
+        onOpenChange={(open) => !open && setMarkingPaidRecord(undefined)}
+        title={t("billing.markPaidConfirmTitle")}
+        description={t("billing.markPaidConfirmDescription", {
+          invoiceNumber: markingPaidRecord ? latestInvoiceFromBilling(markingPaidRecord)?.invoiceNumber ?? "" : "",
+        })}
+        confirmLabel={t("common.markAsPaid")}
+        onConfirm={async () => {
+          if (!markingPaidRecord) return;
+          try {
+            const invoice = latestInvoiceFromBilling(markingPaidRecord);
+            if (invoice?.status !== "issued") return;
+            await markInvoicePaid(markingPaidRecord.id, invoice.id);
+            toast.success(t("billing.paidToast"));
+            setMarkingPaidRecord(undefined);
           } catch {
             toast.error(t("common.actionFailed"));
           }

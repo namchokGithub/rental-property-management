@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { SearchInput } from "@/components/common/SearchInput";
 import { Pagination } from "@/components/common/Pagination";
 import { FilterButton } from "@/components/common/FilterButton";
+import { SortButton } from "@/components/common/SortButton";
 import { PageSpinner } from "@/components/common/PageSpinner";
 import { usePagination } from "@/hooks/usePagination";
 import { RoomTable } from "@/features/rooms/RoomTable";
@@ -23,7 +24,9 @@ import { useBillingRecords } from "@/hooks/useBillingRecords";
 import { useLanguage } from "@/i18n";
 import { RoomHasActiveAssignmentError } from "@/data/repositories/roomRepository";
 import { matchesSearch } from "@/lib/search";
-import type { Room, RoomStatus } from "@/types/room";
+import { compareSortValues, type SortDirection } from "@/lib/sort";
+import { type Room, type RoomStatus } from "@/types/room";
+import type { RoomSortKey } from "@/features/rooms/RoomTable";
 
 const ROOM_STATUSES: RoomStatus[] = ["available", "occupied", "maintenance", "inactive"];
 
@@ -32,7 +35,7 @@ function today(): string {
 }
 
 export function RoomsPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const { rooms, isLoading, createRoom, updateRoom, deleteRoom } = useRooms();
@@ -49,6 +52,7 @@ export function RoomsPage() {
   const [endingTenancyRoom, setEndingTenancyRoom] = useState<Room | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<RoomStatus | "all">("all");
+  const [sort, setSort] = useState<{ key: RoomSortKey; direction: SortDirection }>({ key: "roomNumber", direction: "asc" });
 
   const activeAssignmentByRoomId = useMemo(() => {
     const map = new Map<string, (typeof assignments)[number]>();
@@ -83,7 +87,29 @@ export function RoomsPage() {
     [rooms, searchQuery, statusFilter, tenantNameByRoomId]
   );
 
-  const { page, setPage, pageSize, setPageSize, totalPages, totalItems, pageItems } = usePagination(filteredRooms);
+  const sortedRooms = useMemo(
+    () =>
+      [...filteredRooms].sort((left, right) => {
+        const value = (room: Room) => {
+          switch (sort.key) {
+            case "floor": return room.floor;
+            case "tenant": return tenantNameByRoomId[room.id];
+            case "monthlyRent": return room.monthlyRent;
+            case "status": return t(`status.${room.status}`);
+            default: return room.roomNumber;
+          }
+        };
+        return compareSortValues(value(left), value(right), sort.direction, language);
+      }),
+    [filteredRooms, sort, tenantNameByRoomId, language, t]
+  );
+
+  const { page, setPage, pageSize, setPageSize, totalPages, totalItems, pageItems } = usePagination(sortedRooms);
+
+  function handleSort(key: RoomSortKey) {
+    setSort((current) => ({ key, direction: current.key === key && current.direction === "asc" ? "desc" : "asc" }));
+    setPage(1);
+  }
 
   if (isLoading) return <PageSpinner />;
 
@@ -138,23 +164,41 @@ export function RoomsPage() {
               placeholder={t("common.search")}
               className="w-full sm:max-w-sm"
             />
-            <FilterButton
-              fields={[
-                {
-                  key: "status",
-                  label: t("common.status"),
-                  options: [
-                    { value: "all", label: t("common.allStatuses") },
-                    ...ROOM_STATUSES.map((status) => ({ value: status, label: t(`status.${status}`) })),
-                  ],
-                },
-              ]}
-              values={{ status: statusFilter }}
-              onApply={(values) => {
-                setStatusFilter((values.status as RoomStatus | "all") ?? "all");
-                setPage(1);
-              }}
-            />
+            <div className="grid grid-cols-2 gap-3 md:block">
+              <FilterButton
+                className="sm:w-full md:w-auto"
+                fields={[
+                  {
+                    key: "status",
+                    label: t("common.status"),
+                    options: [
+                      { value: "all", label: t("common.allStatuses") },
+                      ...ROOM_STATUSES.map((status) => ({ value: status, label: t(`status.${status}`) })),
+                    ],
+                  },
+                ]}
+                values={{ status: statusFilter }}
+                onApply={(values) => {
+                  setStatusFilter((values.status as RoomStatus | "all") ?? "all");
+                  setPage(1);
+                }}
+              />
+              <SortButton
+                className="md:hidden"
+                fields={[
+                  { key: "roomNumber", label: t("room.roomNumber") },
+                  { key: "floor", label: t("room.floor") },
+                  { key: "tenant", label: t("common.tenant") },
+                  { key: "monthlyRent", label: t("room.monthlyRent") },
+                  { key: "status", label: t("common.status") },
+                ]}
+                value={sort}
+                onApply={(value) => {
+                  setSort({ key: value.key as RoomSortKey, direction: value.direction });
+                  setPage(1);
+                }}
+              />
+            </div>
           </div>
           {filteredRooms.length === 0 ? (
             <EmptyState
@@ -181,6 +225,8 @@ export function RoomsPage() {
                 onDelete={setDeletingRoom}
                 onAssign={setAssigningRoom}
                 onEndTenancy={setEndingTenancyRoom}
+                sort={sort}
+                onSort={handleSort}
               />
               <Pagination
                 page={page}

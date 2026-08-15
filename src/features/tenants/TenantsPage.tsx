@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { SearchInput } from "@/components/common/SearchInput";
 import { Pagination } from "@/components/common/Pagination";
 import { FilterButton } from "@/components/common/FilterButton";
+import { SortButton } from "@/components/common/SortButton";
 import { PageSpinner } from "@/components/common/PageSpinner";
 import { usePagination } from "@/hooks/usePagination";
 import { TenantTable } from "@/features/tenants/TenantTable";
@@ -20,14 +21,16 @@ import { useRooms } from "@/hooks/useRooms";
 import { useAssignments } from "@/hooks/useAssignments";
 import { useLanguage } from "@/i18n";
 import { matchesSearch } from "@/lib/search";
+import { compareSortValues, type SortDirection } from "@/lib/sort";
 import { TenantHasActiveAssignmentError } from "@/data/repositories/tenantRepository";
 import type { Tenant, TenantStatus } from "@/types/tenant";
 import type { RoomTenantAssignment } from "@/types/assignment";
+import type { TenantSortKey } from "@/features/tenants/TenantTable";
 
 const TENANT_STATUSES: TenantStatus[] = ["active", "inactive"];
 
 export function TenantsPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const { tenants, isLoading, createTenant, updateTenant, deleteTenant } = useTenants();
@@ -41,6 +44,7 @@ export function TenantsPage() {
   const [assigningTenant, setAssigningTenant] = useState<Tenant | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<TenantStatus | "all">("all");
+  const [sort, setSort] = useState<{ key: TenantSortKey; direction: SortDirection }>({ key: "name", direction: "asc" });
 
   const activeAssignmentByTenantId = useMemo(() => {
     const map: Record<string, RoomTenantAssignment> = {};
@@ -73,7 +77,29 @@ export function TenantsPage() {
     [tenants, searchQuery, statusFilter, activeAssignmentByTenantId, roomById]
   );
 
-  const { page, setPage, pageSize, setPageSize, totalPages, totalItems, pageItems } = usePagination(filteredTenants);
+  const sortedTenants = useMemo(
+    () =>
+      [...filteredTenants].sort((left, right) => {
+        const value = (tenant: Tenant) => {
+          const assignment = activeAssignmentByTenantId[tenant.id];
+          switch (sort.key) {
+            case "room": return assignment ? roomById[assignment.roomId]?.roomNumber : undefined;
+            case "leaseStart": return assignment?.startDate;
+            case "status": return t(`status.${tenant.status}`);
+            default: return tenant.name;
+          }
+        };
+        return compareSortValues(value(left), value(right), sort.direction, language);
+      }),
+    [filteredTenants, sort, activeAssignmentByTenantId, roomById, language, t]
+  );
+
+  const { page, setPage, pageSize, setPageSize, totalPages, totalItems, pageItems } = usePagination(sortedTenants);
+
+  function handleSort(key: TenantSortKey) {
+    setSort((current) => ({ key, direction: current.key === key && current.direction === "asc" ? "desc" : "asc" }));
+    setPage(1);
+  }
 
   if (isLoading) return <PageSpinner />;
 
@@ -123,23 +149,40 @@ export function TenantsPage() {
               placeholder={t("common.search")}
               className="w-full sm:max-w-sm"
             />
-            <FilterButton
-              fields={[
-                {
-                  key: "status",
-                  label: t("common.status"),
-                  options: [
-                    { value: "all", label: t("common.allStatuses") },
-                    ...TENANT_STATUSES.map((status) => ({ value: status, label: t(`status.${status}`) })),
-                  ],
-                },
-              ]}
-              values={{ status: statusFilter }}
-              onApply={(values) => {
-                setStatusFilter((values.status as TenantStatus | "all") ?? "all");
-                setPage(1);
-              }}
-            />
+            <div className="grid grid-cols-2 gap-3 md:block">
+              <FilterButton
+                className="sm:w-full md:w-auto"
+                fields={[
+                  {
+                    key: "status",
+                    label: t("common.status"),
+                    options: [
+                      { value: "all", label: t("common.allStatuses") },
+                      ...TENANT_STATUSES.map((status) => ({ value: status, label: t(`status.${status}`) })),
+                    ],
+                  },
+                ]}
+                values={{ status: statusFilter }}
+                onApply={(values) => {
+                  setStatusFilter((values.status as TenantStatus | "all") ?? "all");
+                  setPage(1);
+                }}
+              />
+              <SortButton
+                className="md:hidden"
+                fields={[
+                  { key: "name", label: t("common.name") },
+                  { key: "room", label: t("tenant.currentRoom") },
+                  { key: "leaseStart", label: t("room.leaseStart") },
+                  { key: "status", label: t("common.status") },
+                ]}
+                value={sort}
+                onApply={(value) => {
+                  setSort({ key: value.key as TenantSortKey, direction: value.direction });
+                  setPage(1);
+                }}
+              />
+            </div>
           </div>
           {filteredTenants.length === 0 ? (
             <EmptyState
@@ -166,6 +209,8 @@ export function TenantsPage() {
                 }}
                 onDelete={setDeletingTenant}
                 onAssign={setAssigningTenant}
+                sort={sort}
+                onSort={handleSort}
               />
               <Pagination
                 page={page}

@@ -69,6 +69,11 @@ export interface Translations {
     nextPage: string;
     filter: string;
     clearFilters: string;
+    sort: string;
+    sortBy: string;
+    sortDirection: string;
+    ascending: string;
+    descending: string;
     year: string;
   };
   sidebar: {
@@ -255,6 +260,12 @@ export interface Translations {
     reissuedToast: string;
     reissueInvoice: string;
     paidToast: string;
+    issueConfirmTitle: string;
+    issueConfirmDescription: string;
+    bulkIssueConfirmTitle: string;
+    bulkIssueConfirmDescription: string;
+    markPaidConfirmTitle: string;
+    markPaidConfirmDescription: string;
     deleteConfirmTitle: string;
     deleteConfirmDescription: string;
     electricityGroup: string;
@@ -293,6 +304,11 @@ export interface Translations {
     preview: string;
     printExport: string;
     markAsPaid: string;
+    deleteInvoice: string;
+    deleteSelected: string;
+    deleteConfirmTitle: string;
+    deleteConfirmDescription: string;
+    deletedToast: string;
     previewTitle: string;
     openFullPreview: string;
     notFound: string;
